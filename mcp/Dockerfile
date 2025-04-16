@@ -20,15 +20,20 @@ RUN node -v && npm -v
 # Copy your mcpo source code (assuming in src/mcpo)
 COPY . /app
 WORKDIR /app
-
+RUN chmod +x prepare.sh && ./prepare.sh
 # Create virtual environment explicitly in known location
 ENV VIRTUAL_ENV=/app/.venv
 RUN uv venv "$VIRTUAL_ENV"
 ENV PATH="$VIRTUAL_ENV/bin:$PATH"
+RUN git clone https://github.com/open-webui/mcpo.git
+WORKDIR /app/mcpo
+
 
 # Install mcpo (assuming pyproject.toml is properly configured)
 RUN uv pip install . && rm -rf ~/.cache
-RUN ux add --default-index https://mirrors.tuna.tsinghua.edu.cn/pypi/web/simple requests
+
+RUN #source $HOME/.local/bin/env
+RUN uv add --default-index https://mirrors.tuna.tsinghua.edu.cn/pypi/web/simple requests
 
 # Verify mcpo installed correctly
 RUN which mcpo
@@ -40,4 +45,4 @@ EXPOSE 8000
 ENTRYPOINT ["mcpo"]
 
 # Default help CMD (can override at runtime)
-CMD ["--config", "./config.json", "--port", "8000", "--host", "0.0.0.0"]
+CMD ["--config", "/app/config.json", "--port", "8000", "--host", "0.0.0.0"]

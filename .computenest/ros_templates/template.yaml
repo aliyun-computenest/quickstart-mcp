@@ -288,8 +288,7 @@ Resources:
       CommandContent:
         Fn::Sub:
           - |
-            cd /root/application
-            source venv/bin/activate
+            cd /root/application/mcp
             cat > config.json << EOF
             ${McpConfigJson}
             EOF
