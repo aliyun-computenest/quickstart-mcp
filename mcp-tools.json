@@ -1,0 +1,191 @@
+[
+  {
+    "ServerCode": "fetch",
+    "ServiceName": "Fetch网页内容抓取",
+    "Description": "该服务器使大型语言模型能够检索和处理网页内容，将HTML转换为markdown格式，以便于更轻松地使用。",
+    "EnvsDescription": "该工具无需填写参数。",
+    "Icon": "https://resouces.modelscope.cn/studio-cover-pre/studio-cover_761f7bfe-fc5c-4753-b955-dcdd3288941b.png",
+    "ReadMeURL": "https://github.com/modelcontextprotocol/servers/blob/main/src/fetch/README.md",
+    "Type": "Command",
+    "Content": {
+      "command": "uvx",
+      "args": ["mcp-server-fetch", "--ignore-robots-txt"],
+      "env": {}
+    },
+    "EnvSchema": {
+      }
+  }
+,
+  {
+    "ServerCode": "amap-maps",
+    "ServiceName": "高德地图",
+    "Description": "高德地图是一个支持任何MCP协议客户端的服务器，允许用户轻松利用高德地图MCP服务器获取各种基于位置的服务。",
+    "EnvsDescription": "参考[文档](https://lbs.amap.com/api/mcp-server/create-project-and-key)'创建应用和Key一节，获取您的Key并填写到下方。'",
+    "Icon": "https://resouces.modelscope.cn/studio-cover-pre/studio-cover_982efeea-b6fe-4c38-91da-501de5a7f098.png",
+    "ReadMeUrl": "https://www.npmjs.com/package/@amap/amap-maps-mcp-server",
+    "Type": "Command",
+    "Content": {
+      "command": "npx",
+      "args": ["-y", "@amap/amap-maps-mcp-server"],
+      "env": {
+        "AMAP_MAPS_API_KEY": "您在高德官网上申请的key"
+      }
+    },
+    "EnvSchema": {
+      "AMAP_MAPS_API_KEY": {
+        "Name": "AMAP_MAPS_API_KEY",
+        "Description": "您在高德官网上申请的key",
+        "Type": "String",
+        "Required": true
+      }
+    }
+  }
+,
+  {
+    "ServerCode": "github",
+    "ServiceName": "GitHub",
+    "Description": "用于GitHub API的MCP服务器，支持文件操作、仓库管理、搜索功能等更多功能。",
+    "EnvsDescription": "1. 访问[Github官网](https://github.com/) 2. 点击头像框后，再点击设置settings，选择最下方左侧的Developer settings并点击进入 3. 点击Personal access tokens创建您的个人Token。更多信息请访问[官方文档](https://docs.github.com/zh/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens)'",
+    "Icon": "https://resouces.modelscope.cn/studio-cover-pre/studio-cover_71c6eb33-fe4a-4142-918f-34c3fe6e6d3a.png",
+    "ReadMeUrl": "https://github.com/modelcontextprotocol/servers/blob/main/src/github/README.md",
+    "Type": "Command",
+    "Content": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-github"],
+      "env": {
+        "GITHUB_PERSONAL_ACCESS_TOKEN": "GitHub Personal Access Token with appropriate permissions (repo scope for full control, public_repo for public repositories only)"
+      }
+    },
+    "EnvSchema": {
+      "GITHUB_PERSONAL_ACCESS_TOKEN": {
+        "Name": "GITHUB_PERSONAL_ACCESS_TOKEN",
+        "Description": "GitHub Personal Access Token with appropriate permissions (repo scope for full control, public_repo for public repositories only)",
+        "Type": "String",
+        "Required": true
+      }
+    }
+  }
+  ,
+  {
+    "ServerCode": "mcp-server-alipay",
+    "ServiceName": "支付宝MCP",
+    "Description": "是支付宝开放平台提供的 MCP Server，让你可以轻松将支付宝开放平台提供的交易创建、查询、退款等能力集成到你的 LLM 应用中，并进一步创建具备支付能力的智能工具。",
+    "EnvsDescription": "1. 支付宝完整MCP使用请参考[文档](https://opendocs.alipay.com/open/0go80l) 2.请至少获取开放平台应用ID，应用私钥和支付宝公钥",
+    "Icon": "https://resouces.modelscope.cn/studio-cover-prod/studio-cover_86796236-c604-4a77-bfa4-e9ca2ca93297.png",
+    "ReadMeUrl": "https://www.npmjs.com/package/@alipay/mcp-server-alipay?activeTab=readme",
+    "Type": "Command",
+    "Content": {
+      "command": "npx",
+      "args": ["-y", "@alipay/mcp-server-alipay"],
+      "env": {
+        "AP_APP_ID": "商户在开放平台申请的应用 ID（APPID）。必需。",
+        "AP_APP_KEY": "商户在开放平台申请的应用私钥。必需。",
+        "AP_PUB_KEY": "用于验证支付宝服务端数据签名的支付宝公钥，在开放平台获取。必需。",
+        "AP_RETURN_URL": "网页支付完成后对付款用户展示的「同步结果返回地址」。",
+        "AP_NOTIFY_URL": "支付完成后，用于告知开发者支付结果的「异步结果通知地址」。",
+        "AP_ENCRYPTION_ALGO": "商户在开放平台配置的参数签名方式（默认 RSA2）。",
+        "AP_CURRENT_ENV": "连接的支付宝开放平台环境（prod/sandbox，默认 prod）。"
+      }
+    },
+    "EnvSchema": {
+      "AP_APP_ID": {
+        "Name": "AP_APP_ID",
+        "Description": "商户在开放平台申请的应用 ID（APPID）。必需。",
+        "Type": "String",
+        "Required": true
+      },
+      "AP_APP_KEY": {
+        "Name": "AP_APP_KEY",
+        "Description": "商户在开放平台申请的应用私钥。必需。",
+        "Type": "String",
+        "Required": true
+      },
+      "AP_PUB_KEY": {
+        "Name": "AP_PUB_KEY",
+        "Description": "用于验证支付宝服务端数据签名的支付宝公钥，在开放平台获取。必需。",
+        "Type": "String",
+        "Required": true
+      },
+      "AP_RETURN_URL": {
+        "Name": "AP_RETURN_URL",
+        "Description": "网页支付完成后对付款用户展示的「同步结果返回地址」。",
+        "Type": "String",
+        "Required": false
+      },
+      "AP_NOTIFY_URL": {
+        "Name": "AP_NOTIFY_URL",
+        "Description": "支付完成后，用于告知开发者支付结果的「异步结果通知地址」。",
+        "Type": "String",
+        "Required": false
+      },
+      "AP_ENCRYPTION_ALGO": {
+        "Name": "AP_ENCRYPTION_ALGO",
+        "Description": "商户在开放平台配置的参数签名方式（可选值：RSA2/RSA，默认 RSA2）。",
+        "Type": "String",
+        "Required": false
+      },
+      "AP_CURRENT_ENV": {
+        "Name": "AP_CURRENT_ENV",
+        "Description": "连接的支付宝开放平台环境（prod 表示线上环境，sandbox 表示沙箱环境，默认 prod）。",
+        "Type": "String",
+        "Required": false
+      }
+    }
+  }
+,
+  {
+    "ServerCode": "wuying-agentbay-mcp-server",
+    "ServiceName": "无影 AgentBay",
+    "Description": "无影AgentBay是AI时代的Agent云基础设施，面向企业、开发者、AI厂商，提供可一键配置的AI Agent任务执行工具和执行环境。您可以通过无影API或AgentBay MCP Server快速集成，并调用相关工具获取Serverless服务。",
+    "Icon": "https://resouces.modelscope.cn/studio-cover-pre/studio-cover_97ce290c-1269-428f-87d0-f90f46f039a9.png",
+    "ReadMeUrl": "https://help.aliyun.com/document_detail/2878644.html?spm=5176.30100617.J_9482567280.1.25ad7105rHsSYv",
+    "Type": "Command",
+    "Content": {
+      "command": "npx",
+      "args": ["-y", "wuying-agentbay-mcp-server"],
+      "env": {
+        "APIKEY": "必须配置的API认证密钥"
+      }
+    },
+    "EnvSchema": {
+      "APIKEY": {
+        "Name": "APIKEY",
+        "Description": "必须配置的API认证密钥",
+        "Type": "String",
+        "Required": true
+      }
+    }
+  }
+  ,
+  {
+    "ServerCode": "time",
+    "ServiceName": "时间服务",
+    "Description": "一个提供时间和时区转换功能的模型上下文协议服务器。该服务器使大型语言模型能够获取当前时间信息，并使用IANA时区名称进行时区转换，支持自动检测系统时区。",
+    "EnvsDescription": "一个提供时间和时区转换功能的模型上下文协议服务器。该服务器使大型语言模型能够获取当前时间信息，并使用IANA时区名称进行时区转换，支持自动检测系统时区'",
+    "Icon": "https://resouces.modelscope.cn/studio-cover-pre/studio-cover_ac639221-aa2e-4235-8087-abd65ab6ab73.jpg",
+    "ReadMeUrl": "https://github.com/modelcontextprotocol/servers/blob/main/src/time/README.md",
+    "Type": "Command",
+    "Content": {
+      "command": "uvx",
+      "args": ["mcp-server-time"],
+      "env": {}
+    },
+    "EnvSchema": {}
+  }
+  ,
+  {
+    "ServerCode": "everything",
+    "ServiceName": "MCP官方示例",
+    "Description": "这个MCP服务器试图运用MCP协议的所有功能。它并不是一个实用的服务器，而是为MCP客户端的开发者提供一个测试服务器。它实现了提示、工具、资源、采样等功能，以展示MCP的能力。",
+    "EnvsDescription": "这个MCP服务器试图运用MCP协议的所有功能。它并不是一个实用的服务器，而是为MCP客户端的开发者提供一个测试服务器。它实现了提示、工具、资源、采样等功能，以展示MCP的能力。'",
+    "Icon": "https://resouces.modelscope.cn/studio-cover-pre/studio-cover_b7b44d22-e3c5-42af-b350-a4af1debc333.png",
+    "ReadMeUrl": "https://github.com/modelcontextprotocol/servers/tree/main/src/everything",
+    "Type": "Command",
+    "Content": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-everything"],
+      "env": {}
+    },
+    "EnvSchema": {}
+  }
+]

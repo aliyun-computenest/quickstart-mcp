@@ -1,12 +1,1 @@
-RuntimeType: Container
-ServiceType: private
-ArtifactSourceType: DockerCompose
-ServiceBuildRegion: ap-southeast-1
-RepoName: aliyun-computenest/quickstart-mcp
-DockerComposeEnvPath: .env
-RegionId: cn-hangzhou
-CustomParameters: ''
-DockerComposeYamlPath: mcp/docker-compose.yaml
-Owner: LYH-RAIN
-Branch: main
-Platform: github
+{"RepoName":"aliyun-computenest/quickstart-mcp","RegionId":"cn-hangzhou","Owner":"LYH-RAIN","Branch":"main","Platform":"github"}

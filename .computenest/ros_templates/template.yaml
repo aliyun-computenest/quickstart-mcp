@@ -13,6 +13,23 @@ Parameters:
     Label:
       zh-cn: MCP运行配置
       en: MCP Running Configuration
+
+
+  MCP_KEY:
+    Type: String
+    Description:
+      zh-cn: MCP工具key，用于保护您的工具不被公网滥用
+      en: MCP tool key, used to protect your tool from being abused by the public network
+    AssociationProperty: AutoCompleteInput
+    AssociationPropertyMetadata:
+      Length: 10
+      CharacterClasses:
+        - Class: "lowercase"
+          min: 4
+        - Class: "camelcase"
+          min: 4
+        - Class: "digit"
+          min: 2
   VpcOption:
     Type: String
     AllowedValues:
@@ -236,7 +253,7 @@ Resources:
           - Ref: EcsVpc
           - Ref: VpcId
       SecurityGroupIngress:
-        - PortRange: 8080/8080
+        - PortRange: 8000/8000
           Priority: 1
           SourceCidrIp: 0.0.0.0/0
           IpProtocol: tcp
@@ -271,8 +288,8 @@ Resources:
       InstanceType:
         Ref: EcsInstanceType
       SystemDiskCategory: cloud_essd
-      SystemDiskSize: 200
-      InternetMaxBandwidthOut: 5
+      SystemDiskSize: 40
+      InternetMaxBandwidthOut: 10
       IoOptimized: optimized
       MaxAmount: 1
   RunInstallCommand:
@@ -280,8 +297,8 @@ Resources:
     Properties:
       InstanceIds:
         Fn::GetAtt:
-        - InstanceGroup
-        - InstanceIds
+          - InstanceGroup
+          - InstanceIds
       Type: RunShellScript
       Sync: true
       Timeout: 3600
@@ -292,6 +309,9 @@ Resources:
             cat > config.json << EOF
             ${McpConfigJson}
             EOF
+            
+            sed -i "s|\${!MCP_KEY}|${mcp_KEY}|g" /root/application/mcp/docker-compose.yaml
+
             file_path="/etc/systemd/system/quickstart-mcp.service"
             if [ ! -f "$file_path" ]; then
             cat > $file_path <<EOF
@@ -312,59 +332,65 @@ Resources:
             WantedBy=multi-user.target
             EOF
 
-
-            # 设置需要检查的服务名称
-            SERVICE_NAME="mcpo-servic"
-
-            # 获取容器ID
-            CONTAINER_ID=$(docker compose ps -q $SERVICE_NAME)
-
-            # 检查容器健康状态
-            check_health_status() {
-              STATUS=$(docker inspect --format='{{.State.Status}}' $CONTAINER_ID)
-
-              if [ "$STATUS" == "running" ]; then
-                echo "Container $SERVICE_NAME is healthy."
-                return 0
-              else
-                echo "Container $SERVICE_NAME status: $STATUS. Waiting..."
-                return 1
-              fi
-            }
-
-            # 循环检查健康状态，直到服务变为healthy
-            while true; do
-              if check_health_status; then
-                exit 0
-              fi
-              sleep 10
-            done
-
             systemctl enable quickstart-mcp
             
             fi
             systemctl daemon-reload
             systemctl start quickstart-mcp
+            cd /root/application/mcp
+
+            MAX_TIMEOUT=1800
+            INTERVAL=10
+            MAX_ATTEMPTS=$((MAX_TIMEOUT / INTERVAL))
+            
+            for ((i=1; i<=MAX_ATTEMPTS; i++))
+              do
+                LATEST_LOG=$(docker logs mcpo-service 2>&1 | tail -n 10)
+                if echo "$LATEST_LOG" | grep -q "Uvicorn running on http://0.0.0.0:8000"
+                  then
+                    echo "success"
+                    exit 0
+                  else
+                    sleep $INTERVAL
+              fi
+            done
           - RegionId:
               Ref: ALIYUN::Region
-Outputs: 
-  open-webui_address:
-    Description:
-      en: open-webui address.
-      zh-cn: open-webui 访问页面。
+            mcp_KEY:
+              Ref: MCP_KEY
+Outputs:
+  mcp_server_address:
+    Lable:
+      en: MCP tool access address
+      zh-cn: MCP工具访问地址
     Value:
-      Fn::Sub:
-        - http://${ServerAddress}:8080
-        - ServerAddress:
-            Fn::Select:
-              - 0
-              - Fn::GetAtt:
-                  - InstanceGroup
-                  - PublicIps
+      Fn::Jq:
+        - All
+        - Fn::Sub:
+            - .mcpServers | keys | map("${URL}" + .)
+            - URL:
+                Fn::Sub:
+                  - http://${ServerAddress}:8000/
+                  - ServerAddress:
+                      Fn::Select:
+                        - 0
+                        - Fn::GetAtt:
+                            - InstanceGroup
+                            - PublicIps
+
+        - Ref: McpConfigJson
+  mcp_api_key:
+    Lable:
+      en: MCP API key
+      zh-cn: MCP API KEY
+    Value:
+      Ref: MCP_KEY
+
 Metadata:
   ALIYUN::ROS::Interface:
     ParameterGroups:
       - Parameters:
+          - MCP_KEY
           - McpConfigJson
         Label:
           Default: Mcp配置

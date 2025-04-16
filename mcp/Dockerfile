@@ -1,11 +1,13 @@
 FROM python:3.12-slim-bookworm
+ENV UV_INDEX_URL="https://pypi.tuna.tsinghua.edu.cn/simple"
 
 # Install uv (from official binary), nodejs, npm, and git
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     git \
-    curl \
+    curl  \
+    vim \
     ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
@@ -20,29 +22,27 @@ RUN node -v && npm -v
 # Copy your mcpo source code (assuming in src/mcpo)
 COPY . /app
 WORKDIR /app
-RUN chmod +x prepare.sh && ./prepare.sh
 
 # Create virtual environment explicitly in known location
 ENV VIRTUAL_ENV=/app/.venv
 RUN uv venv "$VIRTUAL_ENV"
 ENV PATH="$VIRTUAL_ENV/bin:$PATH"
+RUN echo 'export UV_INDEX_URL="https://pypi.tuna.tsinghua.edu.cn/simple"' >> ~/.bashrc && \
+    /bin/bash -c "source ~/.bashrc"
 RUN git clone https://github.com/open-webui/mcpo.git
 WORKDIR /app/mcpo
 
+RUN uv add --default-index https://pypi.tuna.tsinghua.edu.cn/simple requests
 
 # Install mcpo (assuming pyproject.toml is properly configured)
 RUN uv pip install . && rm -rf ~/.cache
+RUN mv /app/prepare.sh /app/mcpo && chmod +x prepare.sh && ./prepare.sh
 
-RUN #source $HOME/.local/bin/env
-RUN uv add --default-index https://mirrors.tuna.tsinghua.edu.cn/pypi/web/simple requests
 # Verify mcpo installed correctly
 RUN which mcpo
 
 # Expose port (optional but common default)
 EXPOSE 8000
 
-# Entrypoint set for easy container invocation
-ENTRYPOINT ["mcpo"]
-
 # Default help CMD (can override at runtime)
-CMD ["--config", "/app/config.json", "--port", "8000", "--host", "0.0.0.0"]
+CMD mcpo --config /app/config.json --port 8000 --host 0.0.0.0 --api-key $API_KEY
