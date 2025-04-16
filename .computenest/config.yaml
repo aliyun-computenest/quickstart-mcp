@@ -1,51 +1,73 @@
 Service:
   RegionId: cn-hangzhou
   DeployType: ros
+  OperationMetadata:
+    StatusOperationConfigs:
+      - TemplateName: ECS单机版
+        SupportOperations:
+          - Start
+          - Stop
+          - Restart
+    SupportBackup: true
+    ModifyParametersConfig:
+      - TemplateName: ECS单机版
+        Operation:
+          - Name: 变更ECS实例规格
+            Description: 变更ECS实例规格
+            Type: Custom
+            Parameters:
+              - EcsInstanceType
+          - Name: 变更ECS实例密码
+            Description: 变更ECS实例密码
+            Type: Custom
+            Parameters:
+              - InstancePassword
   DeployMetadata:
-    ServiceInstanceNameRule:
-      Prefix: mcp-
     SupplierDeployMetadata:
+      SupplierTemplateConfigs:
+        - Name: ECS单机版
+          Url: 'ros_templates/template.yaml'
+          ArchitectureDiagramUrl: 'resources/architecture/architecture.jpg'
+          AllowedRegions:
+            - ap-southeast-1
       ArtifactRelation:
-        'ecs_image-mcp':
+        ecs_image_quickstart-mcp:
           ArtifactId: ${Artifact.EcsImage.ArtifactId}
-          ArtifactVersion: ${Artifact.EcsImage.ArtifactVersion}
+          ArtifactVersion: draft
     TemplateConfigs:
-      - Name: 单机版
+      - Name: ECS单机版
         Url: 'ros_templates/template.yaml'
+        ArchitectureDiagramUrl: 'resources/architecture/architecture.jpg'
+        AllowedRegions:
+          - ap-southeast-1
   ServiceType: private
   ServiceInfo:
-    Locale: zh-CN
-    ShortDescription: mcp server deploy
-    Image: 'resources/icons/service_logo.png'
+    # 英文版可以再配置Locale为en-US的服务信息
+    - Locale: zh-CN
+      ShortDescription: demo
+      Image: 'resources/icons/service_logo.png'
 Artifact:
   EcsImage:
     ArtifactType: EcsImage
-    ArtifactName: mcp
-    Description: mcp
-    ArtifactProperty:
-      RegionId: ${ImageBuilder.EcsImage.RegionId}
-      ImageId: ${ImageBuilder.EcsImage.SourceImageId}
-ImageBuilder:
-  EcsImage:
-    RegionId: ap-southeast-1
-    SourceImageId: aliyun_3_x64_20G_alibase_20240819.vhd
-    SystemDiskSize: 40
-    InstanceType: ecs.c6.large
-    InternetMaxBandwidthOut: 10
-    CommandType: RunShellScript
-    Timeout: 10800
-    Tags: [ ]
-    CommandContent: |-
-      # 安装docker-ce
-      yum-config-manager --add-repo http://mirrors.aliyun.com/docker-ce/linux/centos/docker-ce.repo
-      yum makecache
-      yum install -y wget curl unzip git jq
-      yum install -y docker-ce
-      sudo systemctl enable --now docker.service
-      
-      # 创建mcp目录，用于存放mcp配置文件
-      mkdir -p /root/mcp && cd mcp
-      if [ -e "/root/code/mcp" ]; then cp -r "/root/code/mcp" "/root/application/"; fi
-      cd /root/application
-      docker compose up -d
-      
+    ArtifactName: ecs_image_quickstart-mcp
+    Description: quickstart-mcp EcsImage
+    SupportRegionIds:
+        - ap-southeast-1
+    ArtifactBuildProperty:
+      CodeRepo:
+        Platform: github
+        Owner: LYH-RAIN
+        RepoName: aliyun-computenest/quickstart-mcp
+        Branch: main
+      RegionId: ap-southeast-1
+      CommandType: RunShellScript
+      CommandContent: |-
+        mkdir -p /root/application
+        mkdir -p "/root/application/mcp"
+        if [ -e "/root/code/mcp/open-webui" ]; then cp -r "/root/code/mcp/open-webui" "/root/application/mcp/"; fi
+        if [ -e "/root/code/mcp/docker-compose.yaml" ]; then cp -r "/root/code/mcp/docker-compose.yaml" "/root/application/mcp/"; fi
+        if [ -e "/root/code/.env" ]; then cp -r "/root/code/.env" "/root/application/"; fi
+        cd /root/application
+        sed -i 's/pull_policy: always/pull_policy: if_not_present/g' mcp/docker-compose.yaml
+        docker compose -f mcp/docker-compose.yaml build 
+        docker compose -f mcp/docker-compose.yaml pull 2>&1 | stdbuf -oL grep -viE 'Downloading|sha256|extracting|KiB|Downloaded' || true;

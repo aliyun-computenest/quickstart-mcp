@@ -69,10 +69,10 @@ Parameters:
     Label:
       en: ECS Instance Charge Type
       zh-cn: 付费类型
-    Default: PrePaid
+    Default: PostPaid
     AllowedValues:
-      - PrePaid
       - PostPaid
+      - PrePaid
     AssociationProperty: ChargeType
     AssociationPropertyMetadata:
       LocaleKey: InstanceChargeType
@@ -84,10 +84,9 @@ Parameters:
     Default: Month
     AllowedValues:
       - Month
+      - Year
     AssociationProperty: PayPeriodUnit
     AssociationPropertyMetadata:
-      ValueLabelMapping:
-        Month: 月
       Visible:
         Condition:
           Fn::Not:
@@ -99,10 +98,17 @@ Parameters:
     Label:
       en: Period
       zh-cn: 购买资源时长
-    Default: 12
+    Default: 1
     AllowedValues:
+      - 1
+      - 2
       - 3
-      - 12
+      - 4
+      - 5
+      - 6
+      - 7
+      - 8
+      - 9
     AssociationProperty: PayPeriod
     AssociationPropertyMetadata:
       Visible:
@@ -118,45 +124,11 @@ Parameters:
       zh-cn: 实例类型
     AssociationProperty: ALIYUN::ECS::Instance::InstanceType
     AssociationPropertyMetadata:
-      ZoneId: ${ZoneId}
       InstanceChargeType: ${PayType}
-  SystemDiskCategory:
-    Type: String
-    AllowedValues:
-      - cloud_efficiency
-      - cloud_essd
-      - cloud_essd_entry
-    Label:
-      en: System Disk Category
-      zh-cn: 系统盘类型
-    AssociationPropertyMetadata:
-      LocaleKey: DiskCategory
-  SystemDiskSize:
-    Type: Number
-    Label:
-      zh-cn: 系统盘空间 (GB)
-      en: System Disk Space (GB)
-    MinValue: 40
-    MaxValue: 2000
-  InternetChargeType:
-    Type: String
-    Label:
-      zh-cn: 带宽付费类型
-      en: Internet Charge Type
-    AssociationPropertyMetadata:
-      ValueLabelMapping:
-        PayByTraffic: 按流量计费
-        PayByBandwidth: 按固定带宽计费
-    AllowedValues:
-      - PayByBandwidth
-      - PayByTraffic
-  InternetMaxBandwidthOut:
-    Type: Number
-    Label:
-      zh-cn: 公网带宽 (Mbps)
-      en: Internet Max Bandwidth Out (Mbps)
-    MinValue: 1
-    MaxValue: 100
+      Constraints:
+        InstanceTypeFamily:
+          - ecs.u1
+          - ecs.e
   InstancePassword:
     NoEcho: true
     Type: String
@@ -222,14 +194,6 @@ Parameters:
           Fn::Equals:
             - ExistingVPC
             - ${VpcOption}
-  McpConfigJson:
-    Type: Json
-    Description:
-      zh-cn: Mcp运行的 Json配置
-      en: Mcp Running Json Configuration
-    Label:
-      zh-cn: MCP运行配置
-      en: MCP Running Configuration
 Resources:
   # 新建vpc
   EcsVpc:
@@ -269,16 +233,6 @@ Resources:
           SourceCidrIp: 0.0.0.0/0
           IpProtocol: tcp
           NicType: internet
-        - PortRange: 22/22
-          Priority: 1
-          SourceCidrIp: 0.0.0.0/0
-          IpProtocol: tcp
-          NicType: internet
-        - PortRange: 8000/8000
-          Priority: 1
-          SourceCidrIp: 0.0.0.0/0
-          IpProtocol: tcp
-          NicType: internet
   InstanceGroup:
     Type: ALIYUN::ECS::InstanceGroup
     Properties:
@@ -303,77 +257,56 @@ Resources:
         Ref: ZoneId
       SecurityGroupId:
         Ref: SecurityGroup
-      ImageId: ecs_image-mcp
+      ImageId: ecs_image_quickstart-mcp
       Password:
         Ref: InstancePassword
-      SystemDiskCategory:
-        Ref: SystemDiskCategory
-      SystemDiskSize:
-        Ref: SystemDiskSize
-      MaxAmount: 1
       InstanceType:
         Ref: EcsInstanceType
-      InternetMaxBandwidthOut:
-        Ref: InternetMaxBandwidthOut
-      InternetChargeType:
-        Ref: InternetChargeType
+      SystemDiskCategory: cloud_essd
+      SystemDiskSize: 200
+      InternetMaxBandwidthOut: 5
       IoOptimized: optimized
+      MaxAmount: 1
   RunInstallCommand:
     Type: ALIYUN::ECS::RunCommand
     Properties:
       InstanceIds:
         Fn::GetAtt:
-          - InstanceGroup
-          - InstanceIds
+        - InstanceGroup
+        - InstanceIds
       Type: RunShellScript
       Sync: true
       Timeout: 3600
       CommandContent:
         Fn::Sub:
           - |
-            cd /root/mcp
-            docker compose down
-            docker compose up -d
+            file_path="/etc/systemd/system/quickstart-mcp.service"
+            if [ ! -f "$file_path" ]; then
+            cat > $file_path <<EOF
+            [Unit]
+            Description=Docker Compose Application Service
+            Requires=docker.service
+            After=docker.service
 
-            source venv/bin/activate
-            cat > config.json << EOF
-            ${McpConfigJson}
+            [Service]
+            Type=oneshot
+            RemainAfterExit=yes
+            WorkingDirectory=/root/application
+            ExecStart=/usr/bin/docker compose -f mcp/docker-compose.yaml up -d
+            ExecStop=/usr/bin/docker compose down
+            TimeoutStartSec=0
+
+            [Install]
+            WantedBy=multi-user.target
             EOF
-            mcpo --config config.json --port 8000 &
-
-            # 设置需要检查的服务名称
-            SERVICE_NAME="mcpo-servic"
-
-            # 获取容器ID
-            CONTAINER_ID=$(docker compose ps -q $SERVICE_NAME)
-
-            # 检查容器健康状态
-            check_health_status() {
-              STATUS=$(docker inspect --format='{{.State.Status}}' $CONTAINER_ID)
-
-              if [ "$STATUS" == "running" ]; then
-                echo "Container $SERVICE_NAME is healthy."
-                return 0
-              else
-                echo "Container $SERVICE_NAME status: $STATUS. Waiting..."
-                return 1
-              fi
-            }
-
-            # 循环检查健康状态，直到服务变为healthy
-            while true; do
-              if check_health_status; then
-                exit 0
-              fi
-              sleep 10
-            done
-
+            systemctl enable quickstart-mcp
+            
+            fi
+            systemctl daemon-reload
+            systemctl start quickstart-mcp
           - RegionId:
               Ref: ALIYUN::Region
-            ConfigJSON:
-              Ref: McpConfigJson
-
-Outputs:
+Outputs: 
   open-webui_address:
     Description:
       en: open-webui address.
@@ -398,18 +331,9 @@ Metadata:
           default: 付费类型配置
       - Parameters:
           - EcsInstanceType
-          - InternetChargeType
-          - InternetMaxBandwidthOut
-          - SystemDiskCategory
-          - SystemDiskSize
           - InstancePassword
         Label:
-          default: 服务器基础配置
-      - Parameters:
-          - BaiLianApiKey
-          - AmapApiKey
-        Label:
-          default: 配置百炼和高德服务
+          default: 资源配置
       - Parameters:
           - ZoneId
           - VpcOption
@@ -418,36 +342,4 @@ Metadata:
           - VpcCidrBlock
           - VSwitchCidrBlock
         Label:
-          default: 配置专有网络
-    QuickDeployConfig:
-      PackageFields:
-        - Key: EcsInstanceType
-        - Key: SystemDiskCategory
-          Label:
-            zh-cn: 系统盘
-            en: System Disk
-          Value: '${SystemDiskCategory} / ${SystemDiskSize} GB'
-        - Key: InternetChargeType
-          Label:
-            zh-cn: 公网带宽
-            en: Internet Charge Type
-          Value: '${InternetChargeType } / ${InternetMaxBandwidthOut} Mbps'
-        - Key: PayType
-          Label:
-            zh-cn: 付费类型
-            en:  Pay Type
-          Value: '${PayType}'
-        - Key: PayPeriodUnit
-          Label:
-            zh-cn: 付费时长
-            en: Pay Period
-          Value: '${PayPeriod} ${PayPeriodUnit}'
-      CustomFields:
-        - Key: InstancePassword
-        - Key: BaiLianApiKey
-        - Key: AmapApiKey
-      CostRelatedKeys:
-        - RegionId
-        - PayPeriod
-      AutomaticZone:
-        ZoneIdKey: ZoneId
+          default: 可用区配置
