@@ -21,6 +21,7 @@ RUN node -v && npm -v
 COPY . /app
 WORKDIR /app
 RUN chmod +x prepare.sh && ./prepare.sh
+
 # Create virtual environment explicitly in known location
 ENV VIRTUAL_ENV=/app/.venv
 RUN uv venv "$VIRTUAL_ENV"
