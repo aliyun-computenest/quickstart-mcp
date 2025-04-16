@@ -34,7 +34,6 @@ RUN uv pip install . && rm -rf ~/.cache
 
 RUN #source $HOME/.local/bin/env
 RUN uv add --default-index https://mirrors.tuna.tsinghua.edu.cn/pypi/web/simple requests
-
 # Verify mcpo installed correctly
 RUN which mcpo
 

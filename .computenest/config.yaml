@@ -63,8 +63,7 @@ Artifact:
       CommandType: RunShellScript
       CommandContent: |-
         mkdir -p /root/application
-        mkdir -p "/root/application/mcp"
-        if [ -e "/root/code/mcp/" ]; then cp -r "/root/code/mcp/" "/root/application/mcp/"; fi
+        if [ -e "/root/code/mcp/" ]; then cp -r "/root/code/mcp/" "/root/application/"; fi
         cd /root/application
         sed -i 's/pull_policy: always/pull_policy: if_not_present/g' mcp/docker-compose.yaml
         docker compose -f mcp/docker-compose.yaml build 

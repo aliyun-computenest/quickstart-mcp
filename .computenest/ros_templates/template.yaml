@@ -288,7 +288,7 @@ Resources:
       CommandContent:
         Fn::Sub:
           - |
-            cd /root/application/mcp
+            cd /root
             cat > config.json << EOF
             ${McpConfigJson}
             EOF
@@ -312,7 +312,6 @@ Resources:
             WantedBy=multi-user.target
             EOF
 
-            mcpo --config config.json --port 8000 &
 
             # 设置需要检查的服务名称
             SERVICE_NAME="mcpo-servic"

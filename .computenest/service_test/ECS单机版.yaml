@@ -1,4 +1,4 @@
-caseId: stc-4973bc00d0e041bca3d4
+caseId: stc-51ee9b1b55894ccdbdc8
 parameters:
   EcsInstanceType: $[iact3-auto]
   InstancePassword: $[iact3-auto]
