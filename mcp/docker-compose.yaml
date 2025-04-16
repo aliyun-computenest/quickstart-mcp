@@ -1,19 +1,8 @@
 services:
-  open-webui:
-    image: ghcr.io/open-webui/open-webui:latest
-    container_name: open-webui
-    volumes:
-      - open-webui:/app/backend/data
+  mcpo-service:
+    build: .
     ports:
-      - 8080:8080
-    extra_hosts:
-      - host.docker.internal:host-gateway
+      - "8000:8000"
+    volumes:
+      - ./config.json:/app/config.json
     restart: unless-stopped
-    environment:
-      - 'ENABLE_OPENAI_API=True'
-      - 'ENABLE_OLLAMA_API=False'
-      - 'OPENAI_API_BASE_URL=https://dashscope.aliyuncs.com/compatible-mode/v1'
-      - 'OPENAI_API_KEY=${OPENAI_API_KEY}'
-volumes:
-  ollama: {}
-  open-webui: {}

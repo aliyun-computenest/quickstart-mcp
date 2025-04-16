@@ -5,6 +5,14 @@ Conditions:
       - NewVPC
       - Ref: VpcOption
 Parameters:
+  McpConfigJson:
+    Type: Json
+    Description:
+      zh-cn: Mcp运行的 Json配置
+      en: Mcp Running Json Configuration
+    Label:
+      zh-cn: MCP运行配置
+      en: MCP Running Configuration
   VpcOption:
     Type: String
     AllowedValues:
@@ -280,6 +288,11 @@ Resources:
       CommandContent:
         Fn::Sub:
           - |
+            cd /root/application
+            source venv/bin/activate
+            cat > config.json << EOF
+            ${McpConfigJson}
+            EOF
             file_path="/etc/systemd/system/quickstart-mcp.service"
             if [ ! -f "$file_path" ]; then
             cat > $file_path <<EOF
@@ -299,6 +312,36 @@ Resources:
             [Install]
             WantedBy=multi-user.target
             EOF
+
+            mcpo --config config.json --port 8000 &
+
+            # 设置需要检查的服务名称
+            SERVICE_NAME="mcpo-servic"
+
+            # 获取容器ID
+            CONTAINER_ID=$(docker compose ps -q $SERVICE_NAME)
+
+            # 检查容器健康状态
+            check_health_status() {
+              STATUS=$(docker inspect --format='{{.State.Status}}' $CONTAINER_ID)
+
+              if [ "$STATUS" == "running" ]; then
+                echo "Container $SERVICE_NAME is healthy."
+                return 0
+              else
+                echo "Container $SERVICE_NAME status: $STATUS. Waiting..."
+                return 1
+              fi
+            }
+
+            # 循环检查健康状态，直到服务变为healthy
+            while true; do
+              if check_health_status; then
+                exit 0
+              fi
+              sleep 10
+            done
+
             systemctl enable quickstart-mcp
             
             fi
@@ -323,6 +366,10 @@ Outputs:
 Metadata:
   ALIYUN::ROS::Interface:
     ParameterGroups:
+      - Parameters:
+          - McpConfigJson
+        Label:
+          Default: Mcp配置
       - Parameters:
           - PayType
           - PayPeriodUnit
