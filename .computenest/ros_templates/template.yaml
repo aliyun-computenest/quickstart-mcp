@@ -26,9 +26,9 @@ Parameters:
       CharacterClasses:
         - Class: "lowercase"
           min: 4
-        - Class: "camelcase"
+        - Class: "uppercase"
           min: 4
-        - Class: "digit"
+        - Class: "number"
           min: 2
   VpcOption:
     Type: String
