@@ -307,7 +307,7 @@ Resources:
             generate_mcp_servers() {
                 local servers_json=("$@")
                 # 使用jq处理数据，生成目标格式
-                printf '%s\n' "${servers_json[@]}" | jq -s 'reduce .[] as $item (
+                printf '%s\n' "${!servers_json[@]}" | jq -s 'reduce .[] as $item (
                 { "mcpServers": {} };
                 .mcpServers[$item.ServerCode] = {
                 command: $item.command,
