@@ -48,7 +48,10 @@ Service:
     ShortDescription: 一键批量部署MCP
     Image: 
       https://service-info-public.oss-cn-hangzhou.aliyuncs.com/1853370294850618/service-image/ba45d5c8-8654-44a9-a60a-a3090a958c77.png
-    SoftwareInfos: []
+    Softwares:
+      - Locale: zh-CN
+        Name: mcpo
+        Version: 0.0.12
 Artifact:
   EcsImage:
     ArtifactType: EcsImage
@@ -66,6 +69,7 @@ Artifact:
       CommandType: RunShellScript
       CommandContent: |-
         mkdir -p /root/application
+        yum install jq -y
         if [ -e "/root/code/mcp/" ]; then cp -r "/root/code/mcp/" "/root/application/"; fi
         cd /root/application
         sed -i 's/pull_policy: always/pull_policy: if_not_present/g' mcp/docker-compose.yaml
