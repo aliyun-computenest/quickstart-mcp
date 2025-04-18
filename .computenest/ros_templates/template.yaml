@@ -317,7 +317,7 @@ Resources:
             }
             
             # 调用函数并获取结果
-            result=$(generate_mcp_servers "${MCP_CONFIG[@]}")
+            result=$(generate_mcp_servers "${!MCP_CONFIG[@]}")
             cd /root
             cat > config.json << EOF
             ${!result}
