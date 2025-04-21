@@ -111,8 +111,8 @@
       "en": "Alipay MCP is an MCP Server provided by Alipay Open Platform, allowing you to easily integrate the capabilities of Alipay Open Platform such as transaction creation, query, and refund into your LLM applications, and further create tools with payment capabilities."
     },
     "EnvsDescription": {
-      "zh-cn": "1. 支付宝完整MCP使用请参考[文档](https://opendocs.alipay.com/open/0go80l) 2.请至少获取开放平台应用ID，应用私钥和支付宝公钥",
-      "en": "1. Refer to the [documentation](https://opendocs.alipay.com/open/0go80l) \n2. At least obtain the Open Platform application ID, application private key, and Alipay public key."
+      "zh-cn": "1. 支付宝完整MCP使用请参考[文档](https://opendocs.alipay.com/open/0go80l) \n 2.请至少获取开放平台应用ID，应用私钥和支付宝公钥",
+      "en": "1. Refer to the [documentation](https://opendocs.alipay.com/open/0go80l) \n 2. At least obtain the Open Platform application ID, application private key, and Alipay public key."
     },
     "Icon": "https://resouces.modelscope.cn/studio-cover-prod/studio-cover_86796236-c604-4a77-bfa4-e9ca2ca93297.png",
     "ReadMeUrl": "https://www.npmjs.com/package/@alipay/mcp-server-alipay?activeTab=readme",
@@ -209,8 +209,8 @@
       "en": "Wuying AgentBay is an AI-powered Agent cloud infrastructure designed for enterprises, developers, and AI manufacturers. It provides a one-click configurable AI Agent task execution tool and execution environment. You can integrate with Wuying API or AgentBay MCP Server quickly and call the relevant tools to get Serverless services."
     },
     "EnvsDescription": {
-      "zh-cn": "## 如何在百炼上使用无影AgentBay MCP服务\n Step1: 访问AgentBay控制台配置资源并获得API KEY。\nStep2: 在您的管控台生成资源池。\nStep3: 在您的百炼应用端增加无影MCP组件，并设置API KEY。\nStep4: 接受MCP反馈的信息按需拉取画面流。",
-      "en": "## How to Use Wuying AgentBay MCP Service on Bailian\nStep1: Access the AgentBay Console to configure resources and obtain an API KEY.  \nStep2: Create a resource pool in your management console.  \nStep3: Add the Wuying MCP component to your Bailian application and configure the API KEY.  \nStep4: Receive MCP feedback and pull the video stream on demand.\n"
+      "zh-cn": "## 如何在百炼上使用无影AgentBay MCP服务 \n 1. 访问AgentBay控制台配置资源并获得API KEY。\n 2. 在您的管控台生成资源池。\n 3. 在您的百炼应用端增加无影MCP组件，并设置API KEY。\n 4. 接受MCP反馈的信息按需拉取画面流。",
+      "en": "## How to Use Wuying AgentBay MCP Service on Bailian\n 1. Access the AgentBay Console to configure resources and obtain an API KEY.  \n 2. Create a resource pool in your management console.  \n 3. Add the Wuying MCP component to your Bailian application and configure the API KEY.  \n 4. Receive MCP feedback and pull the video stream on demand.\n"
     },
     "Icon": "https://resouces.modelscope.cn/studio-cover-pre/studio-cover_97ce290c-1269-428f-87d0-f90f46f039a9.png",
     "ReadMeUrl": "https://help.aliyun.com/document_detail/2878644.html?spm=5176.30100617.J_9482567280.1.25ad7105rHsSYv",
@@ -323,7 +323,7 @@
       "en": "Official MiniMax Model Context Protocol (MCP) server that enables interaction with powerful Text to Speech and video/image generation APIs. This server allows MCP clients like Claude Desktop, Cursor, Windsurf, OpenAI Agents and others to generate speech, clone voices, generate video, generate image and more."
     },
     "EnvsDescription": {
-      "zh-cn": "1. \"1. 访问该[地址](https://platform.minimaxi.com/login)获取API秘钥 \n 2. 配置MINIMAX_API_HOST，国际：https://api.minimaxi.chat （请注意额外的 \\\"i\\\" 字母）国内：https://api.minimax.chat \n 3. 根据需要配置资源生成后的提供方式。如本地或URL的方式",
+      "zh-cn": "1. 访问该[地址](https://platform.minimaxi.com/login)获取API秘钥 \n 2. 配置MINIMAX_API_HOST，国际：https://api.minimaxi.chat （请注意额外的 \\\"i\\\" 字母）国内：https://api.minimax.chat \n 3. 根据需要配置资源生成后的提供方式。如本地或URL的方式",
       "en": "1. Visit the [link](https://platform.minimaxi.com/login) to get the API secret \n 2. Configure MINIMAX_API_HOST, International: https://api.minimaxi.chat (Note the additional \\\"i\\\" letter) China: https://api.minimax.chat \n 3. Configure the way resource generation is provided. Such as local or URL"
     },
     "Icon": "https://resouces.modelscope.cn/studio-cover-pre/studio-cover_4b0061a7-e072-48cc-ba12-df0cc1201ae0.jpeg",
