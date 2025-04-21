@@ -303,24 +303,9 @@ Resources:
       CommandContent:
         Fn::Sub:
           - |
-
-            generate_mcp_servers() {
-                local servers_json=("$@")
-                # 使用jq处理数据，生成目标格式
-                printf '%s\n' "${!servers_json[@]}" | jq -s 'reduce .[] as $item (
-                { "mcpServers": {} };
-                .mcpServers[$item.ServerCode] = {
-                command: $item.command,
-                args: $item.args
-              } + (if ($item | has("env")) then { env: $item.env } else {} end)
-                )'
-            }
-            
-            # 调用函数并获取结果
-            result=$(generate_mcp_servers "${!MCP_CONFIG[@]}")
             cd /root
             cat > config.json << EOF
-            ${!result}
+            ${MCP_RESULT}
             EOF
             sed -i "s|\${!MCP_KEY}|${mcp_KEY}|g" /root/application/mcp/docker-compose.yaml
 
@@ -370,8 +355,11 @@ Resources:
               Ref: ALIYUN::Region
             mcp_KEY:
               Ref: MCP_KEY
-            MCP_CONFIG:
-              Ref: McpConfigJson
+            MCP_RESULT:
+              Fn::Jq:
+                - "All"
+                - '{ mcpServers:(.MCPConfig | map({ (.ServerCode): ({ command: .command, args: .args } + (if (.env | length) > 0 then { env: .env } else { } end)) }) | add) }'
+                - Ref: McpConfigJson
 
 Outputs:
   mcp_server_address:

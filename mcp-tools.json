@@ -1,12 +1,18 @@
 [
   {
     "ServerCode": "fetch",
-    "ServiceName": "Fetch网页内容抓取",
-    "Description": "该服务器使大型语言模型能够检索和处理网页内容，将HTML转换为markdown格式，以便于更轻松地使用。",
-    "Tags": ["浏览器自动化"],
+    "ServiceName":{
+      "zh-cn": "fetch网页内容抓取",
+      "en": "Fetch"
+    },
+    "Description": {
+      "zh-cn": "用于抓取网页内容的MCP服务器，将网页内容转换为Markdown格式，以以便于更轻松地使用",
+      "en": "A tool for fetching web content using MCP servers, converting web content to Markdown format, making it easier to use."
+    },
+    "Tags": ["BrowserAutomation"],
     "EnvsDescription": "该工具无需填写参数。",
     "Icon": "https://resouces.modelscope.cn/studio-cover-pre/studio-cover_761f7bfe-fc5c-4753-b955-dcdd3288941b.png",
-    "ReadMeURL": "https://github.com/modelcontextprotocol/servers/blob/main/src/fetch/README.md",
+    "ReadMeUrl": "https://github.com/modelcontextprotocol/servers/blob/main/src/fetch/README.md",
     "Type": "Command",
     "Content": {
       "command": "uvx",
@@ -19,10 +25,19 @@
 ,
   {
     "ServerCode": "amap-maps",
-    "ServiceName": "高德地图",
-    "Tags": ["位置服务"],
-    "Description": "高德地图是一个支持任何MCP协议客户端的服务器，允许用户轻松利用高德地图MCP服务器获取各种基于位置的服务。",
-    "EnvsDescription": "参考[文档](https://lbs.amap.com/api/mcp-server/create-project-and-key)'创建应用和Key一节，获取您的Key并填写到下方。'",
+    "ServiceName": {
+      "zh-cn": "高德地图",
+      "en": "amap-maps"
+    },
+    "Tags": ["LocationServices"],
+    "Description": {
+      "zh-cn": "高德地图是一个支持任何MCP协议客户端的服务器，允许用户轻松利用高德地图MCP服务器获取各种基于位置的服务。",
+      "en": "A tool for fetching web content using MCP servers, converting web content to Markdown format, making it easier to use."
+    },
+    "EnvsDescription": {
+      "zh-cn": "1. 参考[文档](https://lbs.amap.com/api/mcp-server/create-project-and-key)\n 2. 进入创建应用和Key一节，获取您的Key并填写到下方。",
+      "en": "1. Refer to the [documentation](https://lbs.amap.com/api/mcp-server/create-project-and-key) \n2. Navigate to the \"Create Application and Key\" section, obtain your Key and enter it below.\n"
+    },
     "Icon": "https://resouces.modelscope.cn/studio-cover-pre/studio-cover_982efeea-b6fe-4c38-91da-501de5a7f098.png",
     "ReadMeUrl": "https://www.npmjs.com/package/@amap/amap-maps-mcp-server",
     "Type": "Command",
@@ -30,13 +45,16 @@
       "command": "npx",
       "args": ["-y", "@amap/amap-maps-mcp-server"],
       "env": {
-        "AMAP_MAPS_API_KEY": "您在高德官网上申请的key"
+        "AMAP_MAPS_API_KEY": ""
       }
     },
     "EnvSchema": {
       "AMAP_MAPS_API_KEY": {
         "Name": "AMAP_MAPS_API_KEY",
-        "Description": "您在高德官网上申请的key",
+        "Description": {
+          "zh-cn": "高德地图的Key，在高德官网上申请。",
+          "en": "Your Amap Maps API Key"
+        },
         "Type": "String",
         "Required": true
       }
@@ -45,10 +63,19 @@
 ,
   {
     "ServerCode": "github",
-    "ServiceName": "GitHub",
-    "Tags": ["开发者工具"],
-    "Description": "用于GitHub API的MCP服务器，支持文件操作、仓库管理、搜索功能等更多功能。",
-    "EnvsDescription": "1. 访问[Github官网](https://github.com/) 2. 点击头像框后，再点击设置settings，选择最下方左侧的Developer settings并点击进入 3. 点击Personal access tokens创建您的个人Token。更多信息请访问[官方文档](https://docs.github.com/zh/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens)'",
+    "ServiceName": {
+      "zh-cn": "Github",
+      "en": "Github"
+    },
+    "Tags": ["DeveloperTools"],
+    "Description": {
+      "zh-cn": "用于GitHub API的MCP服务器，支持文件操作、仓库管理、搜索功能等更多功能。",
+      "en": "A tool for fetching web content using MCP servers, converting web content to Markdown format, making it easier to use."
+    },
+    "EnvsDescription": {
+      "zh-cn": "1. [创建个人Github Token](https://github.com/settings/personal-access-tokens/new?spm=5176.28197581.0.0.515c29a4KL8q9b) \n 2. MCP 服务可以使用许多 GitHub API，请启用您认为可以授予 AI 工具的权限（要了解有关访问令牌的更多信息，请查看文档）。在下方填入 GITHUB_PERSONAL_ACCESS_TOKEN，并确认开通后使用。更多信息请访问[官方文档](https://docs.github.com/zh/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens)'",
+      "en": "1. [create personal Github Token](https://github.com/settings/personal-access-tokens/new?spm=5176.28197581.0.0.515c29a4KL8q9b) \n 2. MCP services can use many GitHub APIs, please enable the permissions that you think can be granted to your AI tools (for more information about access tokens, see the documentation)."
+    },
     "Icon": "https://resouces.modelscope.cn/studio-cover-pre/studio-cover_71c6eb33-fe4a-4142-918f-34c3fe6e6d3a.png",
     "ReadMeUrl": "https://github.com/modelcontextprotocol/servers/blob/main/src/github/README.md",
     "Type": "Command",
@@ -56,13 +83,16 @@
       "command": "npx",
       "args": ["-y", "@modelcontextprotocol/server-github"],
       "env": {
-        "GITHUB_PERSONAL_ACCESS_TOKEN": "GitHub Personal Access Token with appropriate permissions (repo scope for full control, public_repo for public repositories only)"
+        "GITHUB_PERSONAL_ACCESS_TOKEN": ""
       }
     },
     "EnvSchema": {
       "GITHUB_PERSONAL_ACCESS_TOKEN": {
         "Name": "GITHUB_PERSONAL_ACCESS_TOKEN",
-        "Description": "GitHub Personal Access Token with appropriate permissions (repo scope for full control, public_repo for public repositories only)",
+        "Description": {
+          "zh-cn": "Github个人访问Token",
+          "en": "Your GitHub Personal Access Token with appropriate permissions (repo scope for full control, public_repo for public repositories only)"
+        },
         "Type": "String",
         "Required": true
       }
@@ -71,10 +101,19 @@
   ,
   {
     "ServerCode": "mcp-server-alipay",
-    "ServiceName": "支付宝MCP",
-    "Tags": ["金融"],
-    "Description": "是支付宝开放平台提供的 MCP Server，让你可以轻松将支付宝开放平台提供的交易创建、查询、退款等能力集成到你的 LLM 应用中，并进一步创建具备支付能力的智能工具。",
-    "EnvsDescription": "1. 支付宝完整MCP使用请参考[文档](https://opendocs.alipay.com/open/0go80l) 2.请至少获取开放平台应用ID，应用私钥和支付宝公钥",
+    "ServiceName": {
+      "zh-cn": "支付宝MCP",
+      "en": "Alipay MCP"
+    },
+    "Tags": ["Finance"],
+    "Description": {
+      "zh-cn": "是支付宝开放平台提供的 MCP Server，让你可以轻松将支付宝开放平台提供的交易创建、查询、退款等能力集成到你的 LLM 应用中，并进一步创建具备支付能力的智能工具。",
+      "en": "Alipay MCP is an MCP Server provided by Alipay Open Platform, allowing you to easily integrate the capabilities of Alipay Open Platform such as transaction creation, query, and refund into your LLM applications, and further create tools with payment capabilities."
+    },
+    "EnvsDescription": {
+      "zh-cn": "1. 支付宝完整MCP使用请参考[文档](https://opendocs.alipay.com/open/0go80l) 2.请至少获取开放平台应用ID，应用私钥和支付宝公钥",
+      "en": "1. Refer to the [documentation](https://opendocs.alipay.com/open/0go80l) \n2. At least obtain the Open Platform application ID, application private key, and Alipay public key."
+    },
     "Icon": "https://resouces.modelscope.cn/studio-cover-prod/studio-cover_86796236-c604-4a77-bfa4-e9ca2ca93297.png",
     "ReadMeUrl": "https://www.npmjs.com/package/@alipay/mcp-server-alipay?activeTab=readme",
     "Type": "Command",
@@ -82,55 +121,76 @@
       "command": "npx",
       "args": ["-y", "@alipay/mcp-server-alipay"],
       "env": {
-        "AP_APP_ID": "商户在开放平台申请的应用 ID（APPID）。必需。",
-        "AP_APP_KEY": "商户在开放平台申请的应用私钥。必需。",
-        "AP_PUB_KEY": "用于验证支付宝服务端数据签名的支付宝公钥，在开放平台获取。必需。",
-        "AP_RETURN_URL": "网页支付完成后对付款用户展示的「同步结果返回地址」。",
-        "AP_NOTIFY_URL": "支付完成后，用于告知开发者支付结果的「异步结果通知地址」。",
-        "AP_ENCRYPTION_ALGO": "商户在开放平台配置的参数签名方式（默认 RSA2）。",
-        "AP_CURRENT_ENV": "连接的支付宝开放平台环境（prod/sandbox，默认 prod）。"
+        "AP_APP_ID": "",
+        "AP_APP_KEY": "",
+        "AP_PUB_KEY": "",
+        "AP_RETURN_URL": "",
+        "AP_NOTIFY_URL": "",
+        "AP_ENCRYPTION_ALGO": "",
+        "AP_CURRENT_ENV": ""
       }
     },
     "EnvSchema": {
       "AP_APP_ID": {
         "Name": "AP_APP_ID",
-        "Description": "商户在开放平台申请的应用 ID（APPID）。必需。",
+        "Description": {
+          "zh-cn": "商户在开放平台申请的应用 ID（APPID）。必需。",
+          "en": "The application ID provided to the merchant by the Open Platform."
+        },
         "Type": "String",
         "Required": true
       },
       "AP_APP_KEY": {
         "Name": "AP_APP_KEY",
-        "Description": "商户在开放平台申请的应用私钥。必需。",
+        "Description": {
+          "zh-cn":"商户在开放平台申请的应用私钥。必需。",
+          "en": "The application private key provided to the merchant by the Open Platform."
+        },
         "Type": "String",
         "Required": true
       },
       "AP_PUB_KEY": {
         "Name": "AP_PUB_KEY",
-        "Description": "用于验证支付宝服务端数据签名的支付宝公钥，在开放平台获取。必需。",
+        "Description": {
+          "zh-cn": "用于验证支付宝服务端数据签名的支付宝公钥，在开放平台获取。必需。",
+          "en": "The public key used to verify the signature of the data sent by the Alipay server."
+        },
         "Type": "String",
         "Required": true
       },
       "AP_RETURN_URL": {
         "Name": "AP_RETURN_URL",
-        "Description": "网页支付完成后对付款用户展示的「同步结果返回地址」。",
+        "Description": {
+          "zh-cn": "网页支付完成后对付款用户展示的「同步结果返回地址」。",
+          "en": "The URL to which the payment results will be returned to the payment user after the payment is completed."
+        },
         "Type": "String",
         "Required": false
       },
       "AP_NOTIFY_URL": {
         "Name": "AP_NOTIFY_URL",
-        "Description": "支付完成后，用于告知开发者支付结果的「异步结果通知地址」。",
+        "Description": {
+          "zh-cn": "支付完成后，用于告知开发者支付结果的异步",
+          "en": "A callback mechanism used to notify developers of payment outcomes after transaction completion through server-to-server communication."
+        },
         "Type": "String",
         "Required": false
       },
       "AP_ENCRYPTION_ALGO": {
         "Name": "AP_ENCRYPTION_ALGO",
-        "Description": "商户在开放平台配置的参数签名方式（可选值：RSA2/RSA，默认 RSA2）。",
+        "Description": {
+          "zh-cn": "商户在开放平台配置的参数签名方式（可选值：RSA2/RSA，默认 RSA2）。",
+          "en": "The signature algorithm configured by the merchant in the Open Platform (optional value: RSA2/RSA, default RSA2)."
+        },
         "Type": "String",
         "Required": false
       },
       "AP_CURRENT_ENV": {
         "Name": "AP_CURRENT_ENV",
-        "Description": "连接的支付宝开放平台环境（prod 表示线上环境，sandbox 表示沙箱环境，默认 prod）。",
+        "Description": {
+          "zh-cn": "连接的支付宝开放平台环境（prod 表示线上环境，sandbox 表示沙箱环境，默认 prod）。",
+          "en": "The environment of the Alipay Open Platform to connect to (prod for production environment, sandbox for sandbox environment, default prod)."
+        },
         "Type": "String",
         "Required": false
       }
@@ -139,9 +199,19 @@
 ,
   {
     "ServerCode": "wuying-agentbay-mcp-server",
-    "ServiceName": "无影 AgentBay",
-    "Tags": ["开发者工具"],
-    "Description": "无影AgentBay是AI时代的Agent云基础设施，面向企业、开发者、AI厂商，提供可一键配置的AI Agent任务执行工具和执行环境。您可以通过无影API或AgentBay MCP Server快速集成，并调用相关工具获取Serverless服务。",
+    "ServiceName": {
+      "zh-cn": "无影AgentBay",
+      "en": "Wuying AgentBay MCP"
+    },
+    "Tags": ["DeveloperTools"],
+    "Description": {
+      "zh-cn": "无影AgentBay是AI时代的Agent云基础设施，面向企业、开发者、AI厂商，提供可一键配置的AI Agent任务执行工具和执行环境。您可以通过无影API或AgentBay MCP Server快速集成，并调用相关工具获取Serverless服务。",
+      "en": "Wuying AgentBay is an AI-powered Agent cloud infrastructure designed for enterprises, developers, and AI manufacturers. It provides a one-click configurable AI Agent task execution tool and execution environment. You can integrate with Wuying API or AgentBay MCP Server quickly and call the relevant tools to get Serverless services."
+    },
+    "EnvsDescription": {
+      "zh-cn": "## 如何在百炼上使用无影AgentBay MCP服务\n Step1: 访问AgentBay控制台配置资源并获得API KEY。\nStep2: 在您的管控台生成资源池。\nStep3: 在您的百炼应用端增加无影MCP组件，并设置API KEY。\nStep4: 接受MCP反馈的信息按需拉取画面流。",
+      "en": "## How to Use Wuying AgentBay MCP Service on Bailian\nStep1: Access the AgentBay Console to configure resources and obtain an API KEY.  \nStep2: Create a resource pool in your management console.  \nStep3: Add the Wuying MCP component to your Bailian application and configure the API KEY.  \nStep4: Receive MCP feedback and pull the video stream on demand.\n"
+    },
     "Icon": "https://resouces.modelscope.cn/studio-cover-pre/studio-cover_97ce290c-1269-428f-87d0-f90f46f039a9.png",
     "ReadMeUrl": "https://help.aliyun.com/document_detail/2878644.html?spm=5176.30100617.J_9482567280.1.25ad7105rHsSYv",
     "Type": "Command",
@@ -149,13 +219,16 @@
       "command": "npx",
       "args": ["-y", "wuying-agentbay-mcp-server"],
       "env": {
-        "APIKEY": "必须配置的API认证密钥"
+        "APIKEY": ""
       }
     },
     "EnvSchema": {
       "APIKEY": {
         "Name": "APIKEY",
-        "Description": "必须配置的API认证密钥",
+        "Description": {
+          "zh-cn": "必须配置的API认证密钥",
+          "en": "Must configure API authentication key"
+        },
         "Type": "String",
         "Required": true
       }
@@ -164,10 +237,19 @@
   ,
   {
     "ServerCode": "time",
-    "ServiceName": "时间服务",
-    "Tags": ["日程管理"],
-    "Description": "一个提供时间和时区转换功能的模型上下文协议服务器。该服务器使大型语言模型能够获取当前时间信息，并使用IANA时区名称进行时区转换，支持自动检测系统时区。",
-    "EnvsDescription": "一个提供时间和时区转换功能的模型上下文协议服务器。该服务器使大型语言模型能够获取当前时间信息，并使用IANA时区名称进行时区转换，支持自动检测系统时区'",
+    "ServiceName": {
+      "zh-cn": "时间服务",
+      "en": "Time"
+    },
+    "Tags": ["ScheduleManagement"],
+    "Description": {
+      "zh-cn": "一个提供时间和时区转换功能的模型上下文协议服务器。该服务器使大型语言模型能够获取当前时间信息，并使用IANA时区名称进行时区转换，支持自动检测系统时区。",
+      "en": "A model context protocol server that provides time and time zone conversion functions. This server allows large language models to obtain current time information and perform time zone conversions using IANA time zone names, and supports automatic detection of system time zones."
+    },
+    "EnvsDescription": {
+      "zh-cn": "一个提供时间和时区转换功能的模型上下文协议服务器。该服务器使大型语言模型能够获取当前时间信息，并使用IANA时区名称进行时区转换，支持自动检测系统时区。",
+      "en": "A model context protocol server that provides time and time zone conversion functions. This server allows large language models to obtain current time information and perform time zone conversions using IANA time zone names, and supports automatic detection of system time zones."
+    },
     "Icon": "https://resouces.modelscope.cn/studio-cover-pre/studio-cover_ac639221-aa2e-4235-8087-abd65ab6ab73.jpg",
     "ReadMeUrl": "https://github.com/modelcontextprotocol/servers/blob/main/src/time/README.md",
     "Type": "Command",
@@ -181,10 +263,19 @@
   ,
   {
     "ServerCode": "everything",
-    "ServiceName": "MCP官方示例",
-    "Tags": ["其他"],
-    "Description": "这个MCP服务器试图运用MCP协议的所有功能。它并不是一个实用的服务器，而是为MCP客户端的开发者提供一个测试服务器。它实现了提示、工具、资源、采样等功能，以展示MCP的能力。",
-    "EnvsDescription": "这个MCP服务器试图运用MCP协议的所有功能。它并不是一个实用的服务器，而是为MCP客户端的开发者提供一个测试服务器。它实现了提示、工具、资源、采样等功能，以展示MCP的能力。'",
+    "ServiceName": {
+      "zh-cn": "MCP官方示例",
+      "en": "MCP Demo"
+    },
+    "Tags": ["Other"],
+    "Description": {
+      "zh-cn": "这个MCP服务器试图运用MCP协议的所有功能。它并不是一个实用的服务器，而是为MCP客户端的开发者提供一个测试服务器。它实现了提示、工具、资源、采样等功能，以展示MCP的能力。",
+      "en": "This MCP server attempts to use all the features of the MCP protocol. It is not a practical server, but rather a test server for developers of MCP clients. It implements prompt, tool, resource, sampling, and other functions to demonstrate the capabilities of MCP."
+    },
+    "EnvsDescription": {
+      "zh-cn": "这个MCP服务器试图运用MCP协议的所有功能。它并不是一个实用的服务器，而是为MCP客户端的开发者提供一个测试服务器。它实现了提示、工具、资源、采样等功能，以展示MCP的能力。",
+      "en": "This MCP server attempts to use all the features of the MCP protocol. It is not a practical server, but rather a test server for developers of MCP clients. It implements prompt, tool, resource, sampling, and other functions to demonstrate the capabilities of MCP."
+    },
     "Icon": "https://resouces.modelscope.cn/studio-cover-pre/studio-cover_b7b44d22-e3c5-42af-b350-a4af1debc333.png",
     "ReadMeUrl": "https://github.com/modelcontextprotocol/servers/tree/main/src/everything",
     "Type": "Command",
@@ -194,5 +285,171 @@
       "env": {}
     },
     "EnvSchema": {}
+  },
+  {
+    "ServerCode": "SequentialThinking",
+    "ServiceName": {
+      "zh-cn": "顺序思维 MCP 服务器",
+      "en": "Sequential Thinking MCP Server"
+    },
+    "Tags": ["DeveloperTools"],
+    "Description": {
+      "zh-cn": "顺序思维 MCP 服务器实现了一种通过结构化思维过程进行动态和反思性问题解决的工具。",
+      "en": "An MCP server implementation that provides a tool for dynamic and reflective problem-solving through a structured thinking process."
+    },
+    "EnvsDescription": {
+      "zh-cn": "顺序思维 MCP 服务器实现了一种通过结构化思维过程进行动态和反思性问题解决的工具。",
+      "en": "An MCP server implementation that provides a tool for dynamic and reflective problem-solving through a structured thinking process."
+    },
+    "Icon": "https://resouces.modelscope.cn/mcp-covers/avatar/modelcontextprotocol.png",
+    "ReadMeUrl": "https://github.com/modelcontextprotocol/servers/tree/main/src/sequentialthinking",
+    "Type": "Command",
+    "Content": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-sequential-thinking"],
+      "env": {}
+    },
+    "EnvSchema": {}
+  },
+  {
+    "ServerCode": "MiniMax-MCP",
+    "ServiceName": {
+      "zh-cn": "MiniMax",
+      "en": "MiniMax"
+    },
+    "Tags": ["Arts"],
+    "Description": {
+      "zh-cn": "官方 MiniMax 模型上下文协议 (MCP) 服务器，支持与强大的文本转语音和视频/图像生成 API 进行交互。该服务器允许Claude Desktop、Cursor、Windsurf、OpenAI Agents等 MCP 客户端生成语音、克隆声音、生成视频、生成图像等。",
+      "en": "Official MiniMax Model Context Protocol (MCP) server that enables interaction with powerful Text to Speech and video/image generation APIs. This server allows MCP clients like Claude Desktop, Cursor, Windsurf, OpenAI Agents and others to generate speech, clone voices, generate video, generate image and more."
+    },
+    "EnvsDescription": {
+      "zh-cn": "1. \"1. 访问该[地址](https://platform.minimaxi.com/login)获取API秘钥 \n 2. 配置MINIMAX_API_HOST，国际：https://api.minimaxi.chat （请注意额外的 \\\"i\\\" 字母）国内：https://api.minimax.chat \n 3. 根据需要配置资源生成后的提供方式。如本地或URL的方式",
+      "en": "1. Visit the [link](https://platform.minimaxi.com/login) to get the API secret \n 2. Configure MINIMAX_API_HOST, International: https://api.minimaxi.chat (Note the additional \\\"i\\\" letter) China: https://api.minimax.chat \n 3. Configure the way resource generation is provided. Such as local or URL"
+    },
+    "Icon": "https://resouces.modelscope.cn/studio-cover-pre/studio-cover_4b0061a7-e072-48cc-ba12-df0cc1201ae0.jpeg",
+    "ReadMeUrl": "https://github.com/MiniMax-AI/MiniMax-MCP",
+    "Type": "Command",
+    "Content": {
+      "command": "uvx",
+      "args": ["minimax-mcp"],
+      "env": {
+        "MINIMAX_API_KEY": "",
+        "MINIMAX_API_HOST": "",
+        "MINIMAX_MCP_BASE_PATH": "",
+        "MINIMAX_API_RESOURCE_MODE": ""
+      }
+    },
+    "EnvSchema": {
+      "MINIMAX_API_HOST": {
+        "Name": "MINIMAX_API_HOST",
+        "Description": {
+          "zh-cn": "API服务端点地址",
+          "en": "API service endpoint address"
+        },
+        "Type": "String",
+        "Required": true
+      },
+      "MINIMAX_API_KEY": {
+        "Name": "MINIMAX_API_KEY",
+        "Description": {
+          "zh-cn": "MiniMax 平台的API密钥",
+          "en": "API key for MiniMax platform"
+        },
+        "Type": "String",
+        "Required": true
+      },
+      "MINIMAX_API_RESOURCE_MODE": {
+        "Name": "MINIMAX_API_RESOURCE_MODE",
+        "Description": {
+          "zh-cn": "资源处理模式：url（默认）表示使用URL引用，local表示下载到本地存储",
+          "en": "Resource handling mode: url (default) uses URL references, local downloads to local storage"
+        },
+        "Type": "String",
+        "Required": false
+      },
+      "MINIMAX_MCP_BASE_PATH": {
+        "Name": "MINIMAX_MCP_BASE_PATH",
+        "Description": {
+          "zh-cn": "媒体内容处理(MCP)的本地存储路径",
+          "en": "Local storage path for Media Content Processing (MCP)"
+        },
+        "Type": "String",
+        "Required": true
+      }
+    }
+  },
+  {
+    "ServerCode": "BaiduMaps",
+    "ServiceName": {
+      "zh-cn": "百度地图",
+      "en": "Baidu Maps"
+    },
+    "Tags": ["LocationServices"],
+    "Description": {
+      "zh-cn": "百度地图提供的MCP Server，包含10个符合MCP协议标准的API接口，涵盖逆地理编码、地点检索、路线规划等。",
+      "en": "Official Baidu Maps MCP Server with 10 standard API interfaces including reverse geocoding, place search, route planning, etc."
+    },
+    "EnvsDescription": {
+      "zh-cn": "1. 访问[百度开放平台](https://lbsyun.baidu.com/apiconsole/userflow/authcompany)获取KEY，并填入下方",
+      "en": "1. Visit [Baidu Open Platform](https://lbsyun.baidu.com/apiconsole/userflow/authcompany) to get the KEY and fill it in below"
+    },
+    "Icon": "https://resouces.modelscope.cn/studio-cover-pre/studio-cover_e6ac53fa-6eec-4ba3-8fb1-c66b12b28a9a.png",
+    "ReadMeUrl": "https://github.com/baidu-maps/mcp",
+    "Type": "Command",
+    "Content": {
+      "command": "uvx",
+      "args": ["mcp-server-baidu-maps"],
+      "env": {
+        "BAIDU_MAPS_API_KEY": ""
+      }
+    },
+    "EnvSchema": {
+      "BAIDU_MAPS_API_KEY": {
+        "Name": "BAIDU_MAPS_API_KEY",
+        "Description": {
+          "zh-cn": "百度地图开放平台API密钥（从控制台获取）",
+          "en": "API key from Baidu Maps Open Platform console"
+        },
+        "Type": "String",
+        "Required": true
+      }
+    }
+  },
+  {
+    "ServerCode": "tavily-mcp",
+    "ServiceName": {
+      "zh-cn": "Tavily智搜",
+      "en": "Tavily Search"
+    },
+    "Tags": [],
+    "Description": {
+      "zh-cn": "该服务器使AI系统能够与Tavily的搜索和数据提取工具集成，提供实时的网络信息访问和领域特定的搜索。",
+      "en": "This server enables AI systems to integrate with Tavily's search and data extraction tools, providing real-time web information access and domain-specific searches."
+    },
+    "EnvsDescription": {
+      "zh-cn": "访问[Tavily](https://app.tavily.com/home)获取API密钥",
+      "en": "Visit [Tavily](https://app.tavily.com/home) to get the API key"
+    },
+    "Icon": "https://resouces.modelscope.cn/mcp-covers/avatar/tavily-ai.png",
+    "ReadMeUrl": "https://github.com/tavily-ai/tavily-mcp/blob/main/README.md",
+    "Type": "Command",
+    "Content": {
+      "command": "npx",
+      "args": ["-y", "tavily-mcp@0.1.4"],
+      "env": {
+        "TAVILY_API_KEY": ""
+      }
+    },
+    "EnvSchema": {
+      "TAVILY_API_KEY": {
+        "Name": "TAVILY_API_KEY",
+        "Description": {
+          "zh-cn": "从 app.tavily.com/home 获取的API密钥",
+          "en": "Your Tavily API key obtained from app.tavily.com/home"
+        },
+        "Type": "String",
+        "Required": true
+      }
+    }
   }
 ]
