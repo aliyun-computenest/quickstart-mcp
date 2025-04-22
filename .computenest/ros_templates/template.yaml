@@ -13,6 +13,10 @@ Parameters:
     Label:
       zh-cn: MCP运行配置
       en: MCP Running Configuration
+    AssociationProperty: 'ALIYUN::MCP::Server::Server'
+    AssociationPropertyMetadata:
+      ShowLabel: false
+
   MCP_KEY:
     Type: String
     Description:
@@ -320,8 +324,8 @@ Resources:
             [Service]
             Type=oneshot
             RemainAfterExit=yes
-            WorkingDirectory=/root/application
-            ExecStart=/usr/bin/docker compose -f mcp/docker-compose.yaml up -d
+            WorkingDirectory=/root/application/mcp
+            ExecStart=/usr/bin/docker compose -f docker-compose.yaml up -d
             ExecStop=/usr/bin/docker compose down
             TimeoutStartSec=0
 
@@ -333,7 +337,7 @@ Resources:
             
             fi
             systemctl daemon-reload
-            systemctl start quickstart-mcp
+            systemctl restart quickstart-mcp
             cd /root/application/mcp
 
             MAX_TIMEOUT=1800
@@ -357,20 +361,20 @@ Resources:
               Ref: MCP_KEY
             MCP_RESULT:
               Fn::Jq:
-                - "All"
-                - '{ mcpServers:(.MCPConfig | map({ (.ServerCode): ({ command: .command, args: .args } + (if (.env | length) > 0 then { env: .env } else { } end)) }) | add) }'
+                - "First"
+                - '{mcpServers: map({ key: .serverCode, value: { command, args, env } }) | from_entries }'
                 - Ref: McpConfigJson
 
 Outputs:
   mcp_server_address:
-    Lable:
+    Label:
       en: MCP tool access address
       zh-cn: MCP工具访问地址
     Value:
       Fn::Jq:
         - All
         - Fn::Sub:
-            - .mcpServers | keys | map("${URL}" + .)
+            - '[.[].serverCode] | map("${URL}" + .)'
             - URL:
                 Fn::Sub:
                   - http://${ServerAddress}:8000/
@@ -383,7 +387,7 @@ Outputs:
 
         - Ref: McpConfigJson
   mcp_api_key:
-    Lable:
+    Label:
       en: MCP API key
       zh-cn: MCP API KEY
     Value:
@@ -393,10 +397,10 @@ Metadata:
   ALIYUN::ROS::Interface:
     ParameterGroups:
       - Parameters:
-          - MCP_KEY
           - McpConfigJson
+          - MCP_KEY
         Label:
-          Default: Mcp配置
+          Default: Mcp配置(可多选)
       - Parameters:
           - PayType
           - PayPeriodUnit

@@ -42,25 +42,60 @@ MCP Server社区版在计算巢上的费用主要涉及：
 
 ### 部署参数说明
 
+| <font style="color:rgb(51, 51, 51);">参数组</font>     | <font style="color:rgb(51, 51, 51);">参数项</font>         | <font style="color:rgb(51, 51, 51);">说明</font>                                            |
+|-----------------------------------------------------|---------------------------------------------------------|-------------------------------------------------------------------------------------------|
+| <font style="color:rgb(51, 51, 51);">MCP配置</font>   | <font style="color:rgb(51, 51, 51);">McpConfigJson</font>  | <font style="color:rgb(51, 51, 51);">需要使用的MCP工具</font>                                    |
+|    | <font style="color:rgb(51, 51, 51);">MCP_KEY</font> | <font style="color:rgb(51, 51, 51);">MCP Server和大模型交互的秘钥</font>                           |
+| <font style="color:rgb(51, 51, 51);">服务实例</font>    | <font style="color:rgb(51, 51, 51);">服务实例名称</font>      | <font style="color:rgb(51, 51, 51);">长度不超过64个字符，必须以英文字母开头，可包含数字、英文字母、短划线（-）和下划线（_）</font> |
+|                                                     | <font style="color:rgb(51, 51, 51);">地域</font>          | <font style="color:rgb(51, 51, 51);">服务实例部署的地域</font>                                     |
+|                                                     | <font style="color:rgb(51, 51, 51);">付费类型</font>        | <font style="color:rgb(51, 51, 51);">资源的计费类型：按量付费和包年包月</font>                             |
+| <font style="color:rgb(51, 51, 51);">ECS实例配置</font> | <font style="color:rgb(51, 51, 51);">实例类型</font>        | <font style="color:rgb(51, 51, 51);">可用区下可以使用的实例规格</font>                                 |
+|                                                     | <font style="color:rgb(51, 51, 51);">实例密码</font>        | <font style="color:rgb(51, 51, 51);">长度8-30，必须包含三项（大写字母、小写字母、数字、 ()`~!@#$%^&*-+=          |{}[]:;'<>,.?/ 中的特殊符号）</font> |
+| <font style="color:rgb(51, 51, 51);">网络配置</font>    | <font style="color:rgb(51, 51, 51);">可用区</font>         | <font style="color:rgb(51, 51, 51);">ECS实例所在可用区</font>                                    |
+|                                                     | <font style="color:rgb(51, 51, 51);">VPC ID</font>      | <font style="color:rgb(51, 51, 51);">资源所在VPC</font>                                       |
+|                                                     | <font style="color:rgb(51, 51, 51);">交换机ID</font>       | <font style="color:rgb(51, 51, 51);">资源所在交换机</font>                                       |
+
 ### 部署步骤
 
-1. 单击[部署链接]("https://computenest.console.aliyun.com/service/instance/create/cn-hangzhou?type=user&ServiceName=MCP Server社区版")，进入服务实例部署界面，根据界面提示，填写参数完成部署。
-2. 选择你想使用的MCP工具。注意，可以多选哦！
-3. 如果选择的MCP工具需要设置，请务必按照说明配置上正确的参数。
-4. 如果无设置按钮，则可以跳过参数配置步骤。
-5. 系统默认帮你生成了一个API KEY，用于保护你即将部署的MCP工具，你可以对此进行修改。
-6. 配置你的ECS实例规格，建议选择2核4G的规格以上。
-7. 配置你的ECS登录密码
-8. 等待部署成功，该过程一般耗时3分钟。该时长根据您选择的工具的多少有所波动。
-9. 访问刚部署成功的实例界面，可查看到您部署的专属MCP工具的地址和API秘钥。
-10. 打开您的AI助手客户端，如Open WebUI，并将地址和API秘钥粘贴进去。
-11. 验证一下AI使用您的MCP工具
+1. 单击[部署链接]("https://computenest.console.aliyun.com/service/instance/create/default?type=user&ServiceName=MCP%20Server%E7%A4%BE%E5%8C%BA%E7%89%88")，进入服务实例部署界面，选择想部署的地域，根据界面提示，填写参数完成部署。
+2. 选择你想使用的MCP工具。注意，可以多选哦！![img.png](img-deploy/img.png)
+3. 这里的MCP有两种类型。一种是无需环境变量的，比如"时间服务"，则直接勾选上，跳过参数配置步骤。
+4. 另一种MCP类型需要环境变量，比如高德地图，则需要配置上环境变量，否则MCP Server会部署失败![img_1.png](img-deploy/img_1.png)
+3. 如果不清楚MCP工具怎么使用，可以点击查看"帮助文档"查看和学习。![img_2.png](img-deploy/img_2.png)
+5. 系统默认帮你生成了一个API KEY，用于保护你即将部署的MCP工具，你可以修改此参数。![img_3.png](img-deploy/img_3.png)
+6. 配置你的ECS实例规格，建议选择2核4G的规格以上。配置ECS登录密码![img_4.png](img-deploy/img_4.png)
+7. 对可用区和网络进行配置。推荐选择任意可用区后，直接新建网络和虚拟机![img_5.png](img-deploy/img_5.png)
+8. 点击立即创建，等待部署成功，该过程一般耗时3分钟。该时长根据您选择的工具的多少有所波动。![img_6.png](img-deploy/img_6.png)
+9. 访问刚部署成功的实例界面，可查看到您部署的专属MCP工具的地址和API秘钥。![img_7.png](img-deploy/img_7.png)
+10. 打开您的AI助手客户端，如Open WebUI，并将地址和API秘钥粘贴进去。![img_8.png](img-deploy/img_8.png)
+11. 新建个对话，并开启MCP工具![img_9.png](img-deploy/img_9.png)
+12. 验证一下AI使用您的MCP工具！ ![img_10.png](img-deploy/img_10.png)
 
 
 
-### 使用Demo
-加下来以高德地图MCP为例，我们开一个完整的使用Demo
+### 修改要使用的MCP工具
+如果想要修改要使用的MCP工具请参考下列操作
+1. 在计算巢控制台，点击"我的实例"，选择之前部署的MCP Server实例，点击右上方的"修改配置"。![img.png](update/img.png)
+2. 点击修改MCP工具，并点击"下一步"![img_1.png](update/img_1.png)
+3. 选择想要新增的MCP工具，比如我这新增了Fetch工具。（注意：之前选择的工具在此处会被重新渲染）![img_2.png](update/img_2.png)
+4. 当然这里如果涉及到环境变量，则一定要按照文档进行设置。
+5. 点击确定，发起工具修改请求。![img_3.png](update/img_3.png)
+6. 等待实例状态变更完。![img_4.png](update/img_4.png)
+7. 将输出中新增的MCP工具加入到AI对话客户端中。![img_5.png](update/img_5.png)
 
+
+## 问题排查
+
+如果发现实例一直未部署成功，90%的概率是环境变量配置错误，可参考以下步骤排查：
+1. 通过会话管理登录到ECS实例。![img_6.png](error/img.png)
+2. 输入以下指令确认环境变量是否正确。
+```shell
+cat /root/config.json
+```
+4. 对配置进行修改。重启docker compose应用
+```shell
+sudo systemctl restart quickstart-mcp
+```
 
 请访问MCP官方了解如何使用：[使用文档](https://github.com/open-webui/mcpo)
 
