@@ -22,6 +22,13 @@ Service:
         Type: Custom
         Parameters:
         - InstancePassword
+      - Name: 修改MCP工具
+        Description: 修改已部署的MCP工具
+        Type: Custom
+        SupportPredefinedParameters: false
+        EnableLogging: false
+        Parameters:
+          - McpConfigJson
   DeployMetadata:
     SupplierDeployMetadata:
       SupplierTemplateConfigs:
