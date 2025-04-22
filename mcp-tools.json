@@ -289,16 +289,16 @@
   {
     "ServerCode": "SequentialThinking",
     "ServiceName": {
-      "zh-cn": "顺序思维 MCP 服务器",
-      "en": "Sequential Thinking MCP Server"
+      "zh-cn": "Sequential Thinking",
+      "en": "Sequential Thinking"
     },
     "Tags": ["DeveloperTools"],
     "Description": {
-      "zh-cn": "顺序思维 MCP 服务器实现了一种通过结构化思维过程进行动态和反思性问题解决的工具。",
+      "zh-cn": "Sequential Thinking 服务器实现了一种通过结构化思维过程进行动态和反思性问题解决的工具。",
       "en": "An MCP server implementation that provides a tool for dynamic and reflective problem-solving through a structured thinking process."
     },
     "EnvsDescription": {
-      "zh-cn": "顺序思维 MCP 服务器实现了一种通过结构化思维过程进行动态和反思性问题解决的工具。",
+      "zh-cn": "Sequential Thinking 服务器实现了一种通过结构化思维过程进行动态和反思性问题解决的工具。",
       "en": "An MCP server implementation that provides a tool for dynamic and reflective problem-solving through a structured thinking process."
     },
     "Icon": "https://resouces.modelscope.cn/mcp-covers/avatar/modelcontextprotocol.png",
@@ -446,6 +446,44 @@
         "Description": {
           "zh-cn": "从 app.tavily.com/home 获取的API密钥",
           "en": "Your Tavily API key obtained from app.tavily.com/home"
+        },
+        "Type": "String",
+        "Required": true
+      }
+    }
+  }
+  ,
+  {
+    "ServerCode": "leetcode-mcp-server",
+    "ServiceName": {
+      "zh-cn": "LeetCode MCP 服务器",
+      "en": "LeetCode MCP Server"
+    },
+    "Tags": ["KnowledgeAndMemory"],
+    "Description": {
+      "zh-cn": "LeetCode MCP Server 是一个基于 [模型上下文协议 (MCP)](https://modelcontextprotocol.io/introduction) 的服务，提供与 LeetCode API 的无缝集成，实现与 LeetCode 编程题目、竞赛、题解和用户数据的高级自动化和智能交互。",
+      "en": "The LeetCode MCP Server is a [Model Context Protocol (MCP)](https://modelcontextprotocol.io/introduction) server that provides seamless integration with LeetCode APIs, enabling advanced automation and intelligent interaction with LeetCode's programming problems, contests, solutions, and user data."
+    },
+    "EnvsDescription": {
+      "zh-cn": "## 如何使用 LeetCode MCP 服务\n1. 访问 LeetCode 并登录以获取会话 cookie。\n2. 配置 `LEETCODE_SESSION` 环境变量或使用 `--session` 参数。\n3. 运行服务器并调用相关工具获取数据。",
+      "en": "## How to Use LeetCode MCP Service\n1. Access LeetCode and log in to obtain a session cookie.\n2. Configure the `LEETCODE_SESSION` environment variable or use the `--session` parameter.\n3. Run the server and call the relevant tools to retrieve data."
+    },
+    "Icon": "https://resouces.modelscope.cn/studio-cover-pre/studio-cover_402ed2b0-a575-4187-813f-ae82d89af6a1.png",
+    "ReadMeUrl": "https://github.com/jinzcdev/leetcode-mcp-server/blob/main/README_zh-CN.md",
+    "Type": "Command",
+    "Content": {
+      "command": "npx",
+      "args": ["-y", "@jinzcdev/leetcode-mcp-server", "--site", "cn"],
+      "env": {
+        "LEETCODE_SESSION": ""
+      }
+    },
+    "EnvSchema": {
+      "LEETCODE_SESSION": {
+        "Name": "LEETCODE_SESSION",
+        "Description": {
+          "zh-cn": "必须配置的 LeetCode 会话认证密钥",
+          "en": "Must configure LeetCode session authentication key"
         },
         "Type": "String",
         "Required": true

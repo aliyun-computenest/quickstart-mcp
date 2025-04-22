@@ -260,6 +260,21 @@ Resources:
           SourceCidrIp: 0.0.0.0/0
           IpProtocol: tcp
           NicType: internet
+        - PortRange: 8080/8080
+          Priority: 1
+          SourceCidrIp: 0.0.0.0/0
+          IpProtocol: tcp
+          NicType: internet
+        - PortRange: 8001/8001
+          Priority: 1
+          SourceCidrIp: 0.0.0.0/0
+          IpProtocol: tcp
+          NicType: internet
+        - PortRange: 8443/8443
+          Priority: 1
+          SourceCidrIp: 0.0.0.0/0
+          IpProtocol: tcp
+          NicType: internet
   InstanceGroup:
     Type: ALIYUN::ECS::InstanceGroup
     Properties:
@@ -350,11 +365,19 @@ Resources:
                 if echo "$LATEST_LOG" | grep -q "Uvicorn running on http://0.0.0.0:8000"
                   then
                     echo "success"
-                    exit 0
+                    break
                   else
                     sleep $INTERVAL
               fi
             done
+            sleep 10
+          
+            chmod +x /root/application/mcp/openapi-to-mcp   
+            # 测试
+            ./openapi-to-mcp --version
+            python higress_client.py --api-key ${mcp_KEY} --domain ${private_ip} --config /root/config.json
+            sleep 10
+
           - RegionId:
               Ref: ALIYUN::Region
             mcp_KEY:
@@ -364,6 +387,15 @@ Resources:
                 - "First"
                 - '{mcpServers: map({ key: .serverCode, value: { command, args, env } }) | from_entries }'
                 - Ref: McpConfigJson
+            private_ip:
+              Fn::Sub:
+                - http://${ServerAddress}:8000/
+                - ServerAddress:
+                    Fn::Select:
+                      - 0
+                      - Fn::GetAtt:
+                          - InstanceGroup
+                          - PrivateIps
 
 Outputs:
   mcp_server_address:
@@ -387,6 +419,7 @@ Outputs:
 
         - Ref: McpConfigJson
   mcp_api_key:
+    NoEcho: 'True'
     Label:
       en: MCP API key
       zh-cn: MCP API KEY

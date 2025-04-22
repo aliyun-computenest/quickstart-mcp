@@ -1,5 +1,7 @@
 services:
   mcpo-service:
+    depends_on:
+      - higress-ai
     container_name: mcpo-service
     build: .
     ports:
@@ -9,3 +11,22 @@ services:
     restart: unless-stopped
     environment:
       API_KEY: ${MCP_KEY}
+  higress-ai:
+    depends_on:
+      - higress-redis
+    container_name: higress-ai
+    image: higress-registry.cn-hangzhou.cr.aliyuncs.com/higress/all-in-one:latest
+    volumes:
+      - ./:/data
+    ports:
+      - "8001:8001"
+      - "8080:8080"
+      - "8443:8443"
+    restart: unless-stopped
+
+  higress-redis:
+    container_name: higress-redis
+    image: higress-registry.cn-hangzhou.cr.aliyuncs.com/higress/redis-stack-server:7.4.0-v3
+    ports:
+      - "6379:6379"
+    restart: unless-stopped

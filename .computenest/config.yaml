@@ -28,7 +28,7 @@ Service:
         SupportPredefinedParameters: false
         EnableLogging: false
         Parameters:
-          - McpConfigJson
+        - McpConfigJson
   DeployMetadata:
     SupplierDeployMetadata:
       SupplierTemplateConfigs:
@@ -56,9 +56,9 @@ Service:
     Image: 
       https://service-info-public.oss-cn-hangzhou.aliyuncs.com/1853370294850618/service-image/ba45d5c8-8654-44a9-a60a-a3090a958c77.png
     Softwares:
-    - Name: mcpo
-      Version: 0.0.12
-      Locale: zh-CN
+      - Name: mcpo
+        Version: 0.0.12
+        Locale: zh-CN
 Artifact:
   EcsImage:
     ArtifactType: EcsImage
@@ -74,11 +74,20 @@ Artifact:
         Branch: main
       RegionId: ap-southeast-1
       CommandType: RunShellScript
+      SourceImageId: aliyun/services/computenest/images/aliyun_3_2104_go_1_22
       CommandContent: |-
+        # go环境没有docker
+        yum-config-manager --add-repo http://mirrors.aliyun.com/docker-ce/linux/centos/docker-ce.repo
+        yum makecache
+        yum install -y wget curl unzip git jq
+        yum install -y docker-ce
+        sleep 20
         mkdir -p /root/application
         yum install jq -y
         if [ -e "/root/code/mcp/" ]; then cp -r "/root/code/mcp/" "/root/application/"; fi
         cd /root/application
         sed -i 's/pull_policy: always/pull_policy: if_not_present/g' mcp/docker-compose.yaml
-        docker compose -f mcp/docker-compose.yaml build 
-        docker compose -f mcp/docker-compose.yaml pull 2>&1 | stdbuf -oL grep -viE 'Downloading|sha256|extracting|KiB|Downloaded' || true;
+        docker compose -f mcp/docker-compose.yaml build 2>&1 | stdbuf -oL grep -viE 'Downloading|sha256|extracting|KiB|Downloaded|%' || true;
+        docker compose -f mcp/docker-compose.yaml pull 2>&1 | stdbuf -oL grep -viE 'Downloading|sha256|extracting|KiB|Downloaded|%' || true;
+
+
