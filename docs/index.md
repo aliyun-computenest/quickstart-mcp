@@ -3,6 +3,11 @@
 ## 概述
 
 MCP（Model Context Protocol，模型上下文协议） ，2024年11月底，由 Anthropic 推出的一种开放标准，旨在统一大型语言模型（LLM）与外部数据源和工具之间的通信协议。MCP 的主要目的在于解决当前 AI 模型因数据孤岛限制而无法充分发挥潜力的难题，MCP 使得 AI 应用能够安全地访问和操作本地及远程数据，为 AI 应用提供了连接万物的接口。
+本服务创造性地解决了传统MCP市场的以下问题：
+1. 每次只能选择单个MCP工具进行部署。--本服务支持多选MCP工具同时部署
+2. 不能同时兼容OpenAPI和SSE的方式调用工具，这导致只能适配部分平台。--本服务支持两种方式调用，支持Dify，Cherry Studio，OpenWebUI等AI助手。
+3. 无法灵活增减要使用的MCP工具。--本服务支持通过变配动态增删要使用的MCP工具。
+
 本文向您介绍如何开通计算巢上的`MCP Server社区版`服务，以及部署流程和使用说明。
 ## 前提条件
 <font style="color:rgb(51, 51, 51);">部署Dify社区版服务实例，需要对部分阿里云资源进行访问和创建操作。因此您的账号需要包含如下资源的权限。</font><font style="color:rgb(51, 51, 51);"> </font>**<font style="color:rgb(51, 51, 51);">说明</font>**<font style="color:rgb(51, 51, 51);">：当您的账号是RAM账号时，才需要添加此权限。</font>
@@ -66,7 +71,7 @@ MCP Server社区版在计算巢上的费用主要涉及：
 6. 配置你的ECS实例规格，建议选择2核4G的规格以上。配置ECS登录密码![img_4.png](img-deploy/img_4.png)
 7. 对可用区和网络进行配置。推荐选择任意可用区后，直接新建网络和虚拟机![img_5.png](img-deploy/img_5.png)
 8. 点击立即创建，等待部署成功，该过程一般耗时3分钟。该时长根据您选择的工具的多少有所波动。![img_6.png](img-deploy/img_6.png)
-9. 访问刚部署成功的实例界面，可查看到您部署的专属MCP工具的地址和API秘钥。![img_7.png](img-deploy/img_7.png)
+9. 访问刚部署成功的实例界面，可查看到您部署的专属MCP工具的地址和API秘钥。以下使用以Open WebUI为例，如需要查看Dify，Cherry Studio助手的引入，请参考下文![img_7.png](img-deploy/img_7.png)
 10. 打开您的AI助手客户端，如Open WebUI，并将地址和API秘钥粘贴进去。![img_8.png](img-deploy/img_8.png)
 11. 新建个对话，并开启MCP工具![img_9.png](img-deploy/img_9.png)
 12. 验证一下AI使用您的MCP工具！ ![img_10.png](img-deploy/img_10.png)
@@ -82,6 +87,21 @@ MCP Server社区版在计算巢上的费用主要涉及：
 5. 点击确定，发起工具修改请求。![img_3.png](update/img_3.png)
 6. 等待实例状态变更完。![img_4.png](update/img_4.png)
 7. 将输出中新增的MCP工具加入到AI对话客户端中。![img_5.png](update/img_5.png)
+
+
+## Cherry Studio使用示例
+1. 来到计算巢实例界面，![img_7.png](img-deploy/img_7.png),接下来的操作需要使用"MCP Server访问地址"部分
+2. 打开您的Cherry Studio助手，按照下图示例，新建MCP服务器。![img.png](cherry-studio/img.png)
+3. "名称"和描述可以随便填。
+4. 类型选择"服务器发送时间（sse)
+5. URL填写实例界面的此处链接![img_1.png](cherry-studio/img_1.png)  注意此处使用的是http协议，结尾是sse后缀
+6. 在请求头添加上鉴权参数：![img_2.png](cherry-studio/img_2.png)。注意此处需要将":"改为"="填入，比如Authorization=Bearer 123
+7. 点击右上角的启用按钮和保存按钮。![img_3.png](cherry-studio/img_3.png)
+8. 来到对话界面，选择要使用的MCP工具。![img_4.png](cherry-studio/img_4.png)
+9. 选择合适的模型，与AI对话，比如"我现在在杭州云谷，请给我推荐开车半小时以内的餐馆",即可让AI调用模型帮你找到合适的餐馆。
+
+
+## Dify 使用示例
 
 
 ## 问题排查

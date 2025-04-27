@@ -322,6 +322,7 @@ Resources:
       CommandContent:
         Fn::Sub:
           - |
+            set -e
             cd /root
             cat > config.json << EOF
             ${MCP_RESULT}
@@ -374,7 +375,6 @@ Resources:
           
             chmod +x /root/application/mcp/openapi-to-mcp   
             # 测试
-            ./openapi-to-mcp --version
             python higress_client.py --api-key ${mcp_KEY} --domain ${private_ip} --config /root/config.json
             sleep 10
 
@@ -389,7 +389,7 @@ Resources:
                 - Ref: McpConfigJson
             private_ip:
               Fn::Sub:
-                - http://${ServerAddress}:8000/
+                - ${ServerAddress}:8000
                 - ServerAddress:
                     Fn::Select:
                       - 0
@@ -398,10 +398,10 @@ Resources:
                           - PrivateIps
 
 Outputs:
-  mcp_server_address:
+  openapi_server_address:
     Label:
-      en: MCP tool access address
-      zh-cn: MCP工具访问地址
+      en: "Tool OepnAPI Access URL(Recommend AI Assistant: Open WebUI)"
+      zh-cn: 工具OpenAPI访问地址(推荐AI助手：Open WebUI)
     Value:
       Fn::Jq:
         - All
@@ -418,6 +418,29 @@ Outputs:
                             - PublicIps
 
         - Ref: McpConfigJson
+  mcp_server_address:
+    Label:
+      en: "MCP Server Access URL(adapt AI assistant: Dify, Cherry Studio, OpenWebUI)"
+      zh-cn: MCP Server访问地址(适配AI助手：Dify, Cherry Studio等)
+    Value:
+      Fn::Jq:
+        - First
+        - Fn::Sub:
+            - 'map({(.serverCode): {"transport": "sse","url": "${URL}/\(.serverCode)/sse","headers": {"Authorization": "Bearer ${APIKEY}"}}}) | add'
+            - URL:
+                Fn::Sub:
+                  - http://${ServerAddress}:8080
+                  - ServerAddress:
+                      Fn::Select:
+                        - 0
+                        - Fn::GetAtt:
+                            - InstanceGroup
+                            - PublicIps
+              APIKEY:
+                Ref: MCP_KEY
+        - Ref: McpConfigJson
+
+
   mcp_api_key:
     NoEcho: 'True'
     Label:
