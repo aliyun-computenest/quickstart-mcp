@@ -81,6 +81,8 @@ Artifact:
         yum makecache
         yum install -y wget curl unzip git jq
         yum install -y docker-ce
+        systemctl start docker || error "启动 Docker 服务失败"
+        systemctl enable docker || warn "设置 Docker 开机自启动失败"
         sleep 20
         mkdir -p /root/application
         yum install jq -y
