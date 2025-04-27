@@ -102,7 +102,13 @@ MCP Server社区版在计算巢上的费用主要涉及：
 
 
 ## Dify 使用示例
-
+1. 来到计算巢实例界面，![img_7.png](img-deploy/img_7.png),接下来的操作需要使用"MCP Server访问地址"部分
+2. 打开您的Dify，按照下图示例，安装"SSE发现和调用MCP工具"![img.png](dify/img.png)
+3. 如果后续使用出现问题，可将此工具版本降低到0.0.10。![img_1.png](dify/img_1.png)
+4. 点击"授权"按钮对SSE工具进行配置。此处可直接粘贴步骤一中的MCP Server访问地址![img_2.png](dify/img_2.png)
+5. 创建个Agent，并进入。![img_3.png](dify/img_3.png)
+6. 按照下图示例，开启MCP工具调用，填写合适的提示词，选择合适的模型，比如QWEN-max。![img_4.png](dify/img_4.png)
+7. 对话，即可调用MCP工具。![img_5.png](dify/img_5.png)
 
 ## 问题排查
 
