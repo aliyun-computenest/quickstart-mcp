@@ -5,6 +5,25 @@ Conditions:
       - NewVPC
       - Ref: VpcOption
 Parameters:
+  InternetMaxBandwidthOut:
+    Type: Number
+    Label:
+      zh-cn: 公网带宽 (Mbps)
+      en: Internet Max Bandwidth Out (Mbps)
+    MinValue: 1
+    MaxValue: 100
+  InternetChargeType:
+    Type: String
+    Label:
+      zh-cn: 带宽付费类型
+      en: Internet Charge Type
+    AssociationPropertyMetadata:
+      ValueLabelMapping:
+        PayByTraffic: 按流量计费
+        PayByBandwidth: 按固定带宽计费
+    AllowedValues:
+      - PayByBandwidth
+      - PayByTraffic
   McpConfigJson:
     Type: Json
     Description:
@@ -306,7 +325,10 @@ Resources:
         Ref: EcsInstanceType
       SystemDiskCategory: cloud_essd
       SystemDiskSize: 40
-      InternetMaxBandwidthOut: 10
+      InternetMaxBandwidthOut:
+        Ref: InternetMaxBandwidthOut
+      InternetChargeType:
+        Ref: InternetChargeType
       IoOptimized: optimized
       MaxAmount: 1
   RunInstallCommand:
@@ -372,7 +394,7 @@ Resources:
               fi
             done
             sleep 10
-          
+            
             chmod +x /root/application/mcp/openapi-to-mcp   
             # 测试
             python higress_client.py --api-key ${mcp_KEY} --domain ${private_ip} --config /root/config.json
@@ -439,8 +461,27 @@ Outputs:
               APIKEY:
                 Ref: MCP_KEY
         - Ref: McpConfigJson
-
-
+  bailian_server_address:
+    Label:
+      en: '[Bailian Server](https://bailian.console.aliyun.com/?tab=app#/mcp-manage/create) Access URL(Standard Claude Desktop Format)'
+      zh-cn: '百炼Mcp Server地址 (标准Claude Desktop格式)'
+    Value:
+      Fn::Jq:
+        - First
+        - Fn::Sub:
+            - '[ .[ ] | {key: .serverCode,value: {"mcpServers": {(.serverCode): {"type": "sse","url": "${URL}/\(.serverCode)/sse","headers": {"Authorization": "Bearer ${APIKEY}"}}}}}] | map("\"\(.key)\": \(.value | tojson)") | join("<br>\n  ")'
+            - URL:
+                Fn::Sub:
+                  - http://${ServerAddress}:8080
+                  - ServerAddress:
+                      Fn::Select:
+                        - 0
+                        - Fn::GetAtt:
+                            - InstanceGroup
+                            - PublicIps
+              APIKEY:
+                Ref: MCP_KEY
+        - Ref: McpConfigJson
   mcp_api_key:
     NoEcho: 'True'
     Label:
@@ -457,6 +498,7 @@ Metadata:
           - MCP_KEY
         Label:
           Default: Mcp配置(可多选)
+
       - Parameters:
           - PayType
           - PayPeriodUnit
@@ -465,6 +507,8 @@ Metadata:
           default: 付费类型配置
       - Parameters:
           - EcsInstanceType
+          - InternetChargeType
+          - InternetMaxBandwidthOut
           - InstancePassword
         Label:
           default: 资源配置
@@ -477,3 +521,28 @@ Metadata:
           - VSwitchCidrBlock
         Label:
           default: 可用区配置
+    QuickDeployConfig:
+      PackageFields:
+        - Key: EcsInstanceType
+        - Key: InternetChargeType
+          Label:
+            zh-cn: 公网带宽
+            en: Internet Charge Type
+          Value: '${InternetChargeType } / ${InternetMaxBandwidthOut} Mbps'
+        - Key: PayType
+          Label:
+            zh-cn: 付费类型
+            en: Pay Type
+          Value: '${PayType}'
+        - Key: PayPeriodUnit
+          Label:
+            zh-cn: 付费时长
+            en: Pay Period
+          Value: '${PayPeriod} ${PayPeriodUnit}'
+      CustomFields:
+        - Key: InstancePassword
+      CostRelatedKeys:
+        - RegionId
+        - PayPeriod
+      AutomaticZone:
+        ZoneIdKey: ZoneId
