@@ -35,6 +35,7 @@ Parameters:
     AssociationProperty: 'ALIYUN::MCP::Server::Server'
     AssociationPropertyMetadata:
       ShowLabel: false
+      ShowCount: 6
 
   MCP_KEY:
     Type: String
