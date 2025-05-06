@@ -192,6 +192,8 @@ Parameters:
     MinLength: 8
     MaxLength: 30
     AssociationProperty: ALIYUN::ECS::Instance::Password
+    AssociationPropertyMetadata:
+      Random: True
   ZoneId:
     Type: String
     Label:
@@ -542,6 +544,10 @@ Metadata:
           Value: '${PayPeriod} ${PayPeriodUnit}'
       CustomFields:
         - Key: InstancePassword
+        - Key: MCP_KEY
+          Label:
+            zh-cn: MCP 认证秘钥
+            en: MCP Key
       CostRelatedKeys:
         - RegionId
         - PayPeriod

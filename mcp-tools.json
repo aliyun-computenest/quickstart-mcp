@@ -495,7 +495,7 @@
     "ServiceName": "阿里云Ops MCP",
     "Tags": ["LocationServices"],
     "Description": "alibaba-cloud-ops-mcp-server是一款专门为阿里云资源管理设计的MCP Server，它通过集成阿里云Open API和系统运维管理（OOS）的能力，为AI助手提供了一系列强大的工具支持。",
-    "EnvsDescription": "参考[文档](https://help.aliyun.com/zh/ram/user-guide/create-an-accesskey-pair)'获取您的Accesskey ID和Accesskey Secret并填写到下方。'",
+    "EnvsDescription": "参考[文档](https://help.aliyun.com/zh/ram/user-guide/create-an-accesskey-pair) 获取您的Accesskey ID和Accesskey Secret并填写到下方。",
     "Icon": "https://resouces.modelscope.cn/mcp-covers/avatar/aliyun.png",
     "ReadMeUrl": "https://github.com/aliyun/alibaba-cloud-ops-mcp-server/blob/master/README.md",
     "Type": "Command",
