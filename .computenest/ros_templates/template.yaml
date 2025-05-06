@@ -26,9 +26,6 @@ Parameters:
       - PayByTraffic
   McpConfigJson:
     Type: Json
-    Description:
-      zh-cn: Mcp运行的 Json配置
-      en: Mcp Running Json Configuration
     Label:
       zh-cn: MCP运行配置
       en: MCP Running Configuration
