@@ -38,7 +38,7 @@ Service:
         AllowedRegions:
         - ap-southeast-1
         PredefinedParameters:
-        - Name: 热卖套餐，特价99元/年
+        - Name: 热卖套餐
           Parameters:
             EcsInstanceType:
             - ecs.e-c1m1.large
@@ -55,7 +55,7 @@ Service:
           - InternetChargeType
           - InternetMaxBandwidthOut
           Type: Normal
-        - Name: 尝鲜套餐，只需0.4元/小时
+        - Name: 尝鲜套餐
           Parameters:
             EcsInstanceType:
             - ecs.u1-c1m2.large
