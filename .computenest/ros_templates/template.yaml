@@ -4,6 +4,11 @@ Conditions:
     Fn::Equals:
       - NewVPC
       - Ref: VpcOption
+  DisablePublicNetworkCondition:
+    Fn::Equals:
+      - PrivateNet
+      - Ref: NetworkOption
+
 Parameters:
   InternetMaxBandwidthOut:
     Type: Number
@@ -49,6 +54,20 @@ Parameters:
           min: 4
         - Class: "number"
           min: 2
+  NetworkOption:
+    Type: String
+    AllowedValues:
+      - PublicNet
+      - PrivateNet
+    AssociationPropertyMetadata:
+      ValueLabelMapping:
+        PublicNet:
+          zh-cn: 公网访问SSE
+          en: public network access
+        PrivateNet:
+          zh-cn: 私网访问SSE
+          en: private network access
+    Default: PublicNet
   VpcOption:
     Type: String
     AllowedValues:
@@ -433,11 +452,19 @@ Outputs:
                 Fn::Sub:
                   - http://${ServerAddress}:8000/
                   - ServerAddress:
-                      Fn::Select:
-                        - 0
-                        - Fn::GetAtt:
-                            - InstanceGroup
-                            - PublicIps
+                      Fn::If:
+                        - DisablePublicNetworkCondition
+                        - Fn::Select:
+                            - 0
+                            - Fn::GetAtt:
+                                - InstanceGroup
+                                - PrivateIps
+                        - Fn::Select:
+                            - 0
+                            - Fn::GetAtt:
+                                - InstanceGroup
+                                - PublicIps
+
 
         - Ref: McpConfigJson
   mcp_server_address:
@@ -453,11 +480,18 @@ Outputs:
                 Fn::Sub:
                   - http://${ServerAddress}:8080
                   - ServerAddress:
-                      Fn::Select:
-                        - 0
-                        - Fn::GetAtt:
-                            - InstanceGroup
-                            - PublicIps
+                      Fn::If:
+                        - DisablePublicNetworkCondition
+                        - Fn::Select:
+                            - 0
+                            - Fn::GetAtt:
+                                - InstanceGroup
+                                - PrivateIps
+                        - Fn::Select:
+                            - 0
+                            - Fn::GetAtt:
+                                - InstanceGroup
+                                - PublicIps
               APIKEY:
                 Ref: MCP_KEY
         - Ref: McpConfigJson
@@ -474,11 +508,18 @@ Outputs:
                 Fn::Sub:
                   - http://${ServerAddress}:8080
                   - ServerAddress:
-                      Fn::Select:
-                        - 0
-                        - Fn::GetAtt:
-                            - InstanceGroup
-                            - PublicIps
+                      Fn::If:
+                        - DisablePublicNetworkCondition
+                        - Fn::Select:
+                            - 0
+                            - Fn::GetAtt:
+                                - InstanceGroup
+                                - PrivateIps
+                        - Fn::Select:
+                            - 0
+                            - Fn::GetAtt:
+                                - InstanceGroup
+                                - PublicIps
               APIKEY:
                 Ref: MCP_KEY
         - Ref: McpConfigJson
@@ -507,6 +548,7 @@ Metadata:
           default: 付费类型配置
       - Parameters:
           - EcsInstanceType
+          - NetworkOption
           - InternetChargeType
           - InternetMaxBandwidthOut
           - InstancePassword
