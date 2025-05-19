@@ -426,7 +426,7 @@ Resources:
             MCP_RESULT:
               Fn::Jq:
                 - "First"
-                - '{mcpServers: map({ key: .serverCode, value: { command, args, env } }) | from_entries }'
+                - '{mcpServers: map({ key: .serverCode, value: { command, args, env,type,url } }) | from_entries }'
                 - Ref: McpConfigJson
             private_ip:
               Fn::Sub:
@@ -526,8 +526,8 @@ Outputs:
   mcp_api_key:
     NoEcho: 'True'
     Label:
-      en: MCP API key
-      zh-cn: MCP API KEY
+      en: MCP API key（add prefix Bearer）
+      zh-cn: MCP API KEY（使用时加前缀Bearer）
     Value:
       Ref: MCP_KEY
 

@@ -1116,3 +1116,4 @@ def main():
 # 作为脚本运行时使用命令行参数
 if __name__ == "__main__":
     sys.exit(main())
+    #usage： python higress_client.py --api-key 123456 --domain 192.168.1.244:8000 --config /root/config.json
