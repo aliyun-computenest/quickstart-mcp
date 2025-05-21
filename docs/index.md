@@ -63,86 +63,86 @@ MCP Server社区版在计算巢上的费用主要涉及：
 ### 部署步骤
 
 1. 单击[部署链接]("https://computenest.console.aliyun.com/service/instance/create/default?type=user&ServiceName=MCP%20Server%E7%A4%BE%E5%8C%BA%E7%89%88")，进入服务实例部署界面，选择想部署的地域，根据界面提示，填写参数完成部署。
-2. 选择你想使用的MCP工具。注意，可以多选哦！![img.png](../../img-deploy/img.png)
+2. 选择你想使用的MCP工具。注意，可以多选哦！![img.png](img-deploy/img.png)
 3. 如果需要使用自定义的MCP工具请参考【使用自定义MCP工具】
 3. 这里的MCP有两种类型。一种是无需环境变量的，比如"时间服务"，则直接勾选上，跳过参数配置步骤。
-4. 另一种MCP类型需要环境变量，比如高德地图，则需要配置上环境变量，否则MCP Server会部署失败![img_1.png](../../img-deploy/img_1.png)
-5. 如果不清楚MCP工具怎么使用，可以点击查看"帮助文档"查看和学习。![img_2.png](../../img-deploy/img_2.png)
-6. 系统默认帮你生成了一个API KEY，用于保护你即将部署的MCP工具，你可以修改此参数。![img_3.png](../../img-deploy/img_3.png)
+4. 另一种MCP类型需要环境变量，比如高德地图，则需要配置上环境变量，否则MCP Server会部署失败![img_1.png](img-deploy/img_1.png)
+5. 如果不清楚MCP工具怎么使用，可以点击查看"帮助文档"查看和学习。![img_2.png](img-deploy/img_2.png)
+6. 系统默认帮你生成了一个API KEY，用于保护你即将部署的MCP工具，你可以修改此参数。![img_3.png](img-deploy/img_3.png)
 7. 选择适合你的套餐，生产环境建议选择2核4G的规格以上，每次部署3个以下的MCP工具可直接选择热卖套餐。配置ECS登录密码
 8. 如果想选择其他实例类型或公网带宽，可选择自定义套餐进行配置
-9. 对可用区和网络进行配置。推荐选择任意可用区后，直接新建网络和虚拟机![img_5.png](../../img-deploy/img_5.png)
-10. 点击立即创建，等待部署成功，该过程一般耗时3分钟。该时长根据您选择的工具的多少有所波动。![img_6.png](../../img-deploy/img_6.png)
+9. 对可用区和网络进行配置。推荐选择任意可用区后，直接新建网络和虚拟机![img_5.png](img-deploy/img_5.png)
+10. 点击立即创建，等待部署成功，该过程一般耗时3分钟。该时长根据您选择的工具的多少有所波动。![img_6.png](img-deploy/img_6.png)
 11. 访问刚部署成功的实例界面，可查看到您部署的专属MCP工具的地址和API秘钥。针对不同的AI助手请参考下文进行配置和使用
 
 ### 使用自定义的MCP工具
-1. 点击新增自定义MCP工具，注意：自定义MCP工具可以重复添加![img.png](../../custom-mcp/img.png)
-2. 填写自定义工具的名称和id，注意id不能重复。![img_1.png](../../custom-mcp/img_1.png)
+1. 点击新增自定义MCP工具，注意：自定义MCP工具可以重复添加![img.png](custom-mcp/img.png)
+2. 填写自定义工具的名称和id，注意id不能重复。![img_1.png](custom-mcp/img_1.png)
 3. 选择你要使用的MCP工具的启动方式，如果选择如npx或uvx，则需要填写启动命令，该启动命令需要是数组的形式。比如
 ```shell
 ['mcp-server-time', '--local-timezone=America/New_York']
 ```
 4. 如果该命令启动的时候需要依赖一些环境变量，则需要在下方填写：比如key:GITHUB_PERSONAL_ACCESS_TOKEN, value: xxx
 5. 如果选择SSE的启动方式，需要填写URL。注意：如果需要鉴权，则该鉴权的key需要包含在此URL中。 如"https://mcp-xxx-22b0-4037.api-inference.modelscope.cn/sse"
-6. 点击选中当前自定义工具。![img_2.png](../../custom-mcp/img_2.png)
+6. 点击选中当前自定义工具。![img_2.png](custom-mcp/img_2.png)
 注意： 您新增的自定义工具在变配时会重新渲染，可以自行增加或减少要使用的MCP工具。当配置完自定义的MCP工具时，可继续进行部署步骤"6"
 
 ## 修改要使用的MCP工具
 如果想要修改要使用的MCP工具请参考下列操作
-1. 在计算巢控制台，点击"我的实例"，选择之前部署的MCP Server实例，点击右上方的"修改配置"。![img.png](../../update/img.png)
-2. 点击修改MCP工具，并点击"下一步"![img_1.png](../../update/img_1.png)
-3. 选择想要新增的MCP工具，比如我这新增了Fetch工具。（注意：之前选择的工具在此处会被重新渲染）![img_2.png](../../update/img_2.png)
+1. 在计算巢控制台，点击"我的实例"，选择之前部署的MCP Server实例，点击右上方的"修改配置"。![img.png](update/img.png)
+2. 点击修改MCP工具，并点击"下一步"![img_1.png](update/img_1.png)
+3. 选择想要新增的MCP工具，比如我这新增了Fetch工具。（注意：之前选择的工具在此处会被重新渲染）![img_2.png](update/img_2.png)
 4. 当然这里如果涉及到环境变量，则一定要按照文档进行设置。
-5. 点击确定，发起工具修改请求。![img_3.png](../../update/img_3.png)
-6. 等待实例状态变更完。![img_4.png](../../update/img_4.png)
-7. 将输出中新增的MCP工具加入到AI对话客户端中。![img_5.png](../../update/img_5.png)
+5. 点击确定，发起工具修改请求。![img_3.png](update/img_3.png)
+6. 等待实例状态变更完。![img_4.png](update/img_4.png)
+7. 将输出中新增的MCP工具加入到AI对话客户端中。![img_5.png](update/img_5.png)
 
 
 ## Cherry Studio使用示例
-1. 来到计算巢实例界面，![img_7.png](../../img-deploy/img_7.png),接下来的操作需要使用"MCP Server访问地址"部分
-2. 打开您的Cherry Studio助手，按照下图示例，新建MCP服务器。![img.png](../../cherry-studio/img.png)
+1. 来到计算巢实例界面，![img_7.png](img-deploy/img_7.png),接下来的操作需要使用"MCP Server访问地址"部分
+2. 打开您的Cherry Studio助手，按照下图示例，新建MCP服务器。![img.png](cherry-studio/img.png)
 3. "名称"和描述可以随便填。
 4. 类型选择"服务器发送时间（sse)
-5. URL填写实例界面的此处链接![img_1.png](../../cherry-studio/img_1.png)  注意此处使用的是http协议，结尾是sse后缀
-6. 在请求头添加上鉴权参数：![img_2.png](../../cherry-studio/img_2.png)。注意此处需要将":"改为"="填入，比如Authorization=Bearer 123
-7. 点击右上角的启用按钮和保存按钮。![img_3.png](../../cherry-studio/img_3.png)
-8. 来到对话界面，选择要使用的MCP工具。![img_4.png](../../cherry-studio/img_4.png)
+5. URL填写实例界面的此处链接![img_1.png](cherry-studio/img_1.png)  注意此处使用的是http协议，结尾是sse后缀
+6. 在请求头添加上鉴权参数：![img_2.png](cherry-studio/img_2.png)。注意此处需要将":"改为"="填入，比如Authorization=Bearer 123
+7. 点击右上角的启用按钮和保存按钮。![img_3.png](cherry-studio/img_3.png)
+8. 来到对话界面，选择要使用的MCP工具。![img_4.png](cherry-studio/img_4.png)
 9. 选择合适的模型，与AI对话，比如"我现在在杭州云谷，请给我推荐开车半小时以内的餐馆",即可让AI调用模型帮你找到合适的餐馆。
 
 
 ## Dify 使用示例
-1. 来到计算巢实例界面，![img_7.png](../../img-deploy/img_7.png),接下来的操作需要使用"MCP Server访问地址"部分
-2. 打开您的Dify，按照下图示例，安装"SSE发现和调用MCP工具"![img.png](../../dify/img.png)
-3. 如果后续使用出现问题，可将此工具版本降低到0.0.10。![img_1.png](../../dify/img_1.png)
-4. 点击"授权"按钮对SSE工具进行配置。此处可直接粘贴步骤一中的MCP Server访问地址![img_2.png](../../dify/img_2.png)
-5. 创建个Agent，并进入。![img_3.png](../../dify/img_3.png)
-6. 按照下图示例，开启MCP工具调用，填写合适的提示词，选择合适的模型，比如QWEN-max。![img_4.png](../../dify/img_4.png)
-7. 对话，即可调用MCP工具。![img_5.png](../../dify/img_5.png)
+1. 来到计算巢实例界面，![img_7.png](img-deploy/img_7.png),接下来的操作需要使用"MCP Server访问地址"部分
+2. 打开您的Dify，按照下图示例，安装"SSE发现和调用MCP工具"![img.png](dify/img.png)
+3. 如果后续使用出现问题，可将此工具版本降低到0.0.10。![img_1.png](dify/img_1.png)
+4. 点击"授权"按钮对SSE工具进行配置。此处可直接粘贴步骤一中的MCP Server访问地址![img_2.png](dify/img_2.png)
+5. 创建个Agent，并进入。![img_3.png](dify/img_3.png)
+6. 按照下图示例，开启MCP工具调用，填写合适的提示词，选择合适的模型，比如QWEN-max。![img_4.png](dify/img_4.png)
+7. 对话，即可调用MCP工具。![img_5.png](dify/img_5.png)
 
 ## 百炼使用示例
-1. 来到计算巢实例界面，![img_7.png](../../img-deploy/img_7.png),接下来的操作需要使用"百炼Mcp Server地址"部分
-2. 打开您的[百炼控制台](https://bailian.console.aliyun.com/?tab=mcp#/mcp-market)，进入到MCP界面![img_1.png](../../bailian/img_1.png)
-3. 选择SSE的安装方式，填写合适的服务名称和描述![img.png](../../bailian/img_6.png)
-4. 选择要使用的MCP工具，将其配置粘贴到"MCP服务配置"中，示例如下。![img_2.png](../../bailian/img_2.png)
+1. 来到计算巢实例界面，![img_7.png](img-deploy/img_7.png),接下来的操作需要使用"百炼Mcp Server地址"部分
+2. 打开您的[百炼控制台](https://bailian.console.aliyun.com/?tab=mcp#/mcp-market)，进入到MCP界面![img_1.png](bailian/img_1.png)
+3. 选择SSE的安装方式，填写合适的服务名称和描述![img.png](bailian/img_6.png)
+4. 选择要使用的MCP工具，将其配置粘贴到"MCP服务配置"中，示例如下。![img_2.png](bailian/img_2.png)
 ```json
 {"mcpServers":{"amap-maps":{"type":"sse","url":"http://47.xxx:8080/amap-maps/sse","headers":{"Authorization":"Bearer rBrrSh7ZhA"}}}}
 ```
 5. 注意，此处如果在计算巢选择安装了多个工具，需要在控制台每个工具配置一次MCP服务。
-6. 在百炼"应用"界面，点击"应用管理"，点击"新增应用"![img_3.png](../../bailian/img_3.png)，选择"智能体应用"，并点击创建
-7. 按照图示顺序添加要使用的MCP工具。![img_4.png](../../bailian/img_4.png)
-8. 选择合适的模型，即可在对话中使用MCP功能。![img_5.png](../../bailian/img_5.png)![img.png](../../bailian/img.png)
+6. 在百炼"应用"界面，点击"应用管理"，点击"新增应用"![img_3.png](bailian/img_3.png)，选择"智能体应用"，并点击创建
+7. 按照图示顺序添加要使用的MCP工具。![img_4.png](bailian/img_4.png)
+8. 选择合适的模型，即可在对话中使用MCP功能。![img_5.png](bailian/img_5.png)![img.png](bailian/img.png)
 
 ## Open WebUI使用示例
 
-1. 访问计算巢实例界面，![img_7.png](../../img-deploy/img_7.png)![img.png](../../bailian/img.png)
-2. 打开您的Open WebUI客户端，如Open WebUI，并将地址和API秘钥粘贴进去。![img_8.png](../../img-deploy/img_8.png)
-3. 新建个对话，并开启MCP工具![img_9.png](../../img-deploy/img_9.png)
-4. 验证一下AI使用您的MCP工具！ ![img_10.png](../../img-deploy/img_10.png)
+1. 访问计算巢实例界面，![img_7.png](img-deploy/img_7.png)![img.png](bailian/img.png)
+2. 打开您的Open WebUI客户端，如Open WebUI，并将地址和API秘钥粘贴进去。![img_8.png](img-deploy/img_8.png)
+3. 新建个对话，并开启MCP工具![img_9.png](img-deploy/img_9.png)
+4. 验证一下AI使用您的MCP工具！ ![img_10.png](img-deploy/img_10.png)
 
 ## 问题排查
 
 如果发现实例一直未部署成功，90%的概率是环境变量配置错误，可参考以下步骤排查：
-1. 通过会话管理登录到ECS实例。![img_6.png](../../error/img.png)
+1. 通过会话管理登录到ECS实例。![img_6.png](error/img.png)
 2. 输入以下指令确认环境变量是否正确。
 ```shell
 cat /root/config.json
