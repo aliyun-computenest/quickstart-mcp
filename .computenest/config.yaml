@@ -152,6 +152,18 @@ Service:
         - Name: higress
           Version: 2.1.1
           Locale: zh-CN
+    - Locale: en
+      Name: MCP Server
+      ShortDescription: "This service creatively addresses the following issues in traditional MCP markets: This service supports the simultaneous deployment of multiple MCP tools. This service supports two invocation methods (OpenAPI and SSE) and is compatible with AI assistants such as Dify, Cherry Studio, and OpenWebUI. This service supports dynamically adding or removing MCP tools through configuration adjustments."
+      Image:
+        https://service-info-public.oss-cn-hangzhou.aliyuncs.com/1853370294850618/service-image/ba45d5c8-8654-44a9-a60a-a3090a958c77.png
+      Softwares:
+        - Name: mcpo
+          Version: 0.0.12
+          Locale: zh-CN
+        - Name: higress
+          Version: 2.1.1
+          Locale: zh-CN
 Artifact:
   EcsImage:
     ArtifactType: EcsImage
