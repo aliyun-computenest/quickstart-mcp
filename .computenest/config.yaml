@@ -152,7 +152,7 @@ Service:
         - Name: higress
           Version: 2.1.1
           Locale: zh-CN
-    - Locale: en
+    - Locale: en-US
       Name: MCP Server
       ShortDescription: "This service creatively addresses the following issues in traditional MCP markets: This service supports the simultaneous deployment of multiple MCP tools. This service supports two invocation methods (OpenAPI and SSE) and is compatible with AI assistants such as Dify, Cherry Studio, and OpenWebUI. This service supports dynamically adding or removing MCP tools through configuration adjustments."
       Image:
