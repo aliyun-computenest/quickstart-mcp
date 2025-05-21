@@ -412,6 +412,17 @@ Resources:
                     sleep $INTERVAL
               fi
             done
+            for ((i=1; i<=MAX_ATTEMPTS; i++))
+              do
+                LATEST_LOG=$(docker logs higress-ai 2>&1 | tail -n 10)
+                if echo "$LATEST_LOG" | grep -q "console entered RUNNING state"
+                  then
+                    echo "success"
+                    break
+                  else
+                    sleep $INTERVAL
+              fi
+            done
             sleep 10
             
             chmod +x /root/application/mcp/openapi-to-mcp   
