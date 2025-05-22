@@ -37,7 +37,8 @@ Parameters:
     AssociationProperty: 'ALIYUN::MCP::Server::Server'
     AssociationPropertyMetadata:
       ShowLabel: false
-      ShowCount: 6
+      ShowCounts: 9
+      ShowTagsCounts: 10
 
   MCP_KEY:
     Type: String
@@ -56,6 +57,7 @@ Parameters:
           min: 2
   NetworkOption:
     Type: String
+    Label: MCP网络连接方式
     AllowedValues:
       - PublicNet
       - PrivateNet
