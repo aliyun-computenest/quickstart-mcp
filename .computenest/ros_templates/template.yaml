@@ -8,7 +8,10 @@ Conditions:
     Fn::Equals:
       - PrivateNet
       - Ref: NetworkOption
-
+  CreateSecurityGroupConditions:
+    Fn::Equals:
+      - NewSecurityGroup
+      - Ref: SecurityGroupOption
 Parameters:
   InternetMaxBandwidthOut:
     Type: Number
@@ -261,6 +264,50 @@ Parameters:
           Fn::Equals:
             - ExistingVPC
             - ${VpcOption}
+  SecurityGroupOption:
+    Type: String
+    AllowedValues:
+      - NewSecurityGroup
+      - ExistingSecurityGroup
+    AssociationPropertyMetadata:
+      Visible:
+        Condition:
+          Fn::Equals:
+            - ExistingVPC
+            - ${VpcOption}
+      ValueLabelMapping:
+        NewSecurityGroup:
+          zh-cn: 新建安全组
+          en: New SecurityGroup
+        ExistingSecurityGroup:
+          zh-cn: 已有安全组
+          en: Existing SecurityGroup
+    Label:
+      en: Select Existing or SecurityGroup
+      zh-cn: 选择已有/新建的安全组
+    Required:
+      Fn::Equals:
+        - ExistingVPC
+        - ${VpcOption}
+    Default: NewSecurityGroup
+  SecurityGroupId:
+    Type: String
+    Label:
+        en: SecurityGroup ID
+        zh-cn: 安全组实例ID
+    Required:
+      Fn::Equals:
+        - ExistingSecurityGroup
+        - ${SecurityGroupOption}
+    Default: ''
+    AssociationProperty: ALIYUN::ECS::SecurityGroup::SecurityGroupId
+    AssociationPropertyMetadata:
+      VpcId: ${VpcId}
+      Visible:
+        Condition:
+          Fn::Equals:
+            - ExistingSecurityGroup
+            - ${SecurityGroupOption}
 Resources:
   # 新建vpc
   EcsVpc:
@@ -286,6 +333,7 @@ Resources:
         Ref: VSwitchCidrBlock
   SecurityGroup:
     Type: ALIYUN::ECS::SecurityGroup
+    Condition: CreateSecurityGroupConditions
     Properties:
       SecurityGroupName:
         Ref: ALIYUN::StackName
@@ -338,7 +386,10 @@ Resources:
       ZoneId:
         Ref: ZoneId
       SecurityGroupId:
-        Ref: SecurityGroup
+        Fn::If:
+          - CreateSecurityGroupConditions
+          - Ref: SecurityGroup
+          - Ref: SecurityGroupId
       ImageId: ecs_image_quickstart-mcp
       Password:
         Ref: InstancePassword
@@ -574,6 +625,8 @@ Metadata:
           - VSwitchId
           - VpcCidrBlock
           - VSwitchCidrBlock
+          - SecurityGroupOption
+          - SecurityGroupId
         Label:
           default: 可用区配置
     QuickDeployConfig:
