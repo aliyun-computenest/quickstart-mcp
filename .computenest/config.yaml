@@ -139,31 +139,17 @@ Service:
   ServiceType: private
   ServiceInfo:
     # 英文版可以再配置Locale为en-US的服务信息
-    - Locale: zh-CN
-      Name: MCP Server社区版
-      ShortDescription: "本服务创造性地解决了传统MCP市场的以下问题：\n  1.  本服务支持多选MCP工具同时部署\n  2.  本服务支持OpenAPI和SSE的两种方式调用，支持Dify，Cherry
+  - Locale: zh-CN
+    Name: MCP Server社区版
+    ShortDescription: "本服务创造性地解决了传统MCP市场的以下问题：\n  1.  本服务支持多选MCP工具同时部署\n  2.  本服务支持OpenAPI和SSE的两种方式调用，支持Dify，Cherry
       Studio，OpenWebUI等AI助手。\n  3. 本服务支持通过变配动态增删要使用的MCP工具。"
-      Image:
-        https://service-info-public.oss-cn-hangzhou.aliyuncs.com/1853370294850618/service-image/ba45d5c8-8654-44a9-a60a-a3090a958c77.png
-      Softwares:
-        - Name: mcpo
-          Version: 0.0.12
-          Locale: zh-CN
-        - Name: higress
-          Version: 2.1.1
-          Locale: zh-CN
-    - Locale: en-US
-      Name: MCP Server
-      ShortDescription: "This service creatively addresses the following issues in traditional MCP markets: This service supports the simultaneous deployment of multiple MCP tools. This service supports two invocation methods (OpenAPI and SSE) and is compatible with AI assistants such as Dify, Cherry Studio, and OpenWebUI. This service supports dynamically adding or removing MCP tools through configuration adjustments."
-      Image:
-        https://service-info-public.oss-cn-hangzhou.aliyuncs.com/1853370294850618/service-image/ba45d5c8-8654-44a9-a60a-a3090a958c77.png
-      Softwares:
-        - Name: mcpo
-          Version: 0.0.12
-          Locale: zh-CN
-        - Name: higress
-          Version: 2.1.1
-          Locale: zh-CN
+    Image: 
+      https://service-info-public.oss-cn-hangzhou.aliyuncs.com/1853370294850618/service-image/ba45d5c8-8654-44a9-a60a-a3090a958c77.png
+    Softwares:
+    - Name: mcpo
+      Version: 0.0.12
+    - Name: higress
+      Version: 2.1.2
 Artifact:
   EcsImage:
     ArtifactType: EcsImage
