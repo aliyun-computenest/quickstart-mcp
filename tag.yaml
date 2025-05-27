@@ -5,4 +5,56 @@ Finance: 金融
 ScheduleManagement: 日程管理
 Arts: 艺术
 KnowledgeAndMemory: 知识管理与记忆
+version-control: 版本控制
+knowledge & memory: 知识管理与记忆
+knowledge-and-memory: 知识管理与记忆
+art-and-culture: 文化与艺术（31）
+entertainment-and-media: 娱乐与多媒体（52）
+finance: 金融（174）
+communication: 交流协作工具（182）
+research-and-data: 学术研究（166）
+developer-tools: 开发者工具（951）
+location-services: 位置服务
+other: 其他
+browser-automation: 浏览器自动化
+search: 搜索工具
+file-systems: 文件系统
+calendar-management: 日程管理
 Other: 其他
+  
+  [
+    "LocationServices: 位置服务",
+    "VersionControl: 版本控制",
+    "FileSystems: 文件系统",
+    "Search: 搜索工具",
+    "KnowledgeAndMemory: 知识管理与记忆",
+    "ArtAndCulture: 文化与艺术",
+    "BrowserAutomation: 浏览器自动化",
+    "ResearchAndData: 学术研究",
+    "Monitoring: 监控工具",
+    "DeveloperTools: 开发者工具",
+    "TravelAndTransportation: 旅行与交通",
+    "CalendarManagement: 日历管理",
+    "AIGC: 人工智能生成内容",
+    "Communication: 交流协作",
+    "Finance: 金融",
+    "Other: 其他",
+    "Databases: 数据库",
+    "SocialMedia: 社交媒体",
+    "EntertainmentAndMedia: 娱乐与媒体",
+    "ImageAndVideoProcessing: 图像与视频处理",
+    "NoteTaking: 笔记工具",
+    "SpeechProcessing: 语音处理",
+    "OsAutomation: 操作系统自动化",
+    "CloudPlatforms: 云平台",
+    "Virtualization: 虚拟化",
+    "HealthAndWellness: 健康与健康",
+    "EcommerceAndRetail: 电子商务与零售",
+    "SecurityAndIam: 安全与身份认证",
+    "LanguageTranslation: 语言翻译",
+    "Marketing: 市场营销",
+    "CloudStorage: 云存储",
+    "CustomerSupport: 客户支持",
+    "GamesAndGamification: 游戏与游戏化",
+    "CustomerDataPlatforms: 客户数据平台"
+  ]

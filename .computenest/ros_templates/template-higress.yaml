@@ -1,37 +1,16 @@
 ROSTemplateFormatVersion: '2015-09-01'
 Conditions:
-  EnableAuthenticationConditions:
-    Fn::Equals:
-      - Enable
-      - Ref: AuthenticationOption
-  CreateVpcConditions:
-    Fn::Equals:
-      - NewVPC
-      - Ref: VpcOption
   DisablePublicNetworkCondition:
     Fn::Equals:
       - PrivateNet
       - Ref: NetworkOption
-  CreateSecurityGroupConditions:
-    Fn::Equals:
-      - NewSecurityGroup
-      - Ref: SecurityGroupOption
+
 Parameters:
-  AuthenticationOption:
+  HigressAI:
     Type: String
-    Label: 是否开启认证
-    AllowedValues:
-      - Enable
-      - Disable
-    AssociationPropertyMetadata:
-      ValueLabelMapping:
-        Enable:
-          zh-cn: 开启认证
-          en: Enable Authentication
-        Disable:
-          zh-cn: 关闭认证
-          en: Disable Authentication
-    Default: Enable
+    Label:
+      zh-cn: AI网关
+      en: AI Gateway
   InternetMaxBandwidthOut:
     Type: Number
     Label:
@@ -59,25 +38,15 @@ Parameters:
     AssociationProperty: 'ALIYUN::MCP::Server::Server'
     AssociationPropertyMetadata:
       ShowLabel: false
-      ShowCounts: 9
-      ShowTagsCounts: 10
+      ShowCount: 6
 
   MCP_KEY:
     Type: String
     Description:
       zh-cn: MCP工具key，用于保护您的工具不被公网滥用
       en: MCP tool key, used to protect your tool from being abused by the public network
-    Required:
-      Fn::Equals:
-        - AuthenticationOption
-        - ${AuthenticationOption}
     AssociationProperty: AutoCompleteInput
     AssociationPropertyMetadata:
-      Visible:
-        Condition:
-          Fn::Equals:
-            - NewVPC
-            - ${VpcOption}
       Length: 10
       CharacterClasses:
         - Class: "lowercase"
@@ -88,7 +57,6 @@ Parameters:
           min: 2
   NetworkOption:
     Type: String
-    Label: MCP网络连接方式
     AllowedValues:
       - PublicNet
       - PrivateNet
@@ -101,65 +69,6 @@ Parameters:
           zh-cn: 私网访问SSE
           en: private network access
     Default: PublicNet
-  VpcOption:
-    Type: String
-    AllowedValues:
-      - NewVPC
-      - ExistingVPC
-    AssociationPropertyMetadata:
-      ValueLabelMapping:
-        NewVPC:
-          zh-cn: 新建专有网络
-          en: New VPC
-        ExistingVPC:
-          zh-cn: 已有专有网络
-          en: Existing VPC
-    Label:
-      en: Select Existing or New VPC
-      zh-cn: 选择已有/新建的专有网络
-    Required: true
-    Default: NewVPC
-  VpcCidrBlock:
-    Type: String
-    Label:
-      en: VPC CIDR IPv4 Block
-      zh-cn: 专有网络IPv4网段
-    Description:
-      zh-cn: VPC的ip地址段范围，<br>您可以使用以下的ip地址段或其子网:<br><font color='green'>[10.0.0.0/8]</font><br><font color='green'>[172.16.0.0/12]</font><br><font color='green'>[192.168.0.0/16]</font>
-      en: 'The ip address range of the VPC in the CidrBlock form; <br>You can use the following ip address ranges and their subnets: <br><font color=''green''>[10.0.0.0/8]</font><br><font color=''green''>[172.16.0.0/12]</font><br><font color=''green''>[192.168.0.0/16]</font>'
-    Default: 192.168.0.0/16
-    Required:
-      Fn::Equals:
-        - NewVPC
-        - ${VpcOption}
-    AssociationProperty: ALIYUN::VPC::VPC::CidrBlock
-    AssociationPropertyMetadata:
-      Visible:
-        Condition:
-          Fn::Equals:
-            - NewVPC
-            - ${VpcOption}
-  VSwitchCidrBlock:
-    Type: String
-    Label:
-      en: VSwitch CIDR Block
-      zh-cn: 交换机子网网段
-    Description:
-      zh-cn: 必须属于VPC的子网段。
-      en: Must belong to the subnet segment of VPC.
-    Default: 192.168.1.0/24
-    Required:
-      Fn::Equals:
-        - NewVPC
-        - ${VpcOption}
-    AssociationProperty: ALIYUN::VPC::VSwitch::CidrBlock
-    AssociationPropertyMetadata:
-      VpcCidrBlock: VpcCidrBlock
-      Visible:
-        Condition:
-          Fn::Equals:
-            - NewVPC
-            - ${VpcOption}
   PayType:
     Type: String
     Label:
@@ -243,125 +152,66 @@ Parameters:
     AssociationProperty: ALIYUN::ECS::Instance::Password
     AssociationPropertyMetadata:
       Random: True
-  ZoneId:
-    Type: String
-    Label:
-      en: Zone ID
-      zh-cn: 可用区ID
-    AssociationProperty: ALIYUN::ECS::Instance::ZoneId
-    AssociationPropertyMetadata:
-      DefaultValueStrategy: random
-      InstanceChargeType: ${PayType}
-      SystemDiskCategory: cloud_essd
       InstanceType: ${EcsInstanceType}
-  VpcId:
-    Type: String
-    Label:
-      en: VPC ID
-      zh-cn: 专有网络VPC实例ID
-    AssociationProperty: 'ALIYUN::ECS::VPC::VPCId'
-    Required:
-      Fn::Equals:
-        - ExistingVPC
-        - ${VpcOption}
-    Default: ''
-    AssociationPropertyMetadata:
-      AutoSelectFirst: true
-      Visible:
-        Condition:
-          Fn::Equals:
-            - ExistingVPC
-            - ${VpcOption}
-  VSwitchId:
-    Type: String
-    Label:
-      en: VSwitch ID
-      zh-cn: 交换机实例ID
-    Default: ''
-    AssociationProperty: 'ALIYUN::ECS::VSwitch::VSwitchId'
-    Required:
-      Fn::Equals:
-        - ExistingVPC
-        - ${VpcOption}
-    AssociationPropertyMetadata:
-      AutoSelectFirst: true
-      VpcId: ${VpcId}
-      ZoneId: ${ZoneId}
-      Visible:
-        Condition:
-          Fn::Equals:
-            - ExistingVPC
-            - ${VpcOption}
-  SecurityGroupOption:
-    Type: String
-    AllowedValues:
-      - NewSecurityGroup
-      - ExistingSecurityGroup
-    AssociationPropertyMetadata:
-      Visible:
-        Condition:
-          Fn::Equals:
-            - ExistingVPC
-            - ${VpcOption}
-      ValueLabelMapping:
-        NewSecurityGroup:
-          zh-cn: 新建安全组
-          en: New SecurityGroup
-        ExistingSecurityGroup:
-          zh-cn: 已有安全组
-          en: Existing SecurityGroup
-    Label:
-      en: Select Existing or SecurityGroup
-      zh-cn: 选择已有/新建的安全组
-    Required:
-      Fn::Equals:
-        - ExistingVPC
-        - ${VpcOption}
-    Default: NewSecurityGroup
-  SecurityGroupId:
-    Type: String
-    Label:
-        en: SecurityGroup ID
-        zh-cn: 安全组实例ID
-    Required:
-      Fn::Equals:
-        - ExistingSecurityGroup
-        - ${SecurityGroupOption}
-    Default: ''
-    AssociationProperty: ALIYUN::ECS::SecurityGroup::SecurityGroupId
-    AssociationPropertyMetadata:
-      VpcId: ${VpcId}
-      Visible:
-        Condition:
-          Fn::Equals:
-            - ExistingSecurityGroup
-            - ${SecurityGroupOption}
 Resources:
-  # 新建vpc
-  EcsVpc:
-    Type: ALIYUN::ECS::VPC
-    Condition: CreateVpcConditions
+  DATASOURCE::APIG::Gateway:
+    Type: DATASOURCE::APIG::Gateways
     Properties:
-      VpcName:
-        Ref: ALIYUN::StackName
-      CidrBlock:
-        Ref: VpcCidrBlock
-  # 新建vswitch
-  EcsVSwitch:
-    Condition: CreateVpcConditions
-    Type: ALIYUN::ECS::VSwitch
+      GatewayId:
+        Ref: HigressAI
+
+  EcsRole:
+    Type: ALIYUN::RAM::Role
     Properties:
-      VSwitchName:
-        Ref: ALIYUN::StackName
-      VpcId:
-        Ref: EcsVpc
-      ZoneId:
-        Ref: ZoneId
-      CidrBlock:
-        Ref: VSwitchCidrBlock
+      RoleName:
+        Fn::Sub: 'HigressRole-${ALIYUN::StackId}'
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: 'sts:AssumeRole'
+            Effect: Allow
+            Principal:
+              Service:
+                - ecs.aliyuncs.com
+        Version: '1'
+      Policies:
+        - PolicyName:
+            'Fn::Sub': 'HigressEcsPolicy-${ALIYUN::StackId}'
+          PolicyDocument:
+            Statement:
+              - Action:
+                  - 'ram:CreateServiceLinkedRole'
+                Resource:
+                  - '*'
+                Effect: Allow
+                Condition:
+                  StringEquals:
+                    'ram:ServiceName':
+                      - supplier.computenest.aliyuncs.com
+              - Action:
+                  - 'ram:CreateServiceLinkedRole'
+                Resource:
+                  - '*'
+                Effect: Allow
+                Condition:
+                  StringEquals:
+                    'ram:ServiceName': cloudmonitor.aliyuncs.com
+              - Action:
+                  - 'computenestsupplier:*'
+                  - 'apig:*'
+                  - 'cms:*'
+                  - 'ecs:*'
+                  - 'vpc:*'
+                  - 'oss:*'
+                  - 'ros:*'
+                  - 'tag:*'
+                  - 'ots:*'
+                  - 'ram:GetRole'
+                Resource:
+                  - '*'
+                Effect: Allow
+            Version: '1'
   SecurityGroup:
     Type: ALIYUN::ECS::SecurityGroup
-    Condition: CreateSecurityGroupConditions
     Properties:
       SecurityGroupName:
         Ref: ALIYUN::StackName
@@ -414,10 +264,7 @@ Resources:
       ZoneId:
         Ref: ZoneId
       SecurityGroupId:
-        Fn::If:
-          - CreateSecurityGroupConditions
-          - Ref: SecurityGroup
-          - Ref: SecurityGroupId
+        Ref: SecurityGroup
       ImageId: ecs_image_quickstart-mcp
       Password:
         Ref: InstancePassword
@@ -508,19 +355,13 @@ Resources:
             
             chmod +x /root/application/mcp/openapi-to-mcp   
             # 测试
-            python higress_client.py ${mcp_KEY} --domain ${private_ip} --config /root/config.json ${auth}
+            python higress_client.py --api-key ${mcp_KEY} --domain ${private_ip} --config /root/config.json
             sleep 10
 
           - RegionId:
               Ref: ALIYUN::Region
             mcp_KEY:
-              Fn::If:
-                - EnableAuthenticationConditions
-                - Fn::Sub:
-                    - "--api-key ${key}"
-                    - key:
-                        Ref: MCP_KEY
-                - ""
+              Ref: MCP_KEY
             MCP_RESULT:
               Fn::Jq:
                 - "First"
@@ -535,11 +376,6 @@ Resources:
                       - Fn::GetAtt:
                           - InstanceGroup
                           - PrivateIps
-            auth:
-              Fn::If:
-                - EnableAuthenticationConditions
-                - "--skip-auth"
-                - ""
 
 Outputs:
   openapi_server_address:
@@ -640,7 +476,6 @@ Metadata:
       - Parameters:
           - McpConfigJson
           - MCP_KEY
-          - "AuthenticationOption"
         Label:
           Default: Mcp配置(可多选)
 
@@ -665,8 +500,6 @@ Metadata:
           - VSwitchId
           - VpcCidrBlock
           - VSwitchCidrBlock
-          - SecurityGroupOption
-          - SecurityGroupId
         Label:
           default: 可用区配置
     QuickDeployConfig:

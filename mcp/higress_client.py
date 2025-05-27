@@ -413,24 +413,38 @@ class HigressClient:
             self.logger.error(traceback.format_exc())
             raise RuntimeError(f"更新服务来源失败: {str(e)}")
 
-    def create_route(self, name, service_name):
+    def create_route(self, name, service_name, skip_auth=False):
         """创建路由"""
         self._log_caller_info()
-        payload = {
-            "name": name,
-            "path": {
-                "matchType": "PRE",
-                "matchValue": f"/{service_name}",
-                "caseSensitive": True
-            },
-            "authConfig": {
-                "enabled": True,
-                "allowedConsumers": ["computenest"]
-            },
-            "services": [{
-                "name": f"{service_name}.static:80"
-            }]
-        }
+        if skip_auth:
+            self.logger.info(f"跳过路由认证配置: {name}")
+            payload = {
+                "name": name,
+                "path": {
+                    "matchType": "PRE",
+                    "matchValue": f"/{service_name}",
+                    "caseSensitive": True
+                },
+                "services": [{
+                    "name": f"{service_name}.static:80"
+                }]
+            }
+        else:
+            payload = {
+                "name": name,
+                "path": {
+                    "matchType": "PRE",
+                    "matchValue": f"/{service_name}",
+                    "caseSensitive": True
+                },
+                "authConfig": {
+                    "enabled": True,
+                    "allowedConsumers": ["computenest"]
+                },
+                "services": [{
+                    "name": f"{service_name}.static:80"
+                }]
+            }
 
         try:
             # 检查路由是否已存在
@@ -639,21 +653,25 @@ class HigressClient:
             self.logger.error(traceback.format_exc())
             raise RuntimeError(f"执行 openapi-to-mcp 时出错: {str(e)}")
 
-    def modify_mcp_yaml(self, yaml_path, api_key, base_url="http://127.0.0.1:8000"):
+    def modify_mcp_yaml(self, yaml_path, api_key, base_url="http://127.0.0.1:8000", skip_auth=False):
         """
-        修改 MCP YAML 文件，将 API 密钥和基础 URL 放在 server.config 中，
-        并在 requestTemplate 中使用模板变量引用它们
+            修改 MCP YAML 文件，将 API 密钥和基础 URL 放在 server.config 中，
+            并在 requestTemplate 中使用模板变量引用它们
 
-        Args:
-            yaml_path: YAML 文件路径
-            api_key: API 密钥
-            base_url: 基础 URL 前缀
+            Args:
+                yaml_path: YAML 文件路径
+                api_key: API 密钥
+                base_url: 基础 URL 前缀
+                skip_auth: 是否跳过添加鉴权信息
 
-        Returns:
-            str: 修改后的 YAML 文件路径
+            Returns:
+                str: 修改后的 YAML 文件路径
         """
         self._log_caller_info()
         self.logger.info(f"修改 MCP YAML 文件: {yaml_path}")
+
+        if skip_auth:
+            self.logger.info("跳过添加鉴权信息")
 
         try:
             # 读取原始 YAML
@@ -670,9 +688,12 @@ class HigressClient:
             if 'config' not in config['server']:
                 config['server']['config'] = {}
 
-            # 设置 apikey 和 baseUrl
-            config['server']['config']['apikey'] = api_key
+            # 设置 baseUrl (无论是否跳过鉴权都需要)
             config['server']['config']['baseUrl'] = base_url
+
+            # 只有在不跳过鉴权时才设置 apikey
+            if not skip_auth:
+                config['server']['config']['apikey'] = api_key
 
             # 检查 tools 部分
             if 'tools' not in config:
@@ -682,7 +703,7 @@ class HigressClient:
             # 修改每个工具
             for tool in config['tools']:
                 if 'requestTemplate' in tool:
-                    # 修改 URL 使用模板变量
+                    # 修改 URL 使用模板变量 (无论是否跳过鉴权都需要)
                     if 'url' in tool['requestTemplate']:
                         original_url = tool['requestTemplate']['url']
 
@@ -703,26 +724,28 @@ class HigressClient:
                         tool['requestTemplate']['url'] = new_url
                         self.logger.debug(f"URL 已修改: {original_url} -> {new_url}")
 
-                    # 更新或添加授权头，使用模板变量
-                    if 'headers' not in tool['requestTemplate']:
-                        tool['requestTemplate']['headers'] = []
+                    # 只有在不跳过鉴权时才更新或添加授权头
+                    if not skip_auth:
+                        # 更新或添加授权头，使用模板变量
+                        if 'headers' not in tool['requestTemplate']:
+                            tool['requestTemplate']['headers'] = []
 
-                    # 检查是否已有授权头
-                    has_auth = False
-                    for header in tool['requestTemplate']['headers']:
-                        if header.get('key') == 'Authorization':
-                            has_auth = True
-                            header['value'] = "Bearer {{.config.apikey}}"
-                            self.logger.debug("已更新现有授权头")
-                            break
+                        # 检查是否已有授权头
+                        has_auth = False
+                        for header in tool['requestTemplate']['headers']:
+                            if header.get('key') == 'Authorization':
+                                has_auth = True
+                                header['value'] = "Bearer {{.config.apikey}}"
+                                self.logger.debug("已更新现有授权头")
+                                break
 
-                    # 如果没有授权头，添加一个
-                    if not has_auth:
-                        tool['requestTemplate']['headers'].append({
-                            'key': 'Authorization',
-                            'value': "Bearer {{.config.apikey}}"
-                        })
-                        self.logger.debug("已添加授权头")
+                        # 如果没有授权头，添加一个
+                        if not has_auth:
+                            tool['requestTemplate']['headers'].append({
+                                'key': 'Authorization',
+                                'value': "Bearer {{.config.apikey}}"
+                            })
+                            self.logger.debug("已添加授权头")
 
             # 保存修改后的 YAML
             with open(yaml_path, 'w', encoding='utf-8') as f:
@@ -741,6 +764,7 @@ class HigressClient:
             self.logger.error(traceback.format_exc())
             # 返回原始文件路径，不中断流程
             return yaml_path
+
 
     def extract_tools_from_config(self, config_path):
         """从 MCP 配置文件中提取工具列表"""
@@ -880,7 +904,7 @@ class HigressClient:
             logger.error(traceback.format_exc())
             raise RuntimeError(f"创建/覆盖 higress-config.yaml 文件失败: {str(e)}")
 
-    def setup_from_config(self, config_path, openapi_base_url="http://localhost:8000", api_key=None, domain=None):
+    def setup_from_config(self, config_path, openapi_base_url="http://localhost:8000", api_key=None, domain=None, skip_auth=False):
         """
         从 MCP 配置文件获取工具列表并配置所有工具
 
@@ -900,7 +924,8 @@ class HigressClient:
             self.logger.info(f"开始从配置文件配置工具...")
             self.logger.info(f"配置文件: {config_path}")
             self.logger.info(f"OpenAPI 基础 URL: {openapi_base_url}")
-
+            if skip_auth:
+                self.logger.info("跳过创建消费者和路由认证配置")
             # 步骤 1: 从配置文件提取工具列表
             self.logger.info(f"步骤 1: 从配置文件提取工具列表")
             tools = self.extract_tools_from_config(config_path)
@@ -910,15 +935,19 @@ class HigressClient:
                 return {"tools": [], "status": "no_tools_found"}
 
             # 创建消费者 (只需要一个)
-            try:
-                self.logger.info("步骤 2: 创建/更新 Consumer")
-                consumer = self.create_computenest_consumer(api_key)
-                result["consumer"] = consumer
-                self.logger.info("Consumer 创建/更新成功")
-            except Exception as e:
-                self.logger.error(f"创建 Consumer 失败: {str(e)}")
-                self.logger.error(traceback.format_exc())
-                raise RuntimeError(f"创建 Consumer 失败: {str(e)}")
+            if not skip_auth:
+                try:
+                    self.logger.info("步骤 2: 创建/更新 Consumer")
+                    consumer = self.create_computenest_consumer(api_key)
+                    result["consumer"] = consumer
+                    self.logger.info("Consumer 创建/更新成功")
+                except Exception as e:
+                    self.logger.error(f"创建 Consumer 失败: {str(e)}")
+                    self.logger.error(traceback.format_exc())
+                    raise RuntimeError(f"创建 Consumer 失败: {str(e)}")
+            else:
+                self.logger.info("步骤 2: 跳过创建/更新 Consumer")
+                result["consumer"] = {"status": "skipped"}
 
             # 步骤 3: 为每个工具获取 OpenAPI 规范并配置
             for tool in tools:
@@ -952,7 +981,8 @@ class HigressClient:
                     mcp_yaml_path = self.modify_mcp_yaml(
                         mcp_yaml_path,
                         api_key,
-                        base_url=openapi_base_url
+                        base_url=openapi_base_url,
+                        skip_auth=skip_auth
                     )
 
                     # 创建服务来源
@@ -961,7 +991,7 @@ class HigressClient:
 
                     # 创建路由
                     self.logger.info(f"为 {tool} 创建路由")
-                    route = self.create_route(name=server_name, service_name=server_name)
+                    route = self.create_route(name=server_name, service_name=server_name, skip_auth=skip_auth)
 
                     # 应用 MCP 插件配置
                     self.logger.info(f"为 {tool} 配置 MCP 插件")
@@ -1011,20 +1041,29 @@ def parse_args():
     )
 
     # 必要参数
-    parser.add_argument('--api-key', required=True, help='API密钥')
     parser.add_argument('--config', required=True, help='MCP 配置文件路径 (JSON)')
+    parser.add_argument('--domain', required=True, help='域名必填，用于服务来源和Redis配置')
 
     # 可选参数
-    parser.add_argument('--domain', required=True, help='域名必填，用于服务来源和Redis配置')
+    parser.add_argument('--api-key', help='API密钥 (在不使用 --skip-auth 时必需)')
     parser.add_argument('--openapi-url', default='http://localhost:8000', help='OpenAPI 服务基础 URL')
     parser.add_argument('--base-url', default='http://localhost:8001', help='Higress API基础URL')
     parser.add_argument('--username', default='admin', help='登录用户名')
     parser.add_argument('--verbose', '-v', action='store_true', help='启用详细日志')
     parser.add_argument('--debug', '-d', action='store_true', help='启用调试模式')
+    parser.add_argument('--skip-auth', action='store_true', help='跳过创建消费者和路由认证配置')
 
-    return parser.parse_args()
+    args = parser.parse_args()
 
+    # 验证参数
+    if not args.skip_auth and not args.api_key:
+        parser.error("在不使用 --skip-auth 时，--api-key 是必需的")
 
+    # 如果跳过鉴权且未提供 API 密钥，则使用默认值 "admin"
+    if args.skip_auth and not args.api_key:
+        args.api_key = "admin"
+
+    return args
 
 def main():
     """主函数"""
@@ -1059,7 +1098,6 @@ def main():
         logger.info(f"工作目录: {os.getcwd()}")
         logger.info(f"参数: {vars(args)}")
 
-
         # 检查配置文件是否存在
         if not os.path.isfile(args.config):
             logger.error(f"配置文件不存在: {args.config}")
@@ -1075,12 +1113,12 @@ def main():
             domain=args.domain
         )
 
-        # 从配置文件配置工具
         result = client.setup_from_config(
             config_path=args.config,
             openapi_base_url=args.openapi_url,
             api_key=args.api_key,
             domain=args.domain,
+            skip_auth=args.skip_auth
         )
 
         # 输出结果摘要

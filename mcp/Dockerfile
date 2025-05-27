@@ -41,8 +41,12 @@ RUN mv /app/prepare.sh /app/mcpo && chmod +x prepare.sh && ./prepare.sh
 # Verify mcpo installed correctly
 RUN which mcpo
 
+# Copy and set up entrypoint script
+COPY entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+
 # Expose port (optional but common default)
 EXPOSE 8000
 
-# Default help CMD (can override at runtime)
-CMD mcpo --config /app/config.json --port 8000 --host 0.0.0.0 --api-key $API_KEY
+# Use the entrypoint script
+ENTRYPOINT ["/entrypoint.sh"]

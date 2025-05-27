@@ -1,5 +1,6 @@
 caseId: stc-d512ac0c9e17431f89ff
 templateName: ECS单机版
+regionId: ap-southeast-1
 parameters:
   MCP_KEY: "123456aA"
   InternetMaxBandwidthOut: "10"
