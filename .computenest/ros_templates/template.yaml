@@ -69,15 +69,16 @@ Parameters:
       en: MCP tool key, used to protect your tool from being abused by the public network
     Required:
       Fn::Equals:
-        - AuthenticationOption
+        - Enable
         - ${AuthenticationOption}
+    Default: ""
     AssociationProperty: AutoCompleteInput
     AssociationPropertyMetadata:
       Visible:
         Condition:
           Fn::Equals:
-            - NewVPC
-            - ${VpcOption}
+            - Enable
+            - ${AuthenticationOption}
       Length: 10
       CharacterClasses:
         - Class: "lowercase"
@@ -321,8 +322,8 @@ Parameters:
   SecurityGroupId:
     Type: String
     Label:
-        en: SecurityGroup ID
-        zh-cn: 安全组实例ID
+      en: SecurityGroup ID
+      zh-cn: 安全组实例ID
     Required:
       Fn::Equals:
         - ExistingSecurityGroup
@@ -538,8 +539,8 @@ Resources:
             auth:
               Fn::If:
                 - EnableAuthenticationConditions
-                - "--skip-auth"
                 - ""
+                - "--skip-auth"
 
 Outputs:
   openapi_server_address:
@@ -575,72 +576,131 @@ Outputs:
       en: "MCP Server Access URL(adapt AI assistant: Dify, Cherry Studio, OpenWebUI)"
       zh-cn: MCP Server访问地址(适配AI助手：Dify, Cherry Studio等)
     Value:
-      Fn::Jq:
-        - First
-        - Fn::Sub:
-            - 'map({(.serverCode): {"transport": "sse","url": "${URL}/\(.serverCode)/sse","headers": {"Authorization": "Bearer ${APIKEY}"}}}) | add'
-            - URL:
-                Fn::Sub:
-                  - http://${ServerAddress}:8080
-                  - ServerAddress:
-                      Fn::If:
-                        - DisablePublicNetworkCondition
-                        - Fn::Select:
-                            - 0
-                            - Fn::GetAtt:
-                                - InstanceGroup
-                                - PrivateIps
-                        - Fn::Select:
-                            - 0
-                            - Fn::GetAtt:
-                                - InstanceGroup
-                                - PublicIps
-              APIKEY:
-                Ref: MCP_KEY
-        - Ref: McpConfigJson
+      Fn::If:
+        - EnableAuthenticationConditions
+        - Fn::Jq:
+            - First
+            - Fn::Sub:
+                - 'map({(.serverCode): {"transport": "sse","url": "${URL}/\(.serverCode)/sse","headers": {"Authorization": "Bearer ${APIKEY}"}}}) | add'
+                - URL:
+                    Fn::Sub:
+                      - http://${ServerAddress}:8080
+                      - ServerAddress:
+                          Fn::If:
+                            - DisablePublicNetworkCondition
+                            - Fn::Select:
+                                - 0
+                                - Fn::GetAtt:
+                                    - InstanceGroup
+                                    - PrivateIps
+                            - Fn::Select:
+                                - 0
+                                - Fn::GetAtt:
+                                    - InstanceGroup
+                                    - PublicIps
+                  APIKEY:
+                    Ref: MCP_KEY
+            - Ref: McpConfigJson
+        - Fn::Jq:
+            - First
+            - Fn::Sub:
+                - 'map({(.serverCode): {"transport": "sse","url": "${URL}/\(.serverCode)/sse"}}) | add'
+                - URL:
+                    Fn::Sub:
+                      - http://${ServerAddress}:8080
+                      - ServerAddress:
+                          Fn::If:
+                            - DisablePublicNetworkCondition
+                            - Fn::Select:
+                                - 0
+                                - Fn::GetAtt:
+                                    - InstanceGroup
+                                    - PrivateIps
+                            - Fn::Select:
+                                - 0
+                                - Fn::GetAtt:
+                                    - InstanceGroup
+                                    - PublicIps
+                  APIKEY:
+                    Ref: MCP_KEY
+            - Ref: McpConfigJson
+
   bailian_server_address:
     Label:
       en: '[Bailian Server](https://bailian.console.aliyun.com/?tab=app#/mcp-manage/create) Access URL(Standard Claude Desktop Format)'
       zh-cn: '百炼Mcp Server地址 (标准Claude Desktop格式)'
     Value:
-      Fn::Jq:
-        - First
-        - Fn::Sub:
-            - '[ .[ ] | {key: .serverCode,value: {"mcpServers": {(.serverCode): {"type": "sse","url": "${URL}/\(.serverCode)/sse","headers": {"Authorization": "Bearer ${APIKEY}"}}}}}] | map("\"\(.key)\": \(.value | tojson)") | join("<br>\n  ")'
-            - URL:
-                Fn::Sub:
-                  - http://${ServerAddress}:8080
-                  - ServerAddress:
-                      Fn::If:
-                        - DisablePublicNetworkCondition
-                        - Fn::Select:
-                            - 0
-                            - Fn::GetAtt:
-                                - InstanceGroup
-                                - PrivateIps
-                        - Fn::Select:
-                            - 0
-                            - Fn::GetAtt:
-                                - InstanceGroup
-                                - PublicIps
-              APIKEY:
-                Ref: MCP_KEY
-        - Ref: McpConfigJson
+      Fn::If:
+        - EnableAuthenticationConditions
+        - Fn::Jq:
+            - First
+            - Fn::Sub:
+                - '[ .[ ] | {key: .serverCode,value: {"mcpServers": {(.serverCode): {"type": "sse","url": "${URL}/\(.serverCode)/sse","headers": {"Authorization": "Bearer ${APIKEY}"}}}}}] | map("\"\(.key)\": \(.value | tojson)") | join("<br>\n  ")'
+                - URL:
+                    Fn::Sub:
+                      - http://${ServerAddress}:8080
+                      - ServerAddress:
+                          Fn::If:
+                            - DisablePublicNetworkCondition
+                            - Fn::Select:
+                                - 0
+                                - Fn::GetAtt:
+                                    - InstanceGroup
+                                    - PrivateIps
+                            - Fn::Select:
+                                - 0
+                                - Fn::GetAtt:
+                                    - InstanceGroup
+                                    - PublicIps
+                  APIKEY:
+                    Ref: MCP_KEY
+            - Ref: McpConfigJson
+        - Fn::Jq:
+            - First
+            - Fn::Sub:
+                - '[ .[ ] | {key: .serverCode,value: {"mcpServers": {(.serverCode): {"type": "sse","url": "${URL}/\(.serverCode)/sse"}}}}] | map("\"\(.key)\": \(.value | tojson)") | join("<br>\n  ")'
+                - URL:
+                    Fn::Sub:
+                      - http://${ServerAddress}:8080
+                      - ServerAddress:
+                          Fn::If:
+                            - DisablePublicNetworkCondition
+                            - Fn::Select:
+                                - 0
+                                - Fn::GetAtt:
+                                    - InstanceGroup
+                                    - PrivateIps
+                            - Fn::Select:
+                                - 0
+                                - Fn::GetAtt:
+                                    - InstanceGroup
+                                    - PublicIps
+                  APIKEY:
+                    Ref: MCP_KEY
+            - Ref: McpConfigJson
+
+
   mcp_api_key:
     NoEcho: 'True'
     Label:
       en: MCP API key（add prefix Bearer）
       zh-cn: MCP API KEY（使用时加前缀Bearer）
+    Description:
+      en: If you have not enabled authentication, please ignore this output value
+      zh-cn: 如果未开启认证，请忽略此输出值
     Value:
-      Ref: MCP_KEY
+      Fn::If:
+        - EnableAuthenticationConditions
+        - Ref: MCP_KEY
+        - "Authentication is disabled"
 
 Metadata:
   ALIYUN::ROS::Interface:
     ParameterGroups:
       - Parameters:
           - McpConfigJson
+          - AuthenticationOption
           - MCP_KEY
-          - "AuthenticationOption"
         Label:
           Default: Mcp配置(可多选)
 
