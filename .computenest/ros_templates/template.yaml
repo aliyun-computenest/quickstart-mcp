@@ -450,7 +450,7 @@ Resources:
             cat > config.json << EOF
             ${MCP_RESULT}
             EOF
-            sed -i "s|\${!MCP_KEY}|${mcp_KEY}|g" /root/application/mcp/docker-compose.yaml
+            sed -i "s|\${!MCP_KEY:-}|${mcp_KEY}|g" /root/application/mcp/docker-compose.yaml
 
             file_path="/etc/systemd/system/quickstart-mcp.service"
             if [ ! -f "$file_path" ]; then
@@ -497,7 +497,7 @@ Resources:
             for ((i=1; i<=MAX_ATTEMPTS; i++))
               do
                 LATEST_LOG=$(docker logs higress-ai 2>&1 | tail -n 10)
-                if echo "$LATEST_LOG" | grep -q "console entered RUNNING state"
+                if echo "$LATEST_LOG" | grep -q "grafana entered RUNNING state"
                   then
                     echo "success"
                     break
@@ -505,16 +505,18 @@ Resources:
                     sleep $INTERVAL
               fi
             done
-            sleep 10
+            sleep 15
             
             chmod +x /root/application/mcp/openapi-to-mcp   
             # 测试
-            python higress_client.py ${mcp_KEY} --domain ${private_ip} --config /root/config.json ${auth}
+            python higress_client.py ${mcp_KEY_command} --domain ${private_ip} --config /root/config.json ${auth}
             sleep 10
 
           - RegionId:
               Ref: ALIYUN::Region
             mcp_KEY:
+              Ref: MCP_KEY
+            mcp_KEY_command:
               Fn::If:
                 - EnableAuthenticationConditions
                 - Fn::Sub:
