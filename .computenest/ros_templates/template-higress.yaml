@@ -51,6 +51,7 @@ Parameters:
       CharacterClasses:
         - Class: "lowercase"
           min: 4
+
         - Class: "uppercase"
           min: 4
         - Class: "number"
