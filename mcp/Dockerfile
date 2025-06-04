@@ -29,7 +29,8 @@ RUN uv venv "$VIRTUAL_ENV"
 ENV PATH="$VIRTUAL_ENV/bin:$PATH"
 RUN echo 'export UV_INDEX_URL="https://pypi.tuna.tsinghua.edu.cn/simple"' >> ~/.bashrc && \
     /bin/bash -c "source ~/.bashrc"
-RUN git clone https://github.com/open-webui/mcpo.git
+RUN #git clone https://github.com/open-webui/mcpo.git
+RUN git clone https://github.com/LYH-RAIN/mcpo.git
 WORKDIR /app/mcpo
 
 RUN uv add --default-index https://pypi.tuna.tsinghua.edu.cn/simple requests

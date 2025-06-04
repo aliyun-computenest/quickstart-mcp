@@ -1,0 +1,21 @@
+version: '3.8'
+
+services:
+  mcpo-service:
+    depends_on:
+      - higress-ai
+    container_name: mcpo-service
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    volumes:
+      - /root/config.json:/app/config.json
+    restart: unless-stopped
+    environment:
+      API_KEY: ${MCP_KEY:-}
+      PORT: 8000
+      HOST: "0.0.0.0"
+      CONFIG_FILE: /app/config.json
+      WORKERS: ${MCPO_WORKERS:-4}
