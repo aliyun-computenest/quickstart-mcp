@@ -436,7 +436,7 @@ def main():
     parser.add_argument("--plugin-id", help="插件ID（不提供则自动获取）")
     parser.add_argument("--private-ip", required=True, help="内网IP地址")
     parser.add_argument("--tools-config", required=True, help="工具配置文件路径")
-    parser.add_argument("--api-key", required=True, help="API密钥")
+    parser.add_argument("--api-key", required=False, help="API密钥")
     parser.add_argument("--openapi-base-url", default="http://127.0.0.1:8000", help="OpenAPI基础URL")
     parser.add_argument("--region", default="cn-hangzhou", help="阿里云区域")
     parser.add_argument("--skip-auth", action="store_true", help="跳过添加鉴权信息")

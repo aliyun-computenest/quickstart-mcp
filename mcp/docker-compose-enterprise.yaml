@@ -2,8 +2,6 @@ version: '3.8'
 
 services:
   mcpo-service:
-    depends_on:
-      - higress-ai
     container_name: mcpo-service
     build:
       context: .

@@ -285,11 +285,14 @@ Resources:
         Fn::Sub:
           - |
             set -e
+            cpu_cores={!$(nproc)}
+            workers={!$((cpu_cores * 2))}
             cd /root
             cat > config.json << EOF
             ${MCP_RESULT}
             EOF
-            sed -i "s|\${!MCP_KEY}|${mcp_KEY}|g" /root/application/mcp/docker-compose.yaml
+            #sed -i "s|\${!MCP_KEY}|${mcp_KEY}|g" /root/application/mcp/docker-compose-enterprise.yaml
+            sed -i "s|\${!MCP_KEY}|${mcp_KEY}|g" /root/application/mcp/docker-compose-enterprise.yaml
 
             file_path="/etc/systemd/system/quickstart-mcp.service"
             if [ ! -f "$file_path" ]; then
@@ -325,18 +328,7 @@ Resources:
             for ((i=1; i<=MAX_ATTEMPTS; i++))
               do
                 LATEST_LOG=$(docker logs mcpo-service 2>&1 | tail -n 10)
-                if echo "$LATEST_LOG" | grep -q "Uvicorn running on http://0.0.0.0:8000"
-                  then
-                    echo "success"
-                    break
-                  else
-                    sleep $INTERVAL
-              fi
-            done
-            for ((i=1; i<=MAX_ATTEMPTS; i++))
-              do
-                LATEST_LOG=$(docker logs higress-ai 2>&1 | tail -n 10)
-                if echo "$LATEST_LOG" | grep -q "console entered RUNNING state"
+                if echo "$LATEST_LOG" | grep -q "Application startup complete"
                   then
                     echo "success"
                     break
@@ -348,7 +340,7 @@ Resources:
 
             chmod +x /root/application/mcp/openapi-to-mcp   
             # 测试
-            python higress_enterprise.py --gateway-id ${GatewayID} --api-key ${mcp_KEY} --domain ${private_ip} --config /root/config.json
+            python higress_enterprise.py --gateway-id ${GatewayID} ${mcp_KEY} --domain ${private_ip} --config /root/config.json
             sleep 10
           - RegionId:
               Ref: ALIYUN::Region
