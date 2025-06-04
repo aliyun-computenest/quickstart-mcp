@@ -18,6 +18,7 @@ services:
       PORT: 8000
       HOST: "0.0.0.0"
       CONFIG_FILE: /app/config.json
+      WORKERS: ${MCPO_WORKERS:-4}
 
   higress-ai:
     depends_on:
