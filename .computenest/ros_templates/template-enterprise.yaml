@@ -1,16 +1,37 @@
 ROSTemplateFormatVersion: '2015-09-01'
 Conditions:
+  EnableAuthenticationConditions:
+    Fn::Equals:
+      - Enable
+      - Ref: AuthenticationOption
+  CreateVpcConditions:
+    Fn::Equals:
+      - NewVPC
+      - Ref: VpcOption
   DisablePublicNetworkCondition:
     Fn::Equals:
       - PrivateNet
       - Ref: NetworkOption
-
+  CreateSecurityGroupConditions:
+    Fn::Equals:
+      - NewSecurityGroup
+      - Ref: SecurityGroupOption
 Parameters:
-  HigressAI:
+  AuthenticationOption:
     Type: String
-    Label:
-      zh-cn: AI网关
-      en: AI Gateway
+    Label: 是否开启认证
+    AllowedValues:
+      - Enable
+      - Disable
+    AssociationPropertyMetadata:
+      ValueLabelMapping:
+        Enable:
+          zh-cn: 开启认证
+          en: Enable Authentication
+        Disable:
+          zh-cn: 关闭认证
+          en: Disable Authentication
+    Default: Enable
   InternetMaxBandwidthOut:
     Type: Number
     Label:
@@ -38,26 +59,37 @@ Parameters:
     AssociationProperty: 'ALIYUN::MCP::Server::Server'
     AssociationPropertyMetadata:
       ShowLabel: false
-      ShowCount: 6
+      ShowCounts: 9
+      ShowTagsCounts: 10
 
   MCP_KEY:
     Type: String
     Description:
       zh-cn: MCP工具key，用于保护您的工具不被公网滥用
       en: MCP tool key, used to protect your tool from being abused by the public network
+    Required:
+      Fn::Equals:
+        - Enable
+        - ${AuthenticationOption}
+    Default: ""
     AssociationProperty: AutoCompleteInput
     AssociationPropertyMetadata:
+      Visible:
+        Condition:
+          Fn::Equals:
+            - Enable
+            - ${AuthenticationOption}
       Length: 10
       CharacterClasses:
         - Class: "lowercase"
           min: 4
-
         - Class: "uppercase"
           min: 4
         - Class: "number"
           min: 2
   NetworkOption:
     Type: String
+    Label: MCP网络连接方式
     AllowedValues:
       - PublicNet
       - PrivateNet
@@ -70,6 +102,65 @@ Parameters:
           zh-cn: 私网访问SSE
           en: private network access
     Default: PublicNet
+  VpcOption:
+    Type: String
+    AllowedValues:
+      - NewVPC
+      - ExistingVPC
+    AssociationPropertyMetadata:
+      ValueLabelMapping:
+        NewVPC:
+          zh-cn: 新建专有网络
+          en: New VPC
+        ExistingVPC:
+          zh-cn: 已有专有网络
+          en: Existing VPC
+    Label:
+      en: Select Existing or New VPC
+      zh-cn: 选择已有/新建的专有网络
+    Required: true
+    Default: NewVPC
+  VpcCidrBlock:
+    Type: String
+    Label:
+      en: VPC CIDR IPv4 Block
+      zh-cn: 专有网络IPv4网段
+    Description:
+      zh-cn: VPC的ip地址段范围，<br>您可以使用以下的ip地址段或其子网:<br><font color='green'>[10.0.0.0/8]</font><br><font color='green'>[172.16.0.0/12]</font><br><font color='green'>[192.168.0.0/16]</font>
+      en: 'The ip address range of the VPC in the CidrBlock form; <br>You can use the following ip address ranges and their subnets: <br><font color=''green''>[10.0.0.0/8]</font><br><font color=''green''>[172.16.0.0/12]</font><br><font color=''green''>[192.168.0.0/16]</font>'
+    Default: 192.168.0.0/16
+    Required:
+      Fn::Equals:
+        - NewVPC
+        - ${VpcOption}
+    AssociationProperty: ALIYUN::VPC::VPC::CidrBlock
+    AssociationPropertyMetadata:
+      Visible:
+        Condition:
+          Fn::Equals:
+            - NewVPC
+            - ${VpcOption}
+  VSwitchCidrBlock:
+    Type: String
+    Label:
+      en: VSwitch CIDR Block
+      zh-cn: 交换机子网网段
+    Description:
+      zh-cn: 必须属于VPC的子网段。
+      en: Must belong to the subnet segment of VPC.
+    Default: 192.168.1.0/24
+    Required:
+      Fn::Equals:
+        - NewVPC
+        - ${VpcOption}
+    AssociationProperty: ALIYUN::VPC::VSwitch::CidrBlock
+    AssociationPropertyMetadata:
+      VpcCidrBlock: VpcCidrBlock
+      Visible:
+        Condition:
+          Fn::Equals:
+            - NewVPC
+            - ${VpcOption}
   PayType:
     Type: String
     Label:
@@ -153,66 +244,125 @@ Parameters:
     AssociationProperty: ALIYUN::ECS::Instance::Password
     AssociationPropertyMetadata:
       Random: True
+  ZoneId:
+    Type: String
+    Label:
+      en: Zone ID
+      zh-cn: 可用区ID
+    AssociationProperty: ALIYUN::ECS::Instance::ZoneId
+    AssociationPropertyMetadata:
+      DefaultValueStrategy: random
+      InstanceChargeType: ${PayType}
+      SystemDiskCategory: cloud_essd
       InstanceType: ${EcsInstanceType}
+  VpcId:
+    Type: String
+    Label:
+      en: VPC ID
+      zh-cn: 专有网络VPC实例ID
+    AssociationProperty: 'ALIYUN::ECS::VPC::VPCId'
+    Required:
+      Fn::Equals:
+        - ExistingVPC
+        - ${VpcOption}
+    Default: ''
+    AssociationPropertyMetadata:
+      AutoSelectFirst: true
+      Visible:
+        Condition:
+          Fn::Equals:
+            - ExistingVPC
+            - ${VpcOption}
+  VSwitchId:
+    Type: String
+    Label:
+      en: VSwitch ID
+      zh-cn: 交换机实例ID
+    Default: ''
+    AssociationProperty: 'ALIYUN::ECS::VSwitch::VSwitchId'
+    Required:
+      Fn::Equals:
+        - ExistingVPC
+        - ${VpcOption}
+    AssociationPropertyMetadata:
+      AutoSelectFirst: true
+      VpcId: ${VpcId}
+      ZoneId: ${ZoneId}
+      Visible:
+        Condition:
+          Fn::Equals:
+            - ExistingVPC
+            - ${VpcOption}
+  SecurityGroupOption:
+    Type: String
+    AllowedValues:
+      - NewSecurityGroup
+      - ExistingSecurityGroup
+    AssociationPropertyMetadata:
+      Visible:
+        Condition:
+          Fn::Equals:
+            - ExistingVPC
+            - ${VpcOption}
+      ValueLabelMapping:
+        NewSecurityGroup:
+          zh-cn: 新建安全组
+          en: New SecurityGroup
+        ExistingSecurityGroup:
+          zh-cn: 已有安全组
+          en: Existing SecurityGroup
+    Label:
+      en: Select Existing or SecurityGroup
+      zh-cn: 选择已有/新建的安全组
+    Required:
+      Fn::Equals:
+        - ExistingVPC
+        - ${VpcOption}
+    Default: NewSecurityGroup
+  SecurityGroupId:
+    Type: String
+    Label:
+      en: SecurityGroup ID
+      zh-cn: 安全组实例ID
+    Required:
+      Fn::Equals:
+        - ExistingSecurityGroup
+        - ${SecurityGroupOption}
+    Default: ''
+    AssociationProperty: ALIYUN::ECS::SecurityGroup::SecurityGroupId
+    AssociationPropertyMetadata:
+      VpcId: ${VpcId}
+      Visible:
+        Condition:
+          Fn::Equals:
+            - ExistingSecurityGroup
+            - ${SecurityGroupOption}
 Resources:
-  DATASOURCE::APIG::Gateway:
-    Type: DATASOURCE::APIG::Gateways
+  # 新建vpc
+  EcsVpc:
+    Type: ALIYUN::ECS::VPC
+    Condition: CreateVpcConditions
     Properties:
-      GatewayId:
-        Ref: HigressAI
-
-  EcsRole:
-    Type: ALIYUN::RAM::Role
+      VpcName:
+        Ref: ALIYUN::StackName
+      CidrBlock:
+        Ref: VpcCidrBlock
+  # 新建vswitch
+  EcsVSwitch:
+    Condition: CreateVpcConditions
+    Type: ALIYUN::ECS::VSwitch
     Properties:
-      RoleName:
-        Fn::Sub: 'HigressRole-${ALIYUN::StackId}'
-      AssumeRolePolicyDocument:
-        Statement:
-          - Action: 'sts:AssumeRole'
-            Effect: Allow
-            Principal:
-              Service:
-                - ecs.aliyuncs.com
-        Version: '1'
-      Policies:
-        - PolicyName:
-            'Fn::Sub': 'HigressEcsPolicy-${ALIYUN::StackId}'
-          PolicyDocument:
-            Statement:
-              - Action:
-                  - 'ram:CreateServiceLinkedRole'
-                Resource:
-                  - '*'
-                Effect: Allow
-                Condition:
-                  StringEquals:
-                    'ram:ServiceName':
-                      - supplier.computenest.aliyuncs.com
-              - Action:
-                  - 'ram:CreateServiceLinkedRole'
-                Resource:
-                  - '*'
-                Effect: Allow
-                Condition:
-                  StringEquals:
-                    'ram:ServiceName': cloudmonitor.aliyuncs.com
-              - Action:
-                  - 'computenestsupplier:*'
-                  - 'apig:*'
-                  - 'cms:*'
-                  - 'ecs:*'
-                  - 'vpc:*'
-                  - 'oss:*'
-                  - 'ros:*'
-                  - 'tag:*'
-                  - 'ots:*'
-                  - 'ram:GetRole'
-                Resource:
-                  - '*'
-                Effect: Allow
-            Version: '1'
+      VSwitchName:
+        Ref: ALIYUN::StackName
+      VpcId:
+        Ref: EcsVpc
+      ZoneId:
+        Ref: ZoneId
+      CidrBlock:
+        Ref: VSwitchCidrBlock
   SecurityGroup:
     Type: ALIYUN::ECS::SecurityGroup
+    Condition: CreateSecurityGroupConditions
     Properties:
       SecurityGroupName:
         Ref: ALIYUN::StackName
@@ -265,7 +415,10 @@ Resources:
       ZoneId:
         Ref: ZoneId
       SecurityGroupId:
-        Ref: SecurityGroup
+        Fn::If:
+          - CreateSecurityGroupConditions
+          - Ref: SecurityGroup
+          - Ref: SecurityGroupId
       ImageId: ecs_image_quickstart-mcp
       Password:
         Ref: InstancePassword
@@ -297,7 +450,7 @@ Resources:
             cat > config.json << EOF
             ${MCP_RESULT}
             EOF
-            sed -i "s|\${!MCP_KEY}|${mcp_KEY}|g" /root/application/mcp/docker-compose.yaml
+            sed -i "s|\${!MCP_KEY:-}|${mcp_KEY}|g" /root/application/mcp/docker-compose.yaml
 
             file_path="/etc/systemd/system/quickstart-mcp.service"
             if [ ! -f "$file_path" ]; then
@@ -344,7 +497,7 @@ Resources:
             for ((i=1; i<=MAX_ATTEMPTS; i++))
               do
                 LATEST_LOG=$(docker logs higress-ai 2>&1 | tail -n 10)
-                if echo "$LATEST_LOG" | grep -q "console entered RUNNING state"
+                if echo "$LATEST_LOG" | grep -q "grafana entered RUNNING state"
                   then
                     echo "success"
                     break
@@ -356,29 +509,40 @@ Resources:
             
             chmod +x /root/application/mcp/openapi-to-mcp   
             # 测试
-            python higress_enterprise.py --gateway-id ${GatewayID} --api-key ${mcp_KEY} --domain ${private_ip} --config /root/config.json
+            python higress_client.py ${mcp_KEY_command} --domain ${private_ip} --config /root/config.json ${auth}
             sleep 10
 
           - RegionId:
               Ref: ALIYUN::Region
             mcp_KEY:
               Ref: MCP_KEY
+            mcp_KEY_command:
+              Fn::If:
+                - EnableAuthenticationConditions
+                - Fn::Sub:
+                    - "--api-key ${key}"
+                    - key:
+                        Ref: MCP_KEY
+                - ""
             MCP_RESULT:
               Fn::Jq:
                 - "First"
                 - '{mcpServers: map({ key: .serverCode, value: { command, args, env,type,url } }) | from_entries }'
                 - Ref: McpConfigJson
-            GatewayId:
-              Ref: HigressAI
             private_ip:
               Fn::Sub:
-                - ${ServerAddress}
+                - ${ServerAddress}:8000
                 - ServerAddress:
                     Fn::Select:
                       - 0
                       - Fn::GetAtt:
                           - InstanceGroup
                           - PrivateIps
+            auth:
+              Fn::If:
+                - EnableAuthenticationConditions
+                - ""
+                - "--skip-auth"
 
 Outputs:
   openapi_server_address:
@@ -414,70 +578,130 @@ Outputs:
       en: "MCP Server Access URL(adapt AI assistant: Dify, Cherry Studio, OpenWebUI)"
       zh-cn: MCP Server访问地址(适配AI助手：Dify, Cherry Studio等)
     Value:
-      Fn::Jq:
-        - First
-        - Fn::Sub:
-            - 'map({(.serverCode): {"transport": "sse","url": "${URL}/\(.serverCode)/sse","headers": {"Authorization": "Bearer ${APIKEY}"}}}) | add'
-            - URL:
-                Fn::Sub:
-                  - http://${ServerAddress}:8080
-                  - ServerAddress:
-                      Fn::If:
-                        - DisablePublicNetworkCondition
-                        - Fn::Select:
-                            - 0
-                            - Fn::GetAtt:
-                                - InstanceGroup
-                                - PrivateIps
-                        - Fn::Select:
-                            - 0
-                            - Fn::GetAtt:
-                                - InstanceGroup
-                                - PublicIps
-              APIKEY:
-                Ref: MCP_KEY
-        - Ref: McpConfigJson
+      Fn::If:
+        - EnableAuthenticationConditions
+        - Fn::Jq:
+            - First
+            - Fn::Sub:
+                - 'map({(.serverCode): {"transport": "sse","url": "${URL}/\(.serverCode)/sse","headers": {"Authorization": "Bearer ${APIKEY}"}}}) | add'
+                - URL:
+                    Fn::Sub:
+                      - http://${ServerAddress}:8080
+                      - ServerAddress:
+                          Fn::If:
+                            - DisablePublicNetworkCondition
+                            - Fn::Select:
+                                - 0
+                                - Fn::GetAtt:
+                                    - InstanceGroup
+                                    - PrivateIps
+                            - Fn::Select:
+                                - 0
+                                - Fn::GetAtt:
+                                    - InstanceGroup
+                                    - PublicIps
+                  APIKEY:
+                    Ref: MCP_KEY
+            - Ref: McpConfigJson
+        - Fn::Jq:
+            - First
+            - Fn::Sub:
+                - 'map({(.serverCode): {"transport": "sse","url": "${URL}/\(.serverCode)/sse"}}) | add'
+                - URL:
+                    Fn::Sub:
+                      - http://${ServerAddress}:8080
+                      - ServerAddress:
+                          Fn::If:
+                            - DisablePublicNetworkCondition
+                            - Fn::Select:
+                                - 0
+                                - Fn::GetAtt:
+                                    - InstanceGroup
+                                    - PrivateIps
+                            - Fn::Select:
+                                - 0
+                                - Fn::GetAtt:
+                                    - InstanceGroup
+                                    - PublicIps
+                  APIKEY:
+                    Ref: MCP_KEY
+            - Ref: McpConfigJson
+
   bailian_server_address:
     Label:
       en: '[Bailian Server](https://bailian.console.aliyun.com/?tab=app#/mcp-manage/create) Access URL(Standard Claude Desktop Format)'
       zh-cn: '百炼Mcp Server地址 (标准Claude Desktop格式)'
     Value:
-      Fn::Jq:
-        - First
-        - Fn::Sub:
-            - '[ .[ ] | {key: .serverCode,value: {"mcpServers": {(.serverCode): {"type": "sse","url": "${URL}/\(.serverCode)/sse","headers": {"Authorization": "Bearer ${APIKEY}"}}}}}] | map("\"\(.key)\": \(.value | tojson)") | join("<br>\n  ")'
-            - URL:
-                Fn::Sub:
-                  - http://${ServerAddress}:8080
-                  - ServerAddress:
-                      Fn::If:
-                        - DisablePublicNetworkCondition
-                        - Fn::Select:
-                            - 0
-                            - Fn::GetAtt:
-                                - InstanceGroup
-                                - PrivateIps
-                        - Fn::Select:
-                            - 0
-                            - Fn::GetAtt:
-                                - InstanceGroup
-                                - PublicIps
-              APIKEY:
-                Ref: MCP_KEY
-        - Ref: McpConfigJson
+      Fn::If:
+        - EnableAuthenticationConditions
+        - Fn::Jq:
+            - First
+            - Fn::Sub:
+                - '[ .[ ] | {key: .serverCode,value: {"mcpServers": {(.serverCode): {"type": "sse","url": "${URL}/\(.serverCode)/sse","headers": {"Authorization": "Bearer ${APIKEY}"}}}}}] | map("\"\(.key)\": \(.value | tojson)") | join("<br>\n  ")'
+                - URL:
+                    Fn::Sub:
+                      - http://${ServerAddress}:8080
+                      - ServerAddress:
+                          Fn::If:
+                            - DisablePublicNetworkCondition
+                            - Fn::Select:
+                                - 0
+                                - Fn::GetAtt:
+                                    - InstanceGroup
+                                    - PrivateIps
+                            - Fn::Select:
+                                - 0
+                                - Fn::GetAtt:
+                                    - InstanceGroup
+                                    - PublicIps
+                  APIKEY:
+                    Ref: MCP_KEY
+            - Ref: McpConfigJson
+        - Fn::Jq:
+            - First
+            - Fn::Sub:
+                - '[ .[ ] | {key: .serverCode,value: {"mcpServers": {(.serverCode): {"type": "sse","url": "${URL}/\(.serverCode)/sse"}}}}] | map("\"\(.key)\": \(.value | tojson)") | join("<br>\n  ")'
+                - URL:
+                    Fn::Sub:
+                      - http://${ServerAddress}:8080
+                      - ServerAddress:
+                          Fn::If:
+                            - DisablePublicNetworkCondition
+                            - Fn::Select:
+                                - 0
+                                - Fn::GetAtt:
+                                    - InstanceGroup
+                                    - PrivateIps
+                            - Fn::Select:
+                                - 0
+                                - Fn::GetAtt:
+                                    - InstanceGroup
+                                    - PublicIps
+                  APIKEY:
+                    Ref: MCP_KEY
+            - Ref: McpConfigJson
+
+
   mcp_api_key:
     NoEcho: 'True'
     Label:
       en: MCP API key（add prefix Bearer）
       zh-cn: MCP API KEY（使用时加前缀Bearer）
+    Description:
+      en: If you have not enabled authentication, please ignore this output value
+      zh-cn: 如果未开启认证，请忽略此输出值
     Value:
-      Ref: MCP_KEY
+      Fn::If:
+        - EnableAuthenticationConditions
+        - Ref: MCP_KEY
+        - "Authentication is disabled"
 
 Metadata:
   ALIYUN::ROS::Interface:
     ParameterGroups:
       - Parameters:
           - McpConfigJson
+          - AuthenticationOption
           - MCP_KEY
         Label:
           Default: Mcp配置(可多选)
@@ -503,6 +727,8 @@ Metadata:
           - VSwitchId
           - VpcCidrBlock
           - VSwitchCidrBlock
+          - SecurityGroupOption
+          - SecurityGroupId
         Label:
           default: 可用区配置
     QuickDeployConfig:
