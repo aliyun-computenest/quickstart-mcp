@@ -35,8 +35,7 @@ class MCPGatewayRegistrar:
 
     def _execute_aliyun_cli(self, method: str, endpoint: str, body: Dict = None, **params) -> Dict[str, Any]:
         """统一的阿里云CLI命令执行"""
-        command = ["./aliyun", "apig", method, endpoint, "--region", self.region]
-
+        command = ["./aliyun", "apig", method,endpoint, "--endpoint", f"apig.{self.region}.aliyuncs.com"]
         # 添加参数
         for key, value in params.items():
             if value is not None:
@@ -47,7 +46,6 @@ class MCPGatewayRegistrar:
             command.extend(["--body", json.dumps(body)])
 
         command.extend(["--header", "Content-Type=application/json;"])
-
         try:
             self.logger.info(f"执行CLI: {method} {endpoint}")
             # 使用兼容Python 3.6的写法
@@ -104,7 +102,6 @@ class MCPGatewayRegistrar:
         """获取MCP服务器插件ID"""
         self.logger.info("获取MCP插件ID")
         response = self._execute_aliyun_cli("GET", "/v1/plugins",
-                                            gatewayId=gateway_id,
                                             gatewayType="AI",
                                             includeBuiltinAiGateway="true",
                                             pageNumber="0",

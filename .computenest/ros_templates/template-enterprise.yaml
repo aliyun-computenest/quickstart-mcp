@@ -285,8 +285,8 @@ Resources:
         Fn::Sub:
           - |
             set -e
-            cpu_cores={!$(nproc)}
-            workers={!$((cpu_cores * 2))}
+            cpu_cores=$(nproc)
+            workers=$((cpu_cores * 2))
             cd /root
             cat > config.json << EOF
             ${MCP_RESULT}
@@ -339,8 +339,21 @@ Resources:
             sleep 15
 
             chmod +x /root/application/mcp/openapi-to-mcp   
+            # 静默卸载 aliyun-cli
+            yum remove aliyun-cli -y
+            
+            # 静默下载 aliyun-cli
+            curl -s https://aliyuncli.alicdn.com/aliyun-cli-linux-latest-amd64.tgz -o aliyun-cli-linux-latest.tgz
+            
+            # 静默解压 aliyun-cli
+            tar xzf aliyun-cli-linux-latest.tgz
+            ./aliyun configure set \
+            --profile EcsProfile \
+            --mode EcsRamRole \
+            --ram-role-name ${RamRoleName} \
+            --region cn-hangzhou
             # 测试
-            python higress_enterprise.py --gateway-id ${GatewayID} ${mcp_KEY} --domain ${private_ip} --config /root/config.json
+            python higress_enterprise.py --gateway-id ${GatewayID} ${mcp_KEY} --private-ip ${private_ip} --tools-config /root/config.json
             sleep 10
           - RegionId:
               Ref: ALIYUN::Region
@@ -352,6 +365,10 @@ Resources:
                 - Ref: McpConfigJson
             GatewayID:
               Ref: HigressAI
+            RamRoleName:
+              Fn::GetAtt:
+                - EcsRole
+                - RoleName
             private_ip:
               Fn::Sub:
                 - ${ServerAddress}
