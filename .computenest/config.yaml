@@ -82,7 +82,7 @@ Service:
         - Name: 尝鲜套餐
           Parameters:
             EcsInstanceType:
-            - ecs.u1-c1m2.large
+            - ecs.u1-c1m2.xlarge
             PayType: PostPaid
             InternetChargeType: PayByTraffic
             InternetMaxBandwidthOut: 8
@@ -130,7 +130,7 @@ Service:
         - Name: 尝鲜套餐
           Parameters:
             EcsInstanceType:
-            - ecs.u1-c1m2.large
+            - ecs.u1-c1m2.xlarge
             PayType: PostPaid
             InternetChargeType: PayByTraffic
             InternetMaxBandwidthOut: 8

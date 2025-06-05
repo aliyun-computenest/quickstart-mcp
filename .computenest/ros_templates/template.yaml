@@ -1,4 +1,11 @@
 ROSTemplateFormatVersion: '2015-09-01'
+Locals:
+  CurTime:
+    Type: Eval
+    Value:
+      Fn::FormatTime:
+        - '%Y%m%d-%H%M%S'
+        - Asia/Shanghai
 Conditions:
   EnableAuthenticationConditions:
     Fn::Equals:
@@ -446,11 +453,15 @@ Resources:
         Fn::Sub:
           - |
             set -e
+            echo "当前时间：${CurTime}"
+            cpu_cores=$(nproc)
+            workers=$((cpu_cores * 2))
             cd /root
             cat > config.json << EOF
             ${MCP_RESULT}
             EOF
             sed -i "s|\${!MCP_KEY:-}|${mcp_KEY}|g" /root/application/mcp/docker-compose.yaml
+            sed -i "s|\${!MCPO_WORKERS:-4}|${!cpu_cores}|g" /root/application/mcp/docker-compose-enterprise.yaml
 
             file_path="/etc/systemd/system/quickstart-mcp.service"
             if [ ! -f "$file_path" ]; then
@@ -486,7 +497,7 @@ Resources:
             for ((i=1; i<=MAX_ATTEMPTS; i++))
               do
                 LATEST_LOG=$(docker logs mcpo-service 2>&1 | tail -n 10)
-                if echo "$LATEST_LOG" | grep -q "Uvicorn running on http://0.0.0.0:8000"
+                if echo "$LATEST_LOG" | grep -q "Application startup complete"
                   then
                     echo "success"
                     break
@@ -516,6 +527,8 @@ Resources:
               Ref: ALIYUN::Region
             mcp_KEY:
               Ref: MCP_KEY
+            CurTime:
+              Ref: CurTime
             mcp_KEY_command:
               Fn::If:
                 - EnableAuthenticationConditions

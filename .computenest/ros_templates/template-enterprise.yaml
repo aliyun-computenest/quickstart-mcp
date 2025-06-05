@@ -137,6 +137,17 @@ Parameters:
       Random: true
       InstanceType: ${EcsInstanceType}
 Resources:
+  ExistVsw:
+    Type: DATASOURCE::VPC::VSwitch
+    Properties:
+      VSwitchId:
+        Fn::GetJsonValue:
+          - VSwitchId
+          - Fn::GetAtt:
+              - ExtensionDataSource
+              - VSwitch
+
+
   ExtensionDataSource:
     Type: DATASOURCE::APIG::Gateway
     Properties:
@@ -246,12 +257,9 @@ Resources:
               - ExtensionDataSource
               - VSwitch
       ZoneId:
-        Fn::Jq:
-          - First
-          - .[0].ZoneId
-          - Fn::GetAtt:
-              - ExtensionDataSource
-              - Zones
+        Fn::GetAtt:
+          - ExistVsw
+          - ZoneId
       SecurityGroupId:
         Ref: SecurityGroup
       ImageId: ecs_image_quickstart-mcp
@@ -353,7 +361,7 @@ Resources:
             --ram-role-name ${RamRoleName} \
             --region cn-hangzhou
             # 测试
-            python higress_enterprise.py --gateway-id ${GatewayID} ${mcp_KEY} --private-ip ${private_ip} --tools-config /root/config.json
+            python higress_enterprise.py --gateway-id ${GatewayID} ${mcp_KEY} --private-ip ${private_ip} --tools-config /root/config.json --region ${RegionId}
             sleep 10
           - RegionId:
               Ref: ALIYUN::Region
@@ -428,15 +436,6 @@ Metadata:
           - InstancePassword
         Label:
           default: 资源配置
-      - Parameters:
-          - ZoneId
-          - VpcOption
-          - VpcId
-          - VSwitchId
-          - VpcCidrBlock
-          - VSwitchCidrBlock
-        Label:
-          default: 可用区配置
     QuickDeployConfig:
       PackageFields:
         - Key: EcsInstanceType
