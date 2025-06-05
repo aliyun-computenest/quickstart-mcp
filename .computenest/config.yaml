@@ -10,9 +10,9 @@ Service:
       - Restart
     - TemplateName: 企业版
       SupportOperations:
-        - Start
-        - Stop
-        - Restart
+      - Start
+      - Stop
+      - Restart
     SupportBackup: true
     ModifyParametersConfig:
     - TemplateName: ECS单机版
@@ -36,23 +36,23 @@ Service:
         - McpConfigJson
     - TemplateName: 企业版
       Operation:
-        - Name: 变更ECS实例规格
-          Description: 变更ECS实例规格
-          Type: Custom
-          Parameters:
-            - EcsInstanceType
-        - Name: 变更ECS实例密码
-          Description: 变更ECS实例密码
-          Type: Custom
-          Parameters:
-            - InstancePassword
-        - Name: 修改MCP工具
-          Description: 修改已部署的MCP工具
-          Type: Custom
-          SupportPredefinedParameters: false
-          EnableLogging: false
-          Parameters:
-            - McpConfigJson
+      - Name: 变更ECS实例规格
+        Description: 变更ECS实例规格
+        Type: Custom
+        Parameters:
+        - EcsInstanceType
+      - Name: 变更ECS实例密码
+        Description: 变更ECS实例密码
+        Type: Custom
+        Parameters:
+        - InstancePassword
+      - Name: 修改MCP工具
+        Description: 修改已部署的MCP工具
+        Type: Custom
+        SupportPredefinedParameters: false
+        EnableLogging: false
+        Parameters:
+        - McpConfigJson
   DeployMetadata:
     SupplierDeployMetadata:
       SupplierTemplateConfigs:
@@ -108,50 +108,50 @@ Service:
         Url: 'ros_templates/template-enterprise.yaml'
         ArchitectureDiagramUrl: 'resources/architecture/architecture.jpg'
         AllowedRegions:
-          - ap-southeast-1
+        - ap-southeast-1
         PredefinedParameters:
-          - Name: 热卖套餐
-            Parameters:
-              EcsInstanceType:
-                - ecs.e-c1m1.large
-              PayType: PrePaid
-              PayPeriodUnit: Year
-              InternetChargeType: PayByTraffic
-              InternetMaxBandwidthOut: 8
-              PayPeriod: 1
-            OrderList:
-              - EcsInstanceType
-              - PayType
-              - PayPeriodUnit
-              - PayPeriod
-              - InternetChargeType
-              - InternetMaxBandwidthOut
-            Type: Normal
-          - Name: 尝鲜套餐
-            Parameters:
-              EcsInstanceType:
-                - ecs.u1-c1m2.large
-              PayType: PostPaid
-              InternetChargeType: PayByTraffic
-              InternetMaxBandwidthOut: 8
-            OrderList:
-              - EcsInstanceType
-              - PayType
-              - PayPeriodUnit
-              - PayPeriod
-              - InternetChargeType
-              - InternetMaxBandwidthOut
-            Type: Normal
-          - Name: 自定义套餐
-            Parameters: { }
-            OrderList:
-              - EcsInstanceType
-              - PayType
-              - PayPeriodUnit
-              - PayPeriod
-              - InternetChargeType
-              - InternetMaxBandwidthOut
-            Type: Custom
+        - Name: 热卖套餐
+          Parameters:
+            EcsInstanceType:
+            - ecs.e-c1m1.large
+            PayType: PrePaid
+            PayPeriodUnit: Year
+            InternetChargeType: PayByTraffic
+            InternetMaxBandwidthOut: 8
+            PayPeriod: 1
+          OrderList:
+          - EcsInstanceType
+          - PayType
+          - PayPeriodUnit
+          - PayPeriod
+          - InternetChargeType
+          - InternetMaxBandwidthOut
+          Type: Normal
+        - Name: 尝鲜套餐
+          Parameters:
+            EcsInstanceType:
+            - ecs.u1-c1m2.large
+            PayType: PostPaid
+            InternetChargeType: PayByTraffic
+            InternetMaxBandwidthOut: 8
+          OrderList:
+          - EcsInstanceType
+          - PayType
+          - PayPeriodUnit
+          - PayPeriod
+          - InternetChargeType
+          - InternetMaxBandwidthOut
+          Type: Normal
+        - Name: 自定义套餐
+          Parameters: {}
+          OrderList:
+          - EcsInstanceType
+          - PayType
+          - PayPeriodUnit
+          - PayPeriod
+          - InternetChargeType
+          - InternetMaxBandwidthOut
+          Type: Custom
       ArtifactRelation:
         ecs_image_quickstart-mcp:
           ArtifactId: ${Artifact.EcsImage.ArtifactId}
@@ -209,50 +209,50 @@ Service:
       Url: 'ros_templates/template-enterprise.yaml'
       ArchitectureDiagramUrl: 'resources/architecture/architecture.jpg'
       AllowedRegions:
-        - ap-southeast-1
+      - ap-southeast-1
       PredefinedParameters:
-        - Name: 热卖套餐
-          Parameters:
-            EcsInstanceType:
-              - ecs.e-c1m1.large
-            PayType: PrePaid
-            PayPeriodUnit: Year
-            InternetChargeType: PayByTraffic
-            InternetMaxBandwidthOut: 8
-            PayPeriod: 1
-          OrderList:
-            - EcsInstanceType
-            - PayType
-            - PayPeriodUnit
-            - PayPeriod
-            - InternetChargeType
-            - InternetMaxBandwidthOut
-          Type: Normal
-        - Name: 尝鲜套餐
-          Parameters:
-            EcsInstanceType:
-              - ecs.u1-c1m2.large
-            PayType: PostPaid
-            InternetChargeType: PayByTraffic
-            InternetMaxBandwidthOut: 8
-          OrderList:
-            - EcsInstanceType
-            - PayType
-            - PayPeriodUnit
-            - PayPeriod
-            - InternetChargeType
-            - InternetMaxBandwidthOut
-          Type: Normal
-        - Name: 自定义套餐
-          Parameters: { }
-          OrderList:
-            - EcsInstanceType
-            - PayType
-            - PayPeriodUnit
-            - PayPeriod
-            - InternetChargeType
-            - InternetMaxBandwidthOut
-          Type: Custom
+      - Name: 热卖套餐
+        Parameters:
+          EcsInstanceType:
+          - ecs.e-c1m1.large
+          PayType: PrePaid
+          PayPeriodUnit: Year
+          InternetChargeType: PayByTraffic
+          InternetMaxBandwidthOut: 8
+          PayPeriod: 1
+        OrderList:
+        - EcsInstanceType
+        - PayType
+        - PayPeriodUnit
+        - PayPeriod
+        - InternetChargeType
+        - InternetMaxBandwidthOut
+        Type: Normal
+      - Name: 尝鲜套餐
+        Parameters:
+          EcsInstanceType:
+          - ecs.u1-c1m2.large
+          PayType: PostPaid
+          InternetChargeType: PayByTraffic
+          InternetMaxBandwidthOut: 8
+        OrderList:
+        - EcsInstanceType
+        - PayType
+        - PayPeriodUnit
+        - PayPeriod
+        - InternetChargeType
+        - InternetMaxBandwidthOut
+        Type: Normal
+      - Name: 自定义套餐
+        Parameters: {}
+        OrderList:
+        - EcsInstanceType
+        - PayType
+        - PayPeriodUnit
+        - PayPeriod
+        - InternetChargeType
+        - InternetMaxBandwidthOut
+        Type: Custom
     ServiceInstanceNameRule:
       Prefix: mcp-
       UseDefaultValue: true
@@ -268,8 +268,10 @@ Service:
     Softwares:
     - Name: mcpo
       Version: 0.0.12
+      Locale: zh-CN
     - Name: higress
       Version: 2.1.2
+      Locale: zh-CN
 Artifact:
   EcsImage:
     ArtifactType: EcsImage
