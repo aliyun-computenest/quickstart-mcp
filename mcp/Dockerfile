@@ -4,11 +4,11 @@ ENV UV_INDEX_URL="https://pypi.tuna.tsinghua.edu.cn/simple"
 # Install uv (from official binary), nodejs, npm, and git
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    git \
-    curl  \
-    vim \
-    ca-certificates \
+RUN sed -i 's/deb.debian.org/mirrors.tuna.tsinghua.edu.cn/g' /etc/apt/sources.list.d/debian.sources && \
+    apt-get update && \
+    apt-get install -y --no-install-recommends \
+        git curl ca-certificates \
+        gcc libc6-dev pkg-config libcairo2-dev \
     && rm -rf /var/lib/apt/lists/*
 
 # Install Node.js and npm via NodeSource
@@ -29,7 +29,7 @@ RUN uv venv "$VIRTUAL_ENV"
 ENV PATH="$VIRTUAL_ENV/bin:$PATH"
 RUN echo 'export UV_INDEX_URL="https://pypi.tuna.tsinghua.edu.cn/simple"' >> ~/.bashrc && \
     /bin/bash -c "source ~/.bashrc"
-RUN #git clone https://github.com/open-webui/mcpo.git
+#RUN git clone https://github.com/open-webui/mcpo.git
 RUN git clone https://github.com/LYH-RAIN/mcpo.git
 WORKDIR /app/mcpo
 
