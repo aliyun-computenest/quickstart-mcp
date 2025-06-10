@@ -486,7 +486,7 @@ Resources:
             for ((i=1; i<=MAX_ATTEMPTS; i++))
               do
                 LATEST_LOG=$(docker logs mcpo-service 2>&1 | tail -n 10)
-                if echo "$LATEST_LOG" | grep -q "Uvicorn running on http://0.0.0.0:8000"
+                if echo "$LATEST_LOG" | grep -q "Application startup complete"
                   then
                     echo "success"
                     break
