@@ -446,11 +446,14 @@ Resources:
         Fn::Sub:
           - |
             set -e
+            cpu_cores=$(nproc)
+            workers=$((cpu_cores * 2))
             cd /root
             cat > config.json << EOF
             ${MCP_RESULT}
             EOF
             sed -i "s|\${!MCP_KEY:-}|${mcp_KEY}|g" /root/application/mcp/docker-compose.yaml
+            sed -i "s|\${MCPO_WORKERS:-4}|${cpu_cores}|g" /root/application/mcp/docker-compose-enterprise.yaml
 
             file_path="/etc/systemd/system/quickstart-mcp.service"
             if [ ! -f "$file_path" ]; then
