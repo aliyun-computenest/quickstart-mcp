@@ -10,6 +10,12 @@ Parameters:
     Label:
       zh-cn: AI网关
       en: AI Gateway
+  HigressDomainId:
+    Type: String
+    Label:
+      zh-cn: AI域名
+      en: AI DomainId
+    Default: ""
   InternetMaxBandwidthOut:
     Type: Number
     Label:
@@ -361,7 +367,7 @@ Resources:
             --ram-role-name ${RamRoleName} \
             --region cn-hangzhou
             # 测试
-            python higress_enterprise.py --gateway-id ${GatewayID} ${mcp_KEY} --private-ip ${private_ip} --tools-config /root/config.json --region ${RegionId}
+            python higress_enterprise.py register --gateway-id ${GatewayID} ${mcp_KEY} --private-ip ${private_ip} --domain-id "${DomainId}" --tools-config /root/config.json --region ${RegionId}
             sleep 10
           - RegionId:
               Ref: ALIYUN::Region
@@ -386,6 +392,28 @@ Resources:
                       - Fn::GetAtt:
                           - InstanceGroup
                           - PrivateIps
+            DomainId:
+              Ref: HigressDomainId
+  RunCleanupCommand:
+    Type: ALIYUN::ECS::RunCommandOfLifespan
+    Properties:
+      Sync: true
+      Timeout: 3600
+      Type: RunShellScript
+      InstanceIds:
+        Fn::GetAtt:
+          - InstanceGroup
+          - InstanceIds
+      CommandContentOnDeletion:
+        Fn::Sub:
+          - |
+            cd /root/application/mcp/
+            python higress_enterprise.py cleanup --gateway-id ${GatewayID} --region ${RegionId}
+            sleep 10
+          - RegionId:
+              Ref: ALIYUN::Region
+            GatewayID:
+              Ref: HigressAI
 Outputs:
   openapi_server_address:
     Label:
@@ -420,6 +448,7 @@ Metadata:
       - Parameters:
           - McpConfigJson
           - HigressAI
+          - HigressDomainId
         Label:
           Default: Mcp配置(可多选)
       - Parameters:
