@@ -127,7 +127,7 @@ Service:
           - InternetChargeType
           - InternetMaxBandwidthOut
           Type: Normal
-        - Name: 尝鲜套餐（10个MCP工具以内）
+        - Name: 尝鲜套餐（8个MCP工具以内）
           Parameters:
             EcsInstanceType:
             - ecs.u1-c1m2.xlarge
@@ -180,7 +180,7 @@ Service:
         - InternetChargeType
         - InternetMaxBandwidthOut
         Type: Normal
-      - Name: 尝鲜套餐
+      - Name: 尝鲜套餐（8个MCP工具以内）
         Parameters:
           EcsInstanceType:
           - ecs.u1-c1m2.large
@@ -228,7 +228,7 @@ Service:
         - InternetChargeType
         - InternetMaxBandwidthOut
         Type: Normal
-      - Name: 尝鲜套餐
+      - Name: 尝鲜套餐（8个MCP工具以内）
         Parameters:
           EcsInstanceType:
           - ecs.u1-c1m2.large

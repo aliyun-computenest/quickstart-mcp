@@ -453,13 +453,19 @@ Resources:
             set -e
             echo "当前时间：${CurTime}"
             cpu_cores=$(nproc)
-            workers=$((cpu_cores * 2))
+            if [ $cpu_cores -eq 4 ]; then
+              workers=1
+            elif [ $cpu_cores -le 4 ]; then
+              workers=1
+            else
+              workers=$((cpu_cores / 2))
+            fi
             cd /root
             cat > config.json << EOF
             ${MCP_RESULT}
             EOF
             sed -i "s|\${!MCP_KEY:-}|${mcp_KEY}|g" /root/application/mcp/docker-compose.yaml
-            sed -i "s|\${!MCPO_WORKERS:-4}|${!cpu_cores}|g" /root/application/mcp/docker-compose-enterprise.yaml
+            sed -i "s|\${!MCPO_WORKERS:-4}|${!workers}|g" /root/application/mcp/docker-compose-enterprise.yaml
 
             file_path="/etc/systemd/system/quickstart-mcp.service"
             if [ ! -f "$file_path" ]; then
