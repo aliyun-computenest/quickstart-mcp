@@ -152,6 +152,11 @@ cat /root/config.json
 sudo systemctl restart quickstart-mcp
 ```
 
+## 企业用户推荐的ECS实例配置
+1. 推荐的ECS实例类型：请选择cpu核数和内存大于ecs.u1-c1m2.xlarge已上的类型
+2. 公网带宽：请选择大于8MPS的带宽。（某些MCP工具涉及到联网调用）
+3. 对于4核8G的U实例类型，单次部署请选择10个以内的MCP工具
+
 请访问MCP官方了解如何使用：[使用文档](https://github.com/open-webui/mcpo)
 
 

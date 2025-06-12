@@ -47,7 +47,7 @@ Service:
         Parameters:
         - InstancePassword
       - Name: 修改MCP工具
-        Description: 修改已部署的MCP工具
+        Description: 修改已部署的MCP工具（10个以内）
         Type: Custom
         SupportPredefinedParameters: false
         EnableLogging: false
@@ -62,7 +62,7 @@ Service:
         AllowedRegions:
         - ap-southeast-1
         PredefinedParameters:
-        - Name: 热卖套餐
+        - Name: 入门套餐（1-3个MCP工具）
           Parameters:
             EcsInstanceType:
             - ecs.e-c1m1.large
@@ -79,7 +79,7 @@ Service:
           - InternetChargeType
           - InternetMaxBandwidthOut
           Type: Normal
-        - Name: 尝鲜套餐
+        - Name: 尝鲜套餐（10个MCP工具以内）
           Parameters:
             EcsInstanceType:
             - ecs.u1-c1m2.xlarge
@@ -110,7 +110,7 @@ Service:
         AllowedRegions:
         - ap-southeast-1
         PredefinedParameters:
-        - Name: 热卖套餐
+        - Name: 入门套餐（1-3个MCP工具）
           Parameters:
             EcsInstanceType:
             - ecs.e-c1m1.large
@@ -127,7 +127,7 @@ Service:
           - InternetChargeType
           - InternetMaxBandwidthOut
           Type: Normal
-        - Name: 尝鲜套餐
+        - Name: 尝鲜套餐（10个MCP工具以内）
           Parameters:
             EcsInstanceType:
             - ecs.u1-c1m2.xlarge
@@ -163,7 +163,7 @@ Service:
       AllowedRegions:
       - ap-southeast-1
       PredefinedParameters:
-      - Name: 热卖套餐
+      - Name: 入门套餐（1-3个MCP工具）
         Parameters:
           EcsInstanceType:
           - ecs.e-c1m1.large

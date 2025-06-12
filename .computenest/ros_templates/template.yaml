@@ -229,10 +229,8 @@ Parameters:
     AssociationProperty: ALIYUN::ECS::Instance::InstanceType
     AssociationPropertyMetadata:
       InstanceChargeType: ${PayType}
-      Constraints:
-        InstanceTypeFamily:
-          - ecs.u1
-          - ecs.e
+
+
   InstancePassword:
     NoEcho: true
     Type: String
@@ -717,7 +715,7 @@ Metadata:
           - AuthenticationOption
           - MCP_KEY
         Label:
-          Default: Mcp配置(可多选)
+          Default: Mcp配置(可多选，10个以内)
 
       - Parameters:
           - PayType
