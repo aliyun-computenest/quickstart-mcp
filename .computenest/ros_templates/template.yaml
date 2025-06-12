@@ -42,8 +42,8 @@ Parameters:
   InternetMaxBandwidthOut:
     Type: Number
     Label:
-      zh-cn: 公网带宽 (Mbps)
-      en: Internet Max Bandwidth Out (Mbps)
+      zh-cn: 公网带宽 (Mbps)-推荐8Mbps
+      en: Internet Max Bandwidth Out (Mbps)-Recommended 8Mbps
     MinValue: 1
     MaxValue: 100
   InternetChargeType:
