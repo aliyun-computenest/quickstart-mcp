@@ -402,6 +402,8 @@ Resources:
         Fn::GetAtt:
           - InstanceGroup
           - InstanceIds
+      CommandContent: |-
+        echo ""
       CommandContentOnDeletion:
         Fn::Sub:
           - |
