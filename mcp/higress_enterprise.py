@@ -35,7 +35,7 @@ class MCPGatewayRegistrar:
 
     def _execute_aliyun_cli(self, method: str, endpoint: str, body: Dict = None, **params) -> Dict[str, Any]:
         """统一的阿里云CLI命令执行"""
-        command = ["./aliyun", "apig", method,endpoint, "--endpoint", f"apig.{self.region}.aliyuncs.com"]
+        command = ["./aliyun", "apig", method, endpoint, "--endpoint", f"apig.{self.region}.aliyuncs.com"]
         # 添加参数
         for key, value in params.items():
             if value is not None:
@@ -147,39 +147,54 @@ class MCPGatewayRegistrar:
         self.logger.info(f"使用环境ID: {env_id}")
         return env_id
 
-    def ensure_domain(self, gateway_id: str) -> str:
-        """确保通配符域名存在"""
-        # 先查询现有域名，使用nameLike参数
+    def ensure_domain(self, gateway_id: str, domain_id: str = None) -> str:
+        """确保域名存在，支持传入指定域名ID或自动创建通配符域名"""
+        # 如果指定了域名ID，直接验证可用性
+        if domain_id:
+            try:
+                self.logger.info(f"检查指定域名ID: {domain_id}")
+                response = self._execute_aliyun_cli("GET", f"/v1/domains/{domain_id}")
+                data = self._check_response(response, "验证域名可用性")
+                domain_name = data.get('name', 'Unknown')
+                self.logger.info(f"✅ 域名ID {domain_id} 可用，域名: {domain_name}")
+                return domain_id
+            except Exception as e:
+                raise RuntimeError(f"❌ 指定的域名ID {domain_id} 不可用或无效: {e}")
+
+        # 如果没有指定域名ID，查找或创建通配符域名
+        self.logger.info("未指定域名ID，查找或创建通配符域名")
+
+        # 先查询现有通配符域名
         try:
             response = self._execute_aliyun_cli("GET", "/v1/domains",
                                                 gatewayType="AI",
                                                 nameLike="*",
                                                 pageSize="10",
                                                 pageNumber="1")
-            data = self._check_response(response, "查询域名列表")
+            data = self._check_response(response, "查询通配符域名")
 
             # 查找通配符域名
             for domain in data.get("items", []):
                 if domain.get("name") == "*":
-                    domain_id = domain.get("domainId")
-                    self.logger.info(f"域名已存在，ID: {domain_id}")
-                    return domain_id
+                    found_domain_id = domain.get("domainId")
+                    self.logger.info(f"✅ 找到现有通配符域名，ID: {found_domain_id}")
+                    return found_domain_id
         except Exception as e:
-            self.logger.warning(f"查询域名列表失败: {e}")
+            self.logger.warning(f"查询通配符域名失败: {e}")
 
-        # 如果没找到，尝试创建新域名
-        self.logger.info("创建通配符域名")
+        # 如果没找到通配符域名，创建新的
+        self.logger.info("🔨 创建新的通配符域名")
         try:
             response = self._execute_aliyun_cli("POST", "/v1/domains",
                                                 {"name": "*", "protocol": "HTTP", "gatewayType": "AI"})
-            data = self._check_response(response, "创建域名")
-            domain_id = data.get("domainId")
-            self.logger.info(f"域名创建成功，ID: {domain_id}")
-            return domain_id
+            data = self._check_response(response, "创建通配符域名")
+            new_domain_id = data.get("domainId")
+            self.logger.info(f"✅ 通配符域名创建成功，ID: {new_domain_id}")
+            return new_domain_id
         except RuntimeError as e:
             # 如果创建失败且是因为域名已存在，重新查询
             if "Conflict.DomainExisted" in str(e) or "域名*已存在" in str(e):
-                self.logger.warning("域名创建失败：域名已存在，重新查询")
+                self.logger.warning("⚠️  通配符域名已存在，重新查询")
                 try:
                     response = self._execute_aliyun_cli("GET", "/v1/domains",
                                                         gatewayId=gateway_id,
@@ -187,19 +202,19 @@ class MCPGatewayRegistrar:
                                                         nameLike="*",
                                                         pageSize="10",
                                                         pageNumber="1")
-                    data = self._check_response(response, "重新查询域名列表")
+                    data = self._check_response(response, "重新查询通配符域名")
 
                     for domain in data.get("items", []):
                         if domain.get("name") == "*":
-                            domain_id = domain.get("domainId")
-                            self.logger.info(f"重新查询找到域名，ID: {domain_id}")
-                            return domain_id
+                            existing_domain_id = domain.get("domainId")
+                            self.logger.info(f"✅ 重新查询找到通配符域名，ID: {existing_domain_id}")
+                            return existing_domain_id
 
-                    raise RuntimeError("域名已存在但无法查询到对应的域名ID")
+                    raise RuntimeError("通配符域名已存在但无法查询到对应的域名ID")
                 except Exception as query_e:
-                    raise RuntimeError(f"域名已存在但重新查询失败: {query_e}")
+                    raise RuntimeError(f"通配符域名已存在但重新查询失败: {query_e}")
             else:
-                raise
+                raise RuntimeError(f"创建通配符域名失败: {e}")
 
     def ensure_service(self, gateway_id: str, tool_name: str, private_ip: str) -> str:
         """确保服务存在"""
@@ -237,6 +252,30 @@ class MCPGatewayRegistrar:
         if existing_routes:
             route_id = existing_routes[0].get("routeId")
             self.logger.info(f"路由 {tool_name} 已存在，ID: {route_id}")
+
+            # 检查路由是否使用了正确的域名
+            try:
+                response = self._execute_aliyun_cli("GET", f"/v1/http-apis/{http_api_id}/routes/{route_id}")
+                route_data = self._check_response(response, "获取路由详情")
+                current_domain_ids = route_data.get("domainIds", [])
+
+                if domain_id not in current_domain_ids:
+                    self.logger.info(f"路由 {tool_name} 需要更新域名配置")
+                    # 更新路由的域名配置
+                    update_body = {
+                        "domainIds": [domain_id],
+                        "environmentId": environment_id,
+                        "match": route_data.get("match"),
+                        "backendConfig": route_data.get("backendConfig"),
+                        "mcpRouteConfig": route_data.get("mcpRouteConfig"),
+                        "name": tool_name,
+                        "description": route_data.get("description", tool_name)
+                    }
+                    self._execute_aliyun_cli("PUT", f"/v1/http-apis/{http_api_id}/routes/{route_id}", update_body)
+                    self.logger.info(f"路由 {tool_name} 域名配置已更新")
+            except Exception as e:
+                self.logger.warning(f"检查或更新路由域名配置失败: {e}")
+
             # 路由已存在时，总是需要尝试创建/更新插件挂载
             return route_id, True
 
@@ -382,7 +421,8 @@ class MCPGatewayRegistrar:
 
     def register_tools(self, gateway_id: str, plugin_id: str, private_ip: str,
                        tools_config: str, api_key: str, openapi_base_url: str = "http://127.0.0.1:8000",
-                       skip_auth: bool = False, force_update: bool = False) -> Tuple[int, int, List[str], List[str]]:
+                       skip_auth: bool = False, force_update: bool = False, domain_id: str = None) -> Tuple[
+        int, int, List[str], List[str]]:
         """注册所有工具到AI网关"""
         self.logger.info("开始注册MCP工具到AI网关")
 
@@ -391,7 +431,7 @@ class MCPGatewayRegistrar:
         try:
             # 获取基础信息
             http_api_id = self.get_http_api_id(gateway_id)
-            domain_id = self.ensure_domain(gateway_id)
+            domain_id = self.ensure_domain(gateway_id, domain_id)
             environment_id = self.get_environment_id(gateway_id)
             tools = self.extract_tools_from_config(tools_config)
 
@@ -425,23 +465,184 @@ class MCPGatewayRegistrar:
             self.logger.error(f"注册工具失败: {e}")
             raise
 
+    # ==================== 清理功能 ====================
+
+    def get_plugin_attachments(self, gateway_id: str, plugin_id: str) -> List[Dict]:
+        """获取插件挂载列表"""
+        try:
+            response = self._execute_aliyun_cli("GET", "/v1/plugin-attachments",
+                                                gatewayId=gateway_id,
+                                                gatewayType="AI",
+                                                pluginId=plugin_id,
+                                                pageSize="100",
+                                                pageNumber="1")
+            data = self._check_response(response, "获取插件挂载列表")
+            return data.get("items", [])
+        except Exception as e:
+            self.logger.warning(f"获取插件挂载列表失败: {e}")
+            return []
+
+    def delete_plugin_attachment(self, attachment_id: str) -> bool:
+        """删除插件挂载"""
+        try:
+            self.logger.info(f"删除插件挂载: {attachment_id}")
+            response = self._execute_aliyun_cli("DELETE", f"/v1/plugin-attachments/{attachment_id}")
+            self._check_response(response, "删除插件挂载")
+            self.logger.info(f"插件挂载 {attachment_id} 删除成功")
+            return True
+        except Exception as e:
+            self.logger.error(f"删除插件挂载 {attachment_id} 失败: {e}")
+            return False
+
+    def delete_route(self, http_api_id: str, route_id: str) -> bool:
+        """删除路由"""
+        try:
+            self.logger.info(f"删除路由: {route_id}")
+            response = self._execute_aliyun_cli("DELETE", f"/v1/http-apis/{http_api_id}/routes/{route_id}")
+            self._check_response(response, "删除路由")
+            self.logger.info(f"路由 {route_id} 删除成功")
+            return True
+        except Exception as e:
+            self.logger.error(f"删除路由 {route_id} 失败: {e}")
+            return False
+
+    def cleanup_gateway_resources(self, gateway_id: str, plugin_id: str) -> Tuple[int, int, List[str], List[str]]:
+        """清理AI网关侧的所有MCP路由和插件挂载资源"""
+        self.logger.info("开始清理AI网关侧所有MCP资源")
+
+        success_tools, failed_tools = [], []
+
+        try:
+            http_api_id = self.get_http_api_id(gateway_id)
+            environment_id = self.get_environment_id(gateway_id)
+
+            # 方法1：通过插件挂载获取路由
+            attachments = self.get_plugin_attachments(gateway_id, plugin_id)
+            self.logger.info(f"通过插件挂载找到 {len(attachments)} 个挂载")
+
+            route_id_to_name = {}
+
+            # 从插件挂载中获取路由信息
+            for attachment in attachments:
+                for route_id in attachment.get("attachResourceIds", []):
+                    try:
+                        response = self._execute_aliyun_cli("GET", f"/v1/http-apis/{http_api_id}/routes/{route_id}")
+                        data = self._check_response(response, "获取路由详情")
+                        route_name = data.get("name")
+                        if route_name:
+                            route_id_to_name[route_id] = route_name
+                            self.logger.info(f"从插件挂载发现路由: {route_name} (ID: {route_id})")
+                    except Exception as e:
+                        self.logger.warning(f"获取路由 {route_id} 信息失败: {e}")
+
+            # 方法2：如果插件挂载没有找到路由，直接查询所有路由并过滤MCP相关的
+            if not route_id_to_name:
+                self.logger.info("插件挂载中未找到路由，尝试直接查询所有路由")
+                try:
+                    response = self._execute_aliyun_cli("GET", f"/v1/http-apis/{http_api_id}/routes",
+                                                        gatewayId=gateway_id,
+                                                        gatewayType="AI",
+                                                        environmentId=environment_id)
+                    data = self._check_response(response, "获取所有路由")
+
+                    all_routes = data.get("items", [])
+                    self.logger.info(f"查询到 {len(all_routes)} 个路由")
+
+                    # 过滤出可能的MCP路由（排除系统路由）
+                    for route in all_routes:
+                        route_id = route.get("routeId")
+                        route_name = route.get("name", "")
+
+                        # 排除系统路由和空名称路由
+                        if route_name and not route_name.startswith("system-") and route_id:
+                            route_id_to_name[route_id] = route_name
+                            self.logger.info(f"发现可能的MCP路由: {route_name} (ID: {route_id})")
+
+                except Exception as e:
+                    self.logger.warning(f"查询所有路由失败: {e}")
+
+            # 获取所有要清理的工具
+            tools_to_cleanup = list(set(route_id_to_name.values()))
+            self.logger.info(f"发现 {len(tools_to_cleanup)} 个MCP工具需要清理: {tools_to_cleanup}")
+
+            if not tools_to_cleanup:
+                self.logger.info("未发现任何MCP相关资源需要清理")
+                return 0, 0, [], []
+
+            # 先删除所有相关的插件挂载
+            if attachments:
+                self.logger.info("🧹 删除插件挂载")
+                for attachment in attachments:
+                    attachment_id = attachment.get("attachmentId")
+                    attached_routes = attachment.get("attachResourceIds", [])
+
+                    # 检查是否包含我们要清理的路由
+                    if any(route_id in route_id_to_name for route_id in attached_routes):
+                        if attachment_id:
+                            self.delete_plugin_attachment(attachment_id)
+
+            # 再删除所有路由
+            self.logger.info("🧹 删除路由")
+            for route_id, route_name in route_id_to_name.items():
+                try:
+                    if self.delete_route(http_api_id, route_id):
+                        success_tools.append(route_name)
+                        self.logger.info(f"✅ 工具 {route_name} 清理成功")
+                    else:
+                        failed_tools.append(route_name)
+                        self.logger.error(f"❌ 工具 {route_name} 清理失败")
+                except Exception as e:
+                    self.logger.error(f"❌ 清理工具 {route_name} 时发生异常: {e}")
+                    failed_tools.append(route_name)
+
+            # 去重（避免同一工具被重复计算）
+            success_tools = list(set(success_tools))
+            failed_tools = list(set(failed_tools))
+
+            return len(success_tools), len(failed_tools), success_tools, failed_tools
+
+        except Exception as e:
+            self.logger.error(f"清理网关资源失败: {e}")
+            raise
+
 
 def main():
     """主函数"""
-    parser = argparse.ArgumentParser(description="MCP工具自动注册到阿里云AI网关")
-    parser.add_argument("--gateway-id", required=True, help="AI网关ID")
-    parser.add_argument("--plugin-id", help="插件ID（不提供则自动获取）")
-    parser.add_argument("--private-ip", required=True, help="内网IP地址")
-    parser.add_argument("--tools-config", required=True, help="工具配置文件路径")
-    parser.add_argument("--api-key", required=False, help="API密钥")
-    parser.add_argument("--openapi-base-url", default="http://127.0.0.1:8000", help="OpenAPI基础URL")
-    parser.add_argument("--region", default="cn-hangzhou", help="阿里云区域")
-    parser.add_argument("--skip-auth", action="store_true", help="跳过添加鉴权信息")
-    parser.add_argument("--force-update", action="store_true", help="强制更新配置")
-    parser.add_argument("-d", "--debug-response", action="store_true", help="打印详细响应信息")
-    parser.add_argument("--log-level", default="INFO", choices=["DEBUG", "INFO", "WARNING", "ERROR"], help="日志级别")
+    parser = argparse.ArgumentParser(description="MCP工具自动注册和清理工具")
+
+    # 添加子命令
+    subparsers = parser.add_subparsers(dest="command", help="可用命令")
+
+    # 注册命令
+    register_parser = subparsers.add_parser("register", help="注册MCP工具到AI网关")
+    register_parser.add_argument("--gateway-id", required=True, help="AI网关ID")
+    register_parser.add_argument("--plugin-id", help="插件ID（不提供则自动获取）")
+    register_parser.add_argument("--private-ip", required=True, help="内网IP地址")
+    register_parser.add_argument("--tools-config", required=True, help="工具配置文件路径")
+    register_parser.add_argument("--api-key", required=False, help="API密钥")
+    register_parser.add_argument("--openapi-base-url", default="http://127.0.0.1:8000", help="OpenAPI基础URL")
+    register_parser.add_argument("--domain-id", help="指定域名ID（不提供则使用通配符域名）")
+    register_parser.add_argument("--skip-auth", action="store_true", help="跳过添加鉴权信息")
+    register_parser.add_argument("--force-update", action="store_true", help="强制更新配置")
+
+    # 清理命令
+    cleanup_parser = subparsers.add_parser("cleanup", help="清理AI网关侧所有MCP资源")
+    cleanup_parser.add_argument("--gateway-id", required=True, help="AI网关ID")
+    cleanup_parser.add_argument("--plugin-id", help="插件ID（不提供则自动获取）")
+
+    # 通用参数
+    for subparser in [register_parser, cleanup_parser]:
+        subparser.add_argument("--region", default="cn-hangzhou", help="阿里云区域")
+        subparser.add_argument("-d", "--debug-response", action="store_true", help="打印详细响应信息")
+        subparser.add_argument("--log-level", default="INFO", choices=["DEBUG", "INFO", "WARNING", "ERROR"],
+                               help="日志级别")
 
     args = parser.parse_args()
+
+    # 如果没有指定命令，显示帮助
+    if not args.command:
+        parser.print_help()
+        sys.exit(1)
 
     try:
         registrar = MCPGatewayRegistrar(args.region, args.log_level, args.debug_response)
@@ -456,42 +657,79 @@ def main():
                 sys.exit(1)
             print(f"✅ 获取到插件ID: {plugin_id}")
 
-        # 执行注册
-        success_count, failed_count, success_tools, failed_tools = registrar.register_tools(
-            gateway_id=args.gateway_id,
-            plugin_id=plugin_id,
-            private_ip=args.private_ip,
-            tools_config=args.tools_config,
-            api_key=args.api_key,
-            openapi_base_url=args.openapi_base_url,
-            skip_auth=args.skip_auth,
-            force_update=args.force_update
-        )
+        if args.command == "register":
+            # 执行注册
+            success_count, failed_count, success_tools, failed_tools = registrar.register_tools(
+                gateway_id=args.gateway_id,
+                plugin_id=plugin_id,
+                private_ip=args.private_ip,
+                tools_config=args.tools_config,
+                api_key=args.api_key,
+                openapi_base_url=args.openapi_base_url,
+                skip_auth=args.skip_auth,
+                force_update=args.force_update,
+                domain_id=args.domain_id
+            )
 
-        # 输出结果
-        print(f"\n{'=' * 50}")
-        print("📊 MCP工具注册统计结果")
-        print(f"{'=' * 50}")
-        print(f"🔧 插件ID: {plugin_id}")
-        print(f"✅ 成功: {success_count} 个工具")
-        if success_tools:
-            print(f"   {', '.join(success_tools)}")
-        print(f"❌ 失败: {failed_count} 个工具")
-        if failed_tools:
-            print(f"   {', '.join(failed_tools)}")
-        print(f"📈 总计: {success_count + failed_count} 个工具")
-        print(f"{'=' * 50}")
+            # 输出注册结果
+            print(f"\n{'=' * 50}")
+            print("📊 MCP工具注册统计结果")
+            print(f"{'=' * 50}")
+            print(f"🔧 插件ID: {plugin_id}")
+            print(f"✅ 成功: {success_count} 个工具")
+            if success_tools:
+                print(f"   {', '.join(success_tools)}")
+            print(f"❌ 失败: {failed_count} 个工具")
+            if failed_tools:
+                print(f"   {', '.join(failed_tools)}")
+            print(f"📈 总计: {success_count + failed_count} 个工具")
+            print(f"{'=' * 50}")
 
-        # 设置退出码
-        if failed_count == 0:
-            print("🎉 所有工具都已成功注册！")
-            sys.exit(0)
-        elif success_count > 0:
-            print("⚠️  部分工具注册成功")
-            sys.exit(1)
-        else:
-            print("💥 所有工具都注册失败")
-            sys.exit(1)
+            # 设置退出码
+            if failed_count == 0:
+                print("🎉 所有工具都已成功注册！")
+                sys.exit(0)
+            elif success_count > 0:
+                print("⚠️  部分工具注册成功")
+                sys.exit(1)
+            else:
+                print("💥 所有工具都注册失败")
+                sys.exit(1)
+
+        elif args.command == "cleanup":
+            # 执行清理
+            success_count, failed_count, success_tools, failed_tools = registrar.cleanup_gateway_resources(
+                gateway_id=args.gateway_id,
+                plugin_id=plugin_id
+            )
+
+            # 输出清理结果
+            print(f"\n{'=' * 50}")
+            print("🧹 AI网关MCP资源清理结果")
+            print(f"{'=' * 50}")
+            print(f"🔧 插件ID: {plugin_id}")
+            print(f"✅ 成功清理: {success_count} 个工具")
+            if success_tools:
+                print(f"   {', '.join(success_tools)}")
+            print(f"❌ 清理失败: {failed_count} 个工具")
+            if failed_tools:
+                print(f"   {', '.join(failed_tools)}")
+            print(f"📈 总计: {success_count + failed_count} 个工具")
+            print(f"{'=' * 50}")
+
+            # 设置退出码
+            if failed_count == 0:
+                if success_count > 0:
+                    print("🎉 所有MCP网关资源都已成功清理！")
+                else:
+                    print("ℹ️  未发现需要清理的MCP资源")
+                sys.exit(0)
+            elif success_count > 0:
+                print("⚠️  部分MCP网关资源清理成功")
+                sys.exit(1)
+            else:
+                print("💥 所有MCP网关资源清理都失败")
+                sys.exit(1)
 
     except Exception as e:
         print(f"❌ 操作失败: {e}")
