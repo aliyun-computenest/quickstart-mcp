@@ -10,6 +10,12 @@ Parameters:
     Label:
       zh-cn: AI网关
       en: AI Gateway
+  HigressDomainId:
+    Type: String
+    Label:
+      zh-cn: AI域名
+      en: AI DomainId
+    Default: ""
   InternetMaxBandwidthOut:
     Type: Number
     Label:
@@ -137,17 +143,6 @@ Parameters:
       Random: true
       InstanceType: ${EcsInstanceType}
 Resources:
-  ExistVsw:
-    Type: DATASOURCE::VPC::VSwitch
-    Properties:
-      VSwitchId:
-        Fn::GetJsonValue:
-          - VSwitchId
-          - Fn::GetAtt:
-              - ExtensionDataSource
-              - VSwitch
-
-
   ExtensionDataSource:
     Type: DATASOURCE::APIG::Gateway
     Properties:
@@ -257,9 +252,12 @@ Resources:
               - ExtensionDataSource
               - VSwitch
       ZoneId:
-        Fn::GetAtt:
-          - ExistVsw
-          - ZoneId
+        Fn::Jq:
+          - First
+          - .[0].ZoneId
+          - Fn::GetAtt:
+              - ExtensionDataSource
+              - Zones
       SecurityGroupId:
         Ref: SecurityGroup
       ImageId: ecs_image_quickstart-mcp
@@ -346,13 +344,13 @@ Resources:
             done
             sleep 15
 
-            chmod +x /root/application/mcp/openapi-to-mcp   
+            chmod +x /root/application/mcp/openapi-to-mcp
             # 静默卸载 aliyun-cli
             yum remove aliyun-cli -y
-            
+
             # 静默下载 aliyun-cli
             curl -s https://aliyuncli.alicdn.com/aliyun-cli-linux-latest-amd64.tgz -o aliyun-cli-linux-latest.tgz
-            
+
             # 静默解压 aliyun-cli
             tar xzf aliyun-cli-linux-latest.tgz
             ./aliyun configure set \
@@ -361,7 +359,7 @@ Resources:
             --ram-role-name ${RamRoleName} \
             --region cn-hangzhou
             # 测试
-            python higress_enterprise.py --gateway-id ${GatewayID} ${mcp_KEY} --private-ip ${private_ip} --tools-config /root/config.json --region ${RegionId}
+            python higress_enterprise.py register --gateway-id ${GatewayID} ${mcp_KEY} --private-ip ${private_ip} --domain-id "${DomainId}" --tools-config /root/config.json --region ${RegionId}
             sleep 10
           - RegionId:
               Ref: ALIYUN::Region
@@ -386,6 +384,28 @@ Resources:
                       - Fn::GetAtt:
                           - InstanceGroup
                           - PrivateIps
+            DomainId:
+              Ref: HigressDomainId
+  RunCleanupCommand:
+    Type: ALIYUN::ECS::RunCommandOfLifespan
+    Properties:
+      Sync: true
+      Timeout: 3600
+      Type: RunShellScript
+      InstanceIds:
+        Fn::GetAtt:
+          - InstanceGroup
+          - InstanceIds
+      CommandContentOnDeletion:
+        Fn::Sub:
+          - |
+            cd /root/application/mcp/
+            python higress_enterprise.py cleanup --gateway-id ${GatewayID} --region ${RegionId}
+            sleep 10
+          - RegionId:
+              Ref: ALIYUN::Region
+            GatewayID:
+              Ref: HigressAI
 Outputs:
   openapi_server_address:
     Label:
@@ -420,6 +440,7 @@ Metadata:
       - Parameters:
           - McpConfigJson
           - HigressAI
+          - HigressDomainId
         Label:
           Default: Mcp配置(可多选)
       - Parameters:
@@ -436,6 +457,15 @@ Metadata:
           - InstancePassword
         Label:
           default: 资源配置
+      - Parameters:
+          - ZoneId
+          - VpcOption
+          - VpcId
+          - VSwitchId
+          - VpcCidrBlock
+          - VSwitchCidrBlock
+        Label:
+          default: 可用区配置
     QuickDeployConfig:
       PackageFields:
         - Key: EcsInstanceType
