@@ -1,4 +1,11 @@
 ROSTemplateFormatVersion: '2015-09-01'
+Locals:
+  CurTime:
+    Type: Eval
+    Value:
+      Fn::FormatTime:
+        - '%Y%m%d-%H%M%S'
+        - Asia/Shanghai
 Conditions:
   EnableAuthenticationConditions:
     Fn::Equals:
@@ -35,8 +42,8 @@ Parameters:
   InternetMaxBandwidthOut:
     Type: Number
     Label:
-      zh-cn: 公网带宽 (Mbps)
-      en: Internet Max Bandwidth Out (Mbps)
+      zh-cn: 公网带宽 (Mbps)-推荐8Mbps
+      en: Internet Max Bandwidth Out (Mbps)-Recommended 8Mbps
     MinValue: 1
     MaxValue: 100
   InternetChargeType:
@@ -222,10 +229,8 @@ Parameters:
     AssociationProperty: ALIYUN::ECS::Instance::InstanceType
     AssociationPropertyMetadata:
       InstanceChargeType: ${PayType}
-      Constraints:
-        InstanceTypeFamily:
-          - ecs.u1
-          - ecs.e
+
+
   InstancePassword:
     NoEcho: true
     Type: String
@@ -446,14 +451,21 @@ Resources:
         Fn::Sub:
           - |
             set -e
+            echo "当前时间：${CurTime}"
             cpu_cores=$(nproc)
-            workers=$((cpu_cores * 2))
+            if [ $cpu_cores -eq 4 ]; then
+              workers=1
+            elif [ $cpu_cores -le 4 ]; then
+              workers=1
+            else
+              workers=$((cpu_cores / 2))
+            fi
             cd /root
             cat > config.json << EOF
             ${MCP_RESULT}
             EOF
             sed -i "s|\${!MCP_KEY:-}|${mcp_KEY}|g" /root/application/mcp/docker-compose.yaml
-            sed -i "s|\${MCPO_WORKERS:-4}|${cpu_cores}|g" /root/application/mcp/docker-compose-enterprise.yaml
+            sed -i "s|\${!MCPO_WORKERS:-4}|${!workers}|g" /root/application/mcp/docker-compose-enterprise.yaml
 
             file_path="/etc/systemd/system/quickstart-mcp.service"
             if [ ! -f "$file_path" ]; then
@@ -476,7 +488,7 @@ Resources:
             EOF
 
             systemctl enable quickstart-mcp
-            
+
             fi
             systemctl daemon-reload
             systemctl restart quickstart-mcp
@@ -485,7 +497,7 @@ Resources:
             MAX_TIMEOUT=1800
             INTERVAL=10
             MAX_ATTEMPTS=$((MAX_TIMEOUT / INTERVAL))
-            
+
             for ((i=1; i<=MAX_ATTEMPTS; i++))
               do
                 LATEST_LOG=$(docker logs mcpo-service 2>&1 | tail -n 10)
@@ -509,8 +521,8 @@ Resources:
               fi
             done
             sleep 15
-            
-            chmod +x /root/application/mcp/openapi-to-mcp   
+
+            chmod +x /root/application/mcp/openapi-to-mcp
             # 测试
             python higress_client.py ${mcp_KEY_command} --domain ${private_ip} --config /root/config.json ${auth}
             sleep 10
@@ -519,6 +531,8 @@ Resources:
               Ref: ALIYUN::Region
             mcp_KEY:
               Ref: MCP_KEY
+            CurTime:
+              Ref: CurTime
             mcp_KEY_command:
               Fn::If:
                 - EnableAuthenticationConditions
@@ -707,7 +721,7 @@ Metadata:
           - AuthenticationOption
           - MCP_KEY
         Label:
-          Default: Mcp配置(可多选)
+          Default: Mcp配置(可多选，10个以内)
 
       - Parameters:
           - PayType
