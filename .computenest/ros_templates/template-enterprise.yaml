@@ -119,10 +119,17 @@ Parameters:
     AssociationProperty: ALIYUN::ECS::Instance::InstanceType
     AssociationPropertyMetadata:
       InstanceChargeType: ${PayType}
-      Constraints:
-        InstanceTypeFamily:
-          - ecs.u1
-          - ecs.e
+    AllowedValues:
+      - ecs.u1-c1m2.large
+      - ecs.u1-c1m4.large
+      - ecs.u1-c1m1.xlarge
+      - ecs.u1-c1m2.xlarge
+      - ecs.u1-c1m4.xlarge
+      - ecs.u1-c1m1.2xlarge
+      - ecs.u1-c1m2.3xlarge
+      - ecs.u1-c1m1.4xlarge
+      - ecs.e-c1m2.xlarge
+      - ecs.e-c1m4.large
   InstancePassword:
     NoEcho: true
     Type: String
