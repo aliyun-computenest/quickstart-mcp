@@ -284,7 +284,7 @@ Resources:
       IoOptimized: optimized
       MaxAmount: 1
   RunInstallCommand:
-    Type: ALIYUN::ECS::RunCommand
+    Type: ALIYUN::ECS::RunCommandOfLifespan
     Properties:
       InstanceIds:
         Fn::GetAtt:
@@ -392,18 +392,6 @@ Resources:
                           - PrivateIps
             DomainId:
               Ref: HigressDomainId
-  RunCleanupCommand:
-    Type: ALIYUN::ECS::RunCommandOfLifespan
-    Properties:
-      Sync: true
-      Timeout: 3600
-      Type: RunShellScript
-      InstanceIds:
-        Fn::GetAtt:
-          - InstanceGroup
-          - InstanceIds
-      CommandContent: |-
-        echo ""
       CommandContentOnDeletion:
         Fn::Sub:
           - |
