@@ -227,9 +227,19 @@ Parameters:
       en: Instance Type
       zh-cn: 实例类型
     AssociationProperty: ALIYUN::ECS::Instance::InstanceType
+    AllowedValues:
+      - ecs.u1-c1m2.large
+      - ecs.u1-c1m4.large
+      - ecs.u1-c1m1.xlarge
+      - ecs.u1-c1m2.xlarge
+      - ecs.u1-c1m4.xlarge
+      - ecs.u1-c1m1.2xlarge
+      - ecs.u1-c1m2.3xlarge
+      - ecs.u1-c1m1.4xlarge
+      - ecs.e-c1m2.xlarge
+      - ecs.e-c1m4.large
     AssociationPropertyMetadata:
       InstanceChargeType: ${PayType}
-
 
   InstancePassword:
     NoEcho: true
@@ -465,7 +475,7 @@ Resources:
             ${MCP_RESULT}
             EOF
             sed -i "s|\${!MCP_KEY:-}|${mcp_KEY}|g" /root/application/mcp/docker-compose.yaml
-            sed -i "s|\${!MCPO_WORKERS:-4}|${!workers}|g" /root/application/mcp/docker-compose-enterprise.yaml
+            sed -i "s|\${!MCPO_WORKERS:-4}|${!workers}|g" /root/application/mcp/docker-compose.yaml
 
             file_path="/etc/systemd/system/quickstart-mcp.service"
             if [ ! -f "$file_path" ]; then
