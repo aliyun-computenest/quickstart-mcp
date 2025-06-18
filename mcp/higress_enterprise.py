@@ -216,31 +216,33 @@ class MCPGatewayRegistrar:
             else:
                 raise RuntimeError(f"创建通配符域名失败: {e}")
 
-    def ensure_service(self, gateway_id: str, tool_name: str, private_ip: str) -> str:
-        """确保服务存在"""
+    def ensure_shared_service(self, gateway_id: str, private_ip: str) -> str:
+        """确保共享的MCP服务存在"""
+        service_name = "mcp-shared-service"
+
         # 检查现有服务
-        existing_services = self._find_items_by_name(gateway_id, "/v1/services", tool_name)
+        existing_services = self._find_items_by_name(gateway_id, "/v1/services", service_name)
         if existing_services:
             service_id = existing_services[0].get("serviceId")
-            self.logger.info(f"服务 {tool_name} 已存在，ID: {service_id}")
+            self.logger.info(f"✅ 共享MCP服务已存在，ID: {service_id}")
             return service_id
 
-        # 创建新服务
-        self.logger.info(f"创建服务: {tool_name}")
+        # 创建新的共享服务
+        self.logger.info(f"🔨 创建共享MCP服务: {service_name}")
         body = {
             "gatewayId": gateway_id,
             "sourceType": "VIP",
-            "serviceConfigs": [{"name": tool_name, "addresses": [f"{private_ip}:8000"]}]
+            "serviceConfigs": [{"name": service_name, "addresses": [f"{private_ip}:8000"]}]
         }
         response = self._execute_aliyun_cli("POST", "/v1/services", body)
-        data = self._check_response(response, "创建服务")
+        data = self._check_response(response, "创建共享MCP服务")
 
         service_ids = data.get("serviceIds", [])
         if not service_ids:
-            raise RuntimeError("创建服务成功但未返回服务ID")
+            raise RuntimeError("创建共享MCP服务成功但未返回服务ID")
 
         service_id = service_ids[0]
-        self.logger.info(f"服务创建成功，ID: {service_id}")
+        self.logger.info(f"✅ 共享MCP服务创建成功，ID: {service_id}")
         return service_id
 
     def ensure_route(self, http_api_id: str, gateway_id: str, environment_id: str,
@@ -435,28 +437,31 @@ class MCPGatewayRegistrar:
             environment_id = self.get_environment_id(gateway_id)
             tools = self.extract_tools_from_config(tools_config)
 
+            # 创建或获取共享的MCP服务
+            shared_service_id = self.ensure_shared_service(gateway_id, private_ip)
+            self.logger.info(f"🔧 所有MCP工具将使用共享服务，ID: {shared_service_id}")
+
             # 处理每个工具
             for tool in tools:
                 try:
-                    self.logger.info(f"处理工具: {tool}")
+                    self.logger.info(f"📝 处理工具: {tool}")
 
-                    # 确保服务和路由存在
-                    service_id = self.ensure_service(gateway_id, tool, private_ip)
+                    # 使用共享服务创建路由
                     route_id, need_update = self.ensure_route(http_api_id, gateway_id, environment_id,
-                                                              tool, domain_id, service_id, force_update)
+                                                              tool, domain_id, shared_service_id, force_update)
 
                     # 更新插件配置
                     if need_update:
                         plugin_config = self.generate_mcp_config(tool, openapi_base_url, api_key, skip_auth)
                         self.update_plugin_attachment(gateway_id, plugin_id, route_id, plugin_config)
-                        self.logger.info(f"工具 {tool} 配置已更新")
+                        self.logger.info(f"✅ 工具 {tool} 配置已更新")
                     else:
-                        self.logger.info(f"工具 {tool} 跳过配置更新")
+                        self.logger.info(f"⏭️  工具 {tool} 跳过配置更新")
 
                     success_tools.append(tool)
 
                 except Exception as e:
-                    self.logger.error(f"处理工具 {tool} 失败: {e}")
+                    self.logger.error(f"❌ 处理工具 {tool} 失败: {e}")
                     failed_tools.append(tool)
 
             return len(success_tools), len(failed_tools), success_tools, failed_tools
@@ -595,6 +600,11 @@ class MCPGatewayRegistrar:
                     self.logger.error(f"❌ 清理工具 {route_name} 时发生异常: {e}")
                     failed_tools.append(route_name)
 
+            # 检查是否需要清理共享服务
+            if success_tools or failed_tools:
+                self.logger.info("🧹 检查是否需要清理共享MCP服务")
+                self._cleanup_shared_service_if_needed(gateway_id, http_api_id)
+
             # 去重（避免同一工具被重复计算）
             success_tools = list(set(success_tools))
             failed_tools = list(set(failed_tools))
@@ -604,6 +614,65 @@ class MCPGatewayRegistrar:
         except Exception as e:
             self.logger.error(f"清理网关资源失败: {e}")
             raise
+
+    def delete_service(self, gateway_id: str, service_id: str) -> bool:
+        """删除服务"""
+        try:
+            self.logger.info(f"删除服务: {service_id}")
+            # 正确的删除服务API路径需要包含gatewayId参数
+            response = self._execute_aliyun_cli("DELETE", f"/v1/services/{service_id}",
+                                                gatewayId=gateway_id,
+                                                gatewayType="AI")
+            self._check_response(response, "删除服务")
+            self.logger.info(f"服务 {service_id} 删除成功")
+            return True
+        except Exception as e:
+            self.logger.error(f"删除服务 {service_id} 失败: {e}")
+            return False
+
+    def _cleanup_shared_service_if_needed(self, gateway_id: str, http_api_id: str):
+        """如果共享服务不再被任何路由使用，则清理它"""
+        try:
+            # 查找共享服务
+            shared_service_name = "mcp-shared-service"
+            existing_services = self._find_items_by_name(gateway_id, "/v1/services", shared_service_name)
+
+            if not existing_services:
+                self.logger.info("未找到共享MCP服务，无需清理")
+                return
+
+            shared_service_id = existing_services[0].get("serviceId")
+            self.logger.info(f"找到共享MCP服务，ID: {shared_service_id}")
+
+            # 检查是否还有路由在使用这个服务
+            response = self._execute_aliyun_cli("GET", f"/v1/http-apis/{http_api_id}/routes",
+                                                gatewayId=gateway_id,
+                                                gatewayType="AI")
+            data = self._check_response(response, "检查剩余路由")
+
+            service_in_use = False
+            for route in data.get("items", []):
+                backend_config = route.get("backendConfig", {})
+                services_config = backend_config.get("services", [])
+                for svc in services_config:
+                    if svc.get("serviceId") == shared_service_id:
+                        service_in_use = True
+                        self.logger.info(f"共享服务仍被路由 {route.get('name')} 使用")
+                        break
+                if service_in_use:
+                    break
+
+            if not service_in_use:
+                self.logger.info("🗑️  共享MCP服务不再被使用，开始清理")
+                if self.delete_service(gateway_id, shared_service_id):
+                    self.logger.info("✅ 共享MCP服务清理成功")
+                else:
+                    self.logger.warning("⚠️  清理共享MCP服务失败")
+            else:
+                self.logger.info("ℹ️  共享MCP服务仍在使用中，保留")
+
+        except Exception as e:
+            self.logger.warning(f"检查共享服务状态失败: {e}")
 
 
 def main():
