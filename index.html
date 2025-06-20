@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="x-ua-compatible" content="ie=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+  <meta name="description" content="计算巢是阿里云开放给企业应用服务商的服务管理平台。服务商能够在计算巢上发布私有化部署服务，为其客户提供云上软件一键部署的能力；同时也支持全托管模式的服务，赋能服务商托管其客户资源。">
+  <title>MCP Server服务实例部署文档 - Aliyun 计算巢 x Demo</title>
+
+  <link rel="shortcut icon" href="img/favicon.ico">
+
+  <link rel="stylesheet" href="https://unpkg.com/purecss@1.0.0/build/pure-min.css">
+  <link rel="stylesheet" href="css/theme.css">
+  
+
+  
+
+  
+  
+
+  
+    <script src="search/main.js"></script>
+  
+
+  
+
+  <script src="js/highlight.min.js"></script>
+  <script>hljs.highlightAll();</script>
+</head>
+
+<body>
+  <div class="container">
+    <div class="nav">
+      <div class="nav-inner">
+        <div class="logo">
+          <img src="./img/logo-2x.png">
+        </div>
+        <div class="nav-list">
+          <ul>
+          
+              <li><a href="#mcp-server">MCP Server服务实例部署文档</a></li>
+              
+                  <li><a href="#_1">概述</a></li>
+                  
+              
+                  <li><a href="#_2">前提条件</a></li>
+                  
+              
+                  <li><a href="#_3">部署架构</a></li>
+                  
+              
+                  <li><a href="#_4">部署流程</a></li>
+                  
+                      <li class="li-h3"><a href="#_5">部署参数说明</a></li>
+                  
+                      <li class="li-h3"><a href="#_6">部署步骤</a></li>
+                  
+                      <li class="li-h3"><a href="#mcp">使用自定义的MCP工具</a></li>
+                  
+              
+                  <li><a href="#mcp_1">修改要使用的MCP工具</a></li>
+                  
+              
+                  <li><a href="#cherry-studio">Cherry Studio使用示例</a></li>
+                  
+              
+                  <li><a href="#dify">Dify 使用示例</a></li>
+                  
+              
+                  <li><a href="#_7">百炼使用示例</a></li>
+                  
+              
+                  <li><a href="#open-webui">Open WebUI使用示例</a></li>
+                  
+              
+                  <li><a href="#_8">问题排查</a></li>
+                  
+              
+                  <li><a href="#ecs">企业用户推荐的ECS实例配置</a></li>
+                  
+              
+          
+          </ul>
+        </div>
+      </div>
+    </div>
+    <div class="content theme-github">
+      
+      <div class="content-inner">        
+        
+        <h1 id="mcp-server">MCP Server服务实例部署文档</h1>
+<h2 id="_1">概述</h2>
+<p>MCP（Model Context Protocol，模型上下文协议） ，2024年11月底，由 Anthropic 推出的一种开放标准，旨在统一大型语言模型（LLM）与外部数据源和工具之间的通信协议。MCP 的主要目的在于解决当前 AI 模型因数据孤岛限制而无法充分发挥潜力的难题，MCP 使得 AI 应用能够安全地访问和操作本地及远程数据，为 AI 应用提供了连接万物的接口。
+本服务创造性地解决了传统MCP市场的以下问题：
+1. 每次只能选择单个MCP工具进行部署。--本服务支持多选MCP工具同时部署
+2. 不能同时兼容OpenAPI和SSE的方式调用工具，这导致只能适配部分平台。--本服务支持两种方式调用，支持Dify，Cherry Studio，OpenWebUI等AI助手。
+3. 无法灵活增减要使用的MCP工具。--本服务支持通过变配动态增删要使用的MCP工具。</p>
+<p>本文向您介绍如何开通计算巢上的<code>MCP Server社区版</code>服务，以及部署流程和使用说明。</p>
+<h2 id="_2">前提条件</h2>
+<p><font style="color:rgb(51, 51, 51);">部署Dify社区版服务实例，需要对部分阿里云资源进行访问和创建操作。因此您的账号需要包含如下资源的权限。</font><font style="color:rgb(51, 51, 51);"> </font><strong><font style="color:rgb(51, 51, 51);">说明</font></strong><font style="color:rgb(51, 51, 51);">：当您的账号是RAM账号时，才需要添加此权限。</font></p>
+<table>
+<thead>
+<tr>
+<th><font style="color:rgb(51, 51, 51);">权限策略名称</font></th>
+<th><font style="color:rgb(51, 51, 51);">备注</font></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><font style="color:rgb(51, 51, 51);">AliyunECSFullAccess</font></td>
+<td><font style="color:rgb(51, 51, 51);">管理云服务器服务（ECS）的权限</font></td>
+</tr>
+<tr>
+<td><font style="color:rgb(51, 51, 51);">AliyunVPCFullAccess</font></td>
+<td><font style="color:rgb(51, 51, 51);">管理专有网络（VPC）的权限</font></td>
+</tr>
+<tr>
+<td><font style="color:rgb(51, 51, 51);">AliyunROSFullAccess</font></td>
+<td><font style="color:rgb(51, 51, 51);">管理资源编排服务（ROS）的权限</font></td>
+</tr>
+<tr>
+<td><font style="color:rgb(51, 51, 51);">AliyunComputeNestUserFullAccess</font></td>
+<td><font style="color:rgb(51, 51, 51);">管理计算巢服务（ComputeNest）的用户侧权限</font></td>
+</tr>
+</tbody>
+</table>
+<p>MCP Server社区版在计算巢上的费用主要涉及：</p>
+<ul>
+<li>所选vCPU与内存规格</li>
+<li>系统盘类型及容量</li>
+<li>公网带宽</li>
+</ul>
+<p>为了提高MCP工具调用的性能，我们推荐至少选择2核，4G以上的CPU。
+且默认帮您配置的网络带宽为10Mbps,按流量计费。</p>
+<p>计费方式包括：</p>
+<ul>
+<li>按量付费（小时）</li>
+<li>包年包月</li>
+</ul>
+<p>预估费用在创建实例时可实时看到。
+如需更多规格、其他服务（如集群高可用性要求、企业级支持服务等），请联系我们 <a href="mailto:xx@xx.com">mailto:xx@xx.com</a>。</p>
+<h2 id="_3">部署架构</h2>
+<p><img alt="" src="./img/deploy.png" /></p>
+<h2 id="_4">部署流程</h2>
+<h3 id="_5">部署参数说明</h3>
+<table>
+<thead>
+<tr>
+<th><font style="color:rgb(51, 51, 51);">参数组</font></th>
+<th><font style="color:rgb(51, 51, 51);">参数项</font></th>
+<th><font style="color:rgb(51, 51, 51);">说明</font></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><font style="color:rgb(51, 51, 51);">MCP配置</font></td>
+<td><font style="color:rgb(51, 51, 51);">McpConfigJson</font></td>
+<td><font style="color:rgb(51, 51, 51);">需要使用的MCP工具</font></td>
+</tr>
+<tr>
+<td></td>
+<td><font style="color:rgb(51, 51, 51);">MCP_KEY</font></td>
+<td><font style="color:rgb(51, 51, 51);">MCP Server和大模型交互的秘钥</font></td>
+</tr>
+<tr>
+<td><font style="color:rgb(51, 51, 51);">服务实例</font></td>
+<td><font style="color:rgb(51, 51, 51);">服务实例名称</font></td>
+<td><font style="color:rgb(51, 51, 51);">长度不超过64个字符，必须以英文字母开头，可包含数字、英文字母、短划线（-）和下划线（_）</font></td>
+</tr>
+<tr>
+<td></td>
+<td><font style="color:rgb(51, 51, 51);">地域</font></td>
+<td><font style="color:rgb(51, 51, 51);">服务实例部署的地域</font></td>
+</tr>
+<tr>
+<td></td>
+<td><font style="color:rgb(51, 51, 51);">付费类型</font></td>
+<td><font style="color:rgb(51, 51, 51);">资源的计费类型：按量付费和包年包月</font></td>
+</tr>
+<tr>
+<td><font style="color:rgb(51, 51, 51);">ECS实例配置</font></td>
+<td><font style="color:rgb(51, 51, 51);">实例类型</font></td>
+<td><font style="color:rgb(51, 51, 51);">可用区下可以使用的实例规格</font></td>
+</tr>
+<tr>
+<td></td>
+<td><font style="color:rgb(51, 51, 51);">实例密码</font></td>
+<td><font style="color:rgb(51, 51, 51);">长度8-30，必须包含三项（大写字母、小写字母、数字、 ()`~!@#$%^&amp;*-+=</td>
+</tr>
+<tr>
+<td><font style="color:rgb(51, 51, 51);">网络配置</font></td>
+<td><font style="color:rgb(51, 51, 51);">可用区</font></td>
+<td><font style="color:rgb(51, 51, 51);">ECS实例所在可用区</font></td>
+</tr>
+<tr>
+<td></td>
+<td><font style="color:rgb(51, 51, 51);">VPC ID</font></td>
+<td><font style="color:rgb(51, 51, 51);">资源所在VPC</font></td>
+</tr>
+<tr>
+<td></td>
+<td><font style="color:rgb(51, 51, 51);">交换机ID</font></td>
+<td><font style="color:rgb(51, 51, 51);">资源所在交换机</font></td>
+</tr>
+</tbody>
+</table>
+<h3 id="_6">部署步骤</h3>
+<ol>
+<li>单击<a href="" title="https://computenest.console.aliyun.com/service/instance/create/default?type=user&amp;ServiceName=MCP%20Server%E7%A4%BE%E5%8C%BA%E7%89%88">部署链接</a>，进入服务实例部署界面，选择想部署的地域，根据界面提示，填写参数完成部署。</li>
+<li>选择你想使用的MCP工具。注意，可以多选哦！<img alt="img.png" src="img-deploy/img.png" /></li>
+<li>如果需要使用自定义的MCP工具请参考【使用自定义MCP工具】</li>
+<li>这里的MCP有两种类型。一种是无需环境变量的，比如"时间服务"，则直接勾选上，跳过参数配置步骤。</li>
+<li>另一种MCP类型需要环境变量，比如高德地图，则需要配置上环境变量，否则MCP Server会部署失败<img alt="img_1.png" src="img-deploy/img_1.png" /></li>
+<li>如果不清楚MCP工具怎么使用，可以点击查看"帮助文档"查看和学习。<img alt="img_2.png" src="img-deploy/img_2.png" /></li>
+<li>系统默认帮你生成了一个API KEY，用于保护你即将部署的MCP工具，你可以修改此参数。<img alt="img_3.png" src="img-deploy/img_3.png" /></li>
+<li>选择适合你的套餐，生产环境建议选择2核4G的规格以上，每次部署3个以下的MCP工具可直接选择热卖套餐。配置ECS登录密码</li>
+<li>如果想选择其他实例类型或公网带宽，可选择自定义套餐进行配置</li>
+<li>对可用区和网络进行配置。推荐选择任意可用区后，直接新建网络和虚拟机<img alt="img_5.png" src="img-deploy/img_5.png" /></li>
+<li>点击立即创建，等待部署成功，该过程一般耗时3分钟。该时长根据您选择的工具的多少有所波动。<img alt="img_6.png" src="img-deploy/img_6.png" /></li>
+<li>访问刚部署成功的实例界面，可查看到您部署的专属MCP工具的地址和API秘钥。针对不同的AI助手请参考下文进行配置和使用</li>
+</ol>
+<h3 id="mcp">使用自定义的MCP工具</h3>
+<ol>
+<li>点击新增自定义MCP工具，注意：自定义MCP工具可以重复添加<img alt="img.png" src="custom-mcp/img.png" /></li>
+<li>填写自定义工具的名称和id，注意id不能重复。<img alt="img_1.png" src="custom-mcp/img_1.png" /></li>
+<li>选择你要使用的MCP工具的启动方式，如果选择如npx或uvx，则需要填写启动命令，该启动命令需要是数组的形式。比如</li>
+</ol>
+<pre><code class="language-shell">['mcp-server-time', '--local-timezone=America/New_York']
+</code></pre>
+<ol>
+<li>如果该命令启动的时候需要依赖一些环境变量，则需要在下方填写：比如key:GITHUB_PERSONAL_ACCESS_TOKEN, value: xxx</li>
+<li>如果选择SSE的启动方式，需要填写URL。注意：如果需要鉴权，则该鉴权的key需要包含在此URL中。 如"https://mcp-xxx-22b0-4037.api-inference.modelscope.cn/sse"</li>
+<li>点击选中当前自定义工具。<img alt="img_2.png" src="custom-mcp/img_2.png" />
+注意： 您新增的自定义工具在变配时会重新渲染，可以自行增加或减少要使用的MCP工具。当配置完自定义的MCP工具时，可继续进行部署步骤"6"</li>
+</ol>
+<h2 id="mcp_1">修改要使用的MCP工具</h2>
+<p>如果想要修改要使用的MCP工具请参考下列操作
+1. 在计算巢控制台，点击"我的实例"，选择之前部署的MCP Server实例，点击右上方的"修改配置"。<img alt="img.png" src="update/img.png" />
+2. 点击修改MCP工具，并点击"下一步"<img alt="img_1.png" src="update/img_1.png" />
+3. 选择想要新增的MCP工具，比如我这新增了Fetch工具。（注意：之前选择的工具在此处会被重新渲染）<img alt="img_2.png" src="update/img_2.png" />
+4. 当然这里如果涉及到环境变量，则一定要按照文档进行设置。
+5. 点击确定，发起工具修改请求。<img alt="img_3.png" src="update/img_3.png" />
+6. 等待实例状态变更完。<img alt="img_4.png" src="update/img_4.png" />
+7. 将输出中新增的MCP工具加入到AI对话客户端中。<img alt="img_5.png" src="update/img_5.png" /></p>
+<h2 id="cherry-studio">Cherry Studio使用示例</h2>
+<ol>
+<li>来到计算巢实例界面，<img alt="img_7.png" src="img-deploy/img_7.png" />,接下来的操作需要使用"MCP Server访问地址"部分</li>
+<li>打开您的Cherry Studio助手，按照下图示例，新建MCP服务器。<img alt="img.png" src="cherry-studio/img.png" /></li>
+<li>"名称"和描述可以随便填。</li>
+<li>类型选择"服务器发送时间（sse)</li>
+<li>URL填写实例界面的此处链接<img alt="img_1.png" src="cherry-studio/img_1.png" />  注意此处使用的是http协议，结尾是sse后缀</li>
+<li>在请求头添加上鉴权参数：<img alt="img_2.png" src="cherry-studio/img_2.png" />。注意此处需要将":"改为"="填入，比如Authorization=Bearer 123</li>
+<li>点击右上角的启用按钮和保存按钮。<img alt="img_3.png" src="cherry-studio/img_3.png" /></li>
+<li>来到对话界面，选择要使用的MCP工具。<img alt="img_4.png" src="cherry-studio/img_4.png" /></li>
+<li>选择合适的模型，与AI对话，比如"我现在在杭州云谷，请给我推荐开车半小时以内的餐馆",即可让AI调用模型帮你找到合适的餐馆。</li>
+</ol>
+<h2 id="dify">Dify 使用示例</h2>
+<ol>
+<li>来到计算巢实例界面，<img alt="img_7.png" src="img-deploy/img_7.png" />,接下来的操作需要使用"MCP Server访问地址"部分</li>
+<li>打开您的Dify，按照下图示例，安装"SSE发现和调用MCP工具"<img alt="img.png" src="dify/img.png" /></li>
+<li>如果后续使用出现问题，可将此工具版本降低到0.0.10。<img alt="img_1.png" src="dify/img_1.png" /></li>
+<li>点击"授权"按钮对SSE工具进行配置。此处可直接粘贴步骤一中的MCP Server访问地址<img alt="img_2.png" src="dify/img_2.png" /></li>
+<li>创建个Agent，并进入。<img alt="img_3.png" src="dify/img_3.png" /></li>
+<li>按照下图示例，开启MCP工具调用，填写合适的提示词，选择合适的模型，比如QWEN-max。<img alt="img_4.png" src="dify/img_4.png" /></li>
+<li>对话，即可调用MCP工具。<img alt="img_5.png" src="dify/img_5.png" /></li>
+</ol>
+<h2 id="_7">百炼使用示例</h2>
+<ol>
+<li>来到计算巢实例界面，<img alt="img_7.png" src="img-deploy/img_7.png" />,接下来的操作需要使用"百炼Mcp Server地址"部分</li>
+<li>打开您的<a href="https://bailian.console.aliyun.com/?tab=mcp#/mcp-market">百炼控制台</a>，进入到MCP界面<img alt="img_1.png" src="bailian/img_1.png" /></li>
+<li>选择SSE的安装方式，填写合适的服务名称和描述<img alt="img.png" src="bailian/img_6.png" /></li>
+<li>选择要使用的MCP工具，将其配置粘贴到"MCP服务配置"中，示例如下。<img alt="img_2.png" src="bailian/img_2.png" /></li>
+</ol>
+<pre><code class="language-json">{&quot;mcpServers&quot;:{&quot;amap-maps&quot;:{&quot;type&quot;:&quot;sse&quot;,&quot;url&quot;:&quot;http://47.xxx:8080/amap-maps/sse&quot;,&quot;headers&quot;:{&quot;Authorization&quot;:&quot;Bearer rBrrSh7ZhA&quot;}}}}
+</code></pre>
+<ol>
+<li>注意，此处如果在计算巢选择安装了多个工具，需要在控制台每个工具配置一次MCP服务。</li>
+<li>在百炼"应用"界面，点击"应用管理"，点击"新增应用"<img alt="img_3.png" src="bailian/img_3.png" />，选择"智能体应用"，并点击创建</li>
+<li>按照图示顺序添加要使用的MCP工具。<img alt="img_4.png" src="bailian/img_4.png" /></li>
+<li>选择合适的模型，即可在对话中使用MCP功能。<img alt="img_5.png" src="bailian/img_5.png" /><img alt="img.png" src="bailian/img.png" /></li>
+</ol>
+<h2 id="open-webui">Open WebUI使用示例</h2>
+<ol>
+<li>访问计算巢实例界面，<img alt="img_7.png" src="img-deploy/img_7.png" /><img alt="img.png" src="bailian/img.png" /></li>
+<li>打开您的Open WebUI客户端，如Open WebUI，并将地址和API秘钥粘贴进去。<img alt="img_8.png" src="img-deploy/img_8.png" /></li>
+<li>新建个对话，并开启MCP工具<img alt="img_9.png" src="img-deploy/img_9.png" /></li>
+<li>验证一下AI使用您的MCP工具！ <img alt="img_10.png" src="img-deploy/img_10.png" /></li>
+</ol>
+<h2 id="_8">问题排查</h2>
+<p>如果发现实例一直未部署成功，90%的概率是环境变量配置错误，可参考以下步骤排查：
+1. 通过会话管理登录到ECS实例。<img alt="img_6.png" src="error/img.png" />
+2. 输入以下指令确认环境变量是否正确。</p>
+<pre><code class="language-shell">cat /root/config.json
+</code></pre>
+<ol>
+<li>对配置进行修改。重启docker compose应用</li>
+</ol>
+<pre><code class="language-shell">sudo systemctl restart quickstart-mcp
+</code></pre>
+<h2 id="ecs">企业用户推荐的ECS实例配置</h2>
+<ol>
+<li>推荐的ECS实例类型：请选择cpu核数和内存大于ecs.u1-c1m2.xlarge已上的类型</li>
+<li>公网带宽：请选择大于8MPS的带宽。（某些MCP工具涉及到联网调用）</li>
+<li>对于4核8G的U实例类型，单次部署请选择10个以内的MCP工具</li>
+</ol>
+<p>请访问MCP官方了解如何使用：<a href="https://github.com/open-webui/mcpo">使用文档</a></p>
+        
+      </div>
+
+      <div class="copyrights">© 2009-2022 Aliyun.com 版权所有</div>
+    </div>
+  </div>
+  
+  <!--
+  MkDocs version      : 1.6.1
+  Docs Build Date UTC : 2025-06-20 07:36:32.016241+00:00
+  -->
+</body>
+</html>

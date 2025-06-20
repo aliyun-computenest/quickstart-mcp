@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="x-ua-compatible" content="ie=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+  <meta name="description" content="计算巢是阿里云开放给企业应用服务商的服务管理平台。服务商能够在计算巢上发布私有化部署服务，为其客户提供云上软件一键部署的能力；同时也支持全托管模式的服务，赋能服务商托管其客户资源。">
+  <title>MCP Server Deployment Documentation - Aliyun 计算巢 x Demo</title>
+
+  <link rel="shortcut icon" href="../img/favicon.ico">
+
+  <link rel="stylesheet" href="https://unpkg.com/purecss@1.0.0/build/pure-min.css">
+  <link rel="stylesheet" href="../css/theme.css">
+  
+
+  
+
+  
+  
+
+  
+    <script src="../search/main.js"></script>
+  
+
+  
+
+  <script src="../js/highlight.min.js"></script>
+  <script>hljs.highlightAll();</script>
+</head>
+
+<body>
+  <div class="container">
+    <div class="nav">
+      <div class="nav-inner">
+        <div class="logo">
+          <img src="./img/logo-2x.png">
+        </div>
+        <div class="nav-list">
+          <ul>
+          
+              <li><a href="#mcp-server-deployment-documentation">MCP Server Deployment Documentation</a></li>
+              
+                  <li><a href="#overview">Overview</a></li>
+                  
+              
+                  <li><a href="#prerequisites">Prerequisites</a></li>
+                  
+              
+                  <li><a href="#deployment-architecture">Deployment Architecture</a></li>
+                  
+              
+                  <li><a href="#deployment-process">Deployment Process</a></li>
+                  
+                      <li class="li-h3"><a href="#deployment-parameter-description">Deployment Parameter Description</a></li>
+                  
+                      <li class="li-h3"><a href="#deployment-steps">Deployment Steps</a></li>
+                  
+                      <li class="li-h3"><a href="#using-custom-mcp-tools">Using Custom MCP Tools</a></li>
+                  
+              
+                  <li><a href="#modifying-mcp-tools-to-use">Modifying MCP Tools to Use</a></li>
+                  
+              
+                  <li><a href="#cherry-studio-usage-example">Cherry Studio Usage Example</a></li>
+                  
+              
+                  <li><a href="#dify-usage-example">Dify Usage Example</a></li>
+                  
+              
+                  <li><a href="#open-webui-usage-example">Open WebUI Usage Example</a></li>
+                  
+              
+                  <li><a href="#troubleshooting">Troubleshooting</a></li>
+                  
+              
+          
+          </ul>
+        </div>
+      </div>
+    </div>
+    <div class="content theme-github">
+      
+      <div class="content-inner">        
+        
+        <h1 id="mcp-server-deployment-documentation">MCP Server Deployment Documentation</h1>
+<h2 id="overview">Overview</h2>
+<p>MCP (Model Context Protocol) is an open standard launched by Anthropic in late November 2024, aimed at unifying communication protocols between large language models (LLMs) and external data sources and tools. The main purpose of MCP is to solve the challenge of AI models not being able to fully realize their potential due to data silo limitations. MCP enables AI applications to safely access and operate on local and remote data, providing an interface for AI applications to connect with everything.</p>
+<p>This service creatively solves the following problems in the traditional MCP market:
+1. Only being able to select a single MCP tool for deployment at a time - This service supports deploying multiple MCP tools simultaneously
+2. Inability to support both OpenAPI and SSE methods for tool invocation, which limits compatibility to only certain platforms - This service supports both invocation methods, compatible with Dify, Cherry Studio, OpenWebUI, and other AI assistants.
+3. Lack of flexibility in adding or removing MCP tools - This service supports dynamically adding or removing MCP tools through configuration changes.</p>
+<p>This document introduces how to activate the <code>MCP Server Community Edition</code> service on ComputeNest, as well as the deployment process and usage instructions.</p>
+<h2 id="prerequisites">Prerequisites</h2>
+<p><font style="color:rgb(51, 51, 51);">To deploy the Dify Community Edition service instance, you need access and creation permissions for certain Alibaba Cloud resources. Therefore, your account needs to include the following resource permissions.</font> <strong><font style="color:rgb(51, 51, 51);">Note</font></strong><font style="color:rgb(51, 51, 51);">: These permissions are only required when your account is a RAM account.</font></p>
+<table>
+<thead>
+<tr>
+<th><font style="color:rgb(51, 51, 51);">Permission Policy Name</font></th>
+<th><font style="color:rgb(51, 51, 51);">Remarks</font></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><font style="color:rgb(51, 51, 51);">AliyunECSFullAccess</font></td>
+<td><font style="color:rgb(51, 51, 51);">Permission to manage Elastic Compute Service (ECS)</font></td>
+</tr>
+<tr>
+<td><font style="color:rgb(51, 51, 51);">AliyunVPCFullAccess</font></td>
+<td><font style="color:rgb(51, 51, 51);">Permission to manage Virtual Private Cloud (VPC)</font></td>
+</tr>
+<tr>
+<td><font style="color:rgb(51, 51, 51);">AliyunROSFullAccess</font></td>
+<td><font style="color:rgb(51, 51, 51);">Permission to manage Resource Orchestration Service (ROS)</font></td>
+</tr>
+<tr>
+<td><font style="color:rgb(51, 51, 51);">AliyunComputeNestUserFullAccess</font></td>
+<td><font style="color:rgb(51, 51, 51);">User-side permission to manage ComputeNest service</font></td>
+</tr>
+</tbody>
+</table>
+<p>The costs of MCP Server Community Edition on ComputeNest mainly involve:</p>
+<ul>
+<li>Selected vCPU and memory specifications</li>
+<li>System disk type and capacity</li>
+<li>Public network bandwidth</li>
+</ul>
+<p>To improve the performance of MCP tool invocation, we recommend choosing at least 2 cores and 4GB or more of CPU.
+By default, the network bandwidth is configured as 10Mbps, billed by traffic.</p>
+<p>Billing methods include:</p>
+<ul>
+<li>Pay-as-you-go (hourly)</li>
+<li>Subscription (monthly/yearly)</li>
+</ul>
+<p>The estimated cost can be viewed in real-time when creating an instance.
+For more specifications or other services (such as cluster high availability requirements, enterprise support services, etc.), please contact us at <a href="mailto:xx@xx.com">mailto:xx@xx.com</a>.</p>
+<h2 id="deployment-architecture">Deployment Architecture</h2>
+<p><img alt="" src="./img/deploy.png" /></p>
+<h2 id="deployment-process">Deployment Process</h2>
+<h3 id="deployment-parameter-description">Deployment Parameter Description</h3>
+<table>
+<thead>
+<tr>
+<th><font style="color:rgb(51, 51, 51);">Parameter Group</font></th>
+<th><font style="color:rgb(51, 51, 51);">Parameter Item</font></th>
+<th><font style="color:rgb(51, 51, 51);">Description</font></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><font style="color:rgb(51, 51, 51);">MCP Configuration</font></td>
+<td><font style="color:rgb(51, 51, 51);">McpConfigJson</font></td>
+<td><font style="color:rgb(51, 51, 51);">MCP tools to be used</font></td>
+</tr>
+<tr>
+<td></td>
+<td><font style="color:rgb(51, 51, 51);">MCP_KEY</font></td>
+<td><font style="color:rgb(51, 51, 51);">Secret key for interaction between MCP Server and large models</font></td>
+</tr>
+<tr>
+<td><font style="color:rgb(51, 51, 51);">Service Instance</font></td>
+<td><font style="color:rgb(51, 51, 51);">Service Instance Name</font></td>
+<td><font style="color:rgb(51, 51, 51);">Length not exceeding 64 characters, must start with an English letter, can contain numbers, English letters, hyphens (-) and underscores (_)</font></td>
+</tr>
+<tr>
+<td></td>
+<td><font style="color:rgb(51, 51, 51);">Region</font></td>
+<td><font style="color:rgb(51, 51, 51);">Region where the service instance is deployed</font></td>
+</tr>
+<tr>
+<td></td>
+<td><font style="color:rgb(51, 51, 51);">Payment Type</font></td>
+<td><font style="color:rgb(51, 51, 51);">Resource billing type: Pay-as-you-go or Subscription</font></td>
+</tr>
+<tr>
+<td><font style="color:rgb(51, 51, 51);">ECS Instance Configuration</font></td>
+<td><font style="color:rgb(51, 51, 51);">Instance Type</font></td>
+<td><font style="color:rgb(51, 51, 51);">Instance specifications available in the availability zone</font></td>
+</tr>
+<tr>
+<td></td>
+<td><font style="color:rgb(51, 51, 51);">Instance Password</font></td>
+<td><font style="color:rgb(51, 51, 51);">Length 8-30, must include three types (uppercase letters, lowercase letters, numbers, special symbols from ()`~!@#$%^&amp;*-+={}[]:;'&lt;&gt;,.?/)</font></td>
+</tr>
+<tr>
+<td><font style="color:rgb(51, 51, 51);">Network Configuration</font></td>
+<td><font style="color:rgb(51, 51, 51);">Availability Zone</font></td>
+<td><font style="color:rgb(51, 51, 51);">Availability zone where the ECS instance is located</font></td>
+</tr>
+<tr>
+<td></td>
+<td><font style="color:rgb(51, 51, 51);">VPC ID</font></td>
+<td><font style="color:rgb(51, 51, 51);">VPC where the resource is located</font></td>
+</tr>
+<tr>
+<td></td>
+<td><font style="color:rgb(51, 51, 51);">Switch ID</font></td>
+<td><font style="color:rgb(51, 51, 51);">Switch where the resource is located</font></td>
+</tr>
+</tbody>
+</table>
+<h3 id="deployment-steps">Deployment Steps</h3>
+<ol>
+<li>Click the <a href="" title="https://computenest.console.aliyun.com/service/instance/create/default?type=user&amp;ServiceName=MCP%20Server%E7%A4%BE%E5%8C%BA%E7%89%88">deployment link</a>, enter the service instance deployment interface, select the region you want to deploy, and follow the interface prompts to fill in the parameters to complete the deployment.</li>
+<li>Select the MCP tools you want to use. Note that you can select multiple tools! <img alt="img.png" src="../en/img-deploy/img.png" /></li>
+<li>If you need to use custom MCP tools, please refer to [Using Custom MCP Tools]</li>
+<li>There are two types of MCPs here. One type does not require environment variables, such as "Time Service", which you can simply check and skip the parameter configuration step.</li>
+<li>The other type of MCP requires environment variables, such as Amap Maps, which requires configuring environment variables, otherwise MCP Server deployment will fail <img alt="img_1.png" src="../en/img-deploy/img_1.png" /></li>
+<li>If you're not sure how to use an MCP tool, you can click "Help Documentation" to view and learn. <img alt="img_2.png" src="../en/img-deploy/img_2.png" /></li>
+<li>The system has generated an API KEY by default to protect the MCP tools you are about to deploy; you can modify this parameter. <img alt="img_3.png" src="../en/img-deploy/img_3.png" /></li>
+<li>Choose a package that suits you. For production environments, we recommend choosing specifications of at least 2 cores and 4GB. If deploying 3 or fewer MCP tools at a time, you can directly select the popular package. Configure the ECS login password.</li>
+<li>If you want to select other instance types or public network bandwidth, you can choose a custom package for configuration.<img alt="img_4.png" src="../en/img-deploy/img_4.png" /></li>
+<li>Configure the availability zone and network. We recommend selecting any availability zone and then directly creating a new network and virtual machine <img alt="img_5.png" src="../en/img-deploy/img_5.png" /></li>
+<li>Click "Create Now" and wait for the deployment to succeed. This process generally takes 3 minutes. The duration may vary depending on the number of tools you select. <img alt="img_6.png" src="../en/img-deploy/img_6.png" /></li>
+<li>Access the newly deployed instance interface to view the address and API key of your dedicated MCP tools. Please refer to the following text for configuration and usage for different AI assistants.</li>
+</ol>
+<h3 id="using-custom-mcp-tools">Using Custom MCP Tools</h3>
+<ol>
+<li>Click to add a custom MCP tool. Note: Custom MCP tools can be added repeatedly <img alt="img.png" src="../en/custom-mcp/img.png" /></li>
+<li>Fill in the name and ID of the custom tool. Note that the ID cannot be duplicated. <img alt="img_1.png" src="../en/custom-mcp/img_1.png" /></li>
+<li>Select the startup method for the MCP tool you want to use. If you select npx or uvx, you need to fill in the startup command, which should be in array form. For example:
+    <code>shell
+    ['mcp-server-time', '--local-timezone=America/New_York']</code></li>
+<li>If the command depends on some environment variables when starting, you need to fill them in below: such as key:GITHUB_PERSONAL_ACCESS_TOKEN, value: xxx</li>
+<li>If you select the SSE startup method, you need to fill in the URL. Note: If authentication is required, the authentication key needs to be included in this URL. For example, "https://mcp-xxx-22b0-4037.api-inference.modelscope.cn/sse"</li>
+<li>Click to select the current custom tool. 
+   Note: Your newly added custom tools will be re-rendered during configuration changes, and you can add or reduce the MCP tools you want to use. When you have finished configuring custom MCP tools, you can continue with deployment step "6"</li>
+</ol>
+<h2 id="modifying-mcp-tools-to-use">Modifying MCP Tools to Use</h2>
+<p>If you want to modify the MCP tools to use, please refer to the following operations:
+1. In the ComputeNest console, click "My Instances", select the previously deployed MCP Server instance, and click "Modify Configuration" in the upper right corner. <img alt="img_1.png" src="../en/update/img_1.png" />
+2. Click to modify MCP tools and click "Next" 
+3. Select the MCP tools you want to add, such as adding the Fetch tool in this example. (Note: Previously selected tools will be re-rendered here) 
+4. Of course, if environment variables are involved, you must set them according to the documentation.
+5. Click OK to initiate the tool modification request. <img alt="img_2.png" src="../en/update/img_2.png" />
+6. Wait for the instance status to change. <img alt="img_4.png" src="../update/img_4.png" />
+7. Add the newly added MCP tools from the output to your AI conversation client. <img alt="img_5.png" src="../update/img_5.png" /></p>
+<h2 id="cherry-studio-usage-example">Cherry Studio Usage Example</h2>
+<ol>
+<li>Go to the ComputeNest instance interface,  the following operations require using the "MCP Server Access Address" section</li>
+<li>Open your Cherry Studio assistant and create a new MCP server as shown in the example below. <img alt="img.png" src="../en/cherry-studio/img.png" /></li>
+<li>You can fill in any "Name" and description. Select "Server-Sent Events (SSE)" for the type.</li>
+<li>For the URL, fill in the link from the instance interface shown here <img alt="img_2.png" src="../en/cherry-studio/img_2.png" /> Note that this uses the http protocol with an sse suffix at the end.</li>
+<li>Add the authentication parameter in the request header: <img alt="img_3.png" src="../en/cherry-studio/img_3.png" />. Note that you need to change ":" to "=" when filling in, for example Authorization=Bearer 123</li>
+<li>Click the enable button and save button in the upper right corner. </li>
+<li>Go to the conversation interface and select the MCP tools you want to use.<img alt="img_4.png" src="../en/cherry-studio/img_4.png" /></li>
+<li>Select an appropriate model and talk to the AI, for example, "I'm in the great wall in Beijing city, please tell me some resturant which i can walk to there less 40 minutes", and the AI will use the model to help you find suitable restaurants.<img alt="img_5.png" src="../en/cherry-studio/img_5.png" /></li>
+</ol>
+<h2 id="dify-usage-example">Dify Usage Example</h2>
+<ol>
+<li>Go to the ComputeNest instance interface,  the following operations require using the "MCP Server Access Address" section</li>
+<li>Open your Dify and install "SSE Discovery and Invocation of MCP Tools" as shown in the example below <img alt="img.png" src="../en/dify/img.png" /></li>
+<li>If you encounter problems later, you can downgrade this tool version to 0.0.10. <img alt="img_1.png" src="../en/dify/img_1.png" /></li>
+<li>Click the "Authorize" button to configure the SSE tool. You can directly paste the MCP Server access address from step 1 here <img alt="img_2.png" src="../en/dify/img_2.png" /></li>
+<li>Create an Agent and enter it. <img alt="img_3.png" src="../en/dify/img_3.png" /></li>
+<li>As shown in the example below, enable MCP tool invocation, fill in appropriate prompts, and select a suitable model, such as QWEN-max. <img alt="img_4.png" src="../en/dify/img_4.png" /></li>
+<li>Start a conversation to invoke MCP tools. <img alt="img_5.png" src="../en/dify/img_5.png" /></li>
+</ol>
+<h2 id="open-webui-usage-example">Open WebUI Usage Example</h2>
+<ol>
+<li>Access the ComputeNest instance interface, <img alt="img_7.png" src="../img-deploy/img_7.png" /><img alt="img.png" src="../bailian/img.png" /></li>
+<li>Open your Open WebUI client, such as Open WebUI, and paste the address and API key. <img alt="img_8.png" src="../img-deploy/img_8.png" /></li>
+<li>Create a new conversation and enable MCP tools <img alt="img_9.png" src="../img-deploy/img_9.png" /></li>
+<li>Verify that the AI is using your MCP tools! <img alt="img_10.png" src="../img-deploy/img_10.png" /></li>
+</ol>
+<h2 id="troubleshooting">Troubleshooting</h2>
+<p>If you find that the instance is not successfully deployed, there's a 90% chance that the environment variables are configured incorrectly. You can refer to the following steps to troubleshoot:
+1. Log in to the ECS instance through session management. <img alt="img.png" src="../en/update/img.png" />
+2. Enter the following command to confirm if the environment variables are correct.
+    <code>shell
+    cat /root/config.json</code>
+3. Modify the configuration. Restart the docker compose application</p>
+<p>Please visit the MCP official documentation to learn how to use it: Usage Documentation</p>
+        
+      </div>
+
+      <div class="copyrights">© 2009-2022 Aliyun.com 版权所有</div>
+    </div>
+  </div>
+  
+  <!--
+  MkDocs version      : 1.6.1
+  Docs Build Date UTC : 2025-06-20 07:36:32.027297+00:00
+  -->
+</body>
+</html>
