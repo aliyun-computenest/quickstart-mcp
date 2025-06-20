@@ -275,7 +275,7 @@ Artifact:
     ArtifactBuildProperty:
       CodeRepo:
         Platform: github
-        Owner: KunSir991
+        Owner: LYH-RAIN
         RepoName: aliyun-computenest/quickstart-mcp
         Branch: main
       RegionId: ap-southeast-1
