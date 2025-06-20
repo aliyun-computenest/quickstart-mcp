@@ -280,7 +280,7 @@ Artifact:
         Branch: main
       RegionId: ap-southeast-1
       CommandType: RunShellScript
-      SourceImageId: aliyun/services/computenest/images/aliyun_3_2104_go_1_22
+      SourceImageId: aliyun_3_x64_20G_alibase_20240819.vhd
       CommandContent: |-
         # go环境没有docker
         yum-config-manager --add-repo http://mirrors.aliyun.com/docker-ce/linux/centos/docker-ce.repo
