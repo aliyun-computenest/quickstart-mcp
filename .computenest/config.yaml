@@ -65,7 +65,7 @@ Service:
         - Name: 入门套餐（1-3个MCP工具）
           Parameters:
             EcsInstanceType:
-            - ecs.e-c1m1.large
+            - ecs.u1-c1m2.large
             PayType: PrePaid
             PayPeriodUnit: Year
             InternetChargeType: PayByTraffic
@@ -113,7 +113,7 @@ Service:
         - Name: 入门套餐（1-3个MCP工具）
           Parameters:
             EcsInstanceType:
-            - ecs.e-c1m1.large
+            - ecs.u1-c1m2.large
             PayType: PrePaid
             PayPeriodUnit: Year
             InternetChargeType: PayByTraffic
@@ -166,7 +166,7 @@ Service:
       - Name: 入门套餐（1-3个MCP工具）
         Parameters:
           EcsInstanceType:
-          - ecs.e-c1m1.large
+          - ecs.u1-c1m2.large
           PayType: PrePaid
           PayPeriodUnit: Year
           InternetChargeType: PayByTraffic
@@ -214,7 +214,7 @@ Service:
       - Name: 热卖套餐
         Parameters:
           EcsInstanceType:
-          - ecs.e-c1m1.large
+          - ecs.u1-c1m2.large
           PayType: PrePaid
           PayPeriodUnit: Year
           InternetChargeType: PayByTraffic
