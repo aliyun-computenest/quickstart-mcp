@@ -1,6 +1,34 @@
 version: '3.8'
 
 services:
+  # MCP Hub 前端应用
+  mcp-hub:
+    container_name: mcp-hub
+    build:
+      context: .
+      dockerfile: Dockerfile-hub
+    ports:
+      - "3000:3000"
+    environment:
+      # 服务器连接配置（IP、Token等）
+      - PUBLIC_IP=${PUBLIC_IP:-}
+      - PRIVATE_IP=${PRIVATE_IP:-}
+      - PUBLIC_TOKEN=${MCP_KEY:-}
+      - PRIVATE_TOKEN=${MCP_KEY:-}
+      - USE_PUBLIC_IP=${USE_PUBLIC_IP:-true}
+
+    volumes:
+      # 挂载 MCP 配置文件到正确的位置
+      - /root/config.json:/app/dist/config.json
+      - /root/pre-mcp-tools.json:/app/dist/config_detail.json
+    restart: unless-stopped
+    networks:
+      - mcp-network
+    labels:
+      - "com.github.repo=aliyun-computenest/mcp-hub"
+      - "com.docker.compose.project=mcp-hub"
+
+  # MCPO 服务
   mcpo-service:
     depends_on:
       - higress-ai
@@ -19,7 +47,10 @@ services:
       HOST: "0.0.0.0"
       CONFIG_FILE: /app/config.json
       WORKERS: ${MCPO_WORKERS:-4}
+    networks:
+      - mcp-network
 
+  # Higress AI 服务
   higress-ai:
     depends_on:
       - higress-redis
@@ -32,10 +63,20 @@ services:
       - "8080:8080"
       - "8443:8443"
     restart: unless-stopped
+    networks:
+      - mcp-network
 
+  # Redis 服务
   higress-redis:
     container_name: higress-redis
     image: higress-registry.cn-hangzhou.cr.aliyuncs.com/higress/redis-stack-server:7.4.0-v3
     ports:
       - "6379:6379"
     restart: unless-stopped
+    networks:
+      - mcp-network
+
+networks:
+  mcp-network:
+    driver: bridge
+    name: mcp-hub-network
