@@ -15,7 +15,6 @@ Conditions:
     Fn::Equals:
       - True
       - Ref: SupportPublicAccess
-    Default: True
   CreateVpcConditions:
     Fn::Equals:
       - NewVPC
@@ -40,6 +39,7 @@ Parameters:
             - Fn::Equals:
                 - ExistingSecurityGroup
                 - ${SecurityGroupOption}
+    Default: True
 
   AuthenticationOption:
     Type: String
@@ -464,8 +464,8 @@ Resources:
             EOF
             sed -i "s|\${!MCP_KEY:-}|${mcp_KEY}|g" /root/application/mcp/docker-compose.yaml
             sed -i "s|\${!MCPO_WORKERS:-4}|${!workers}|g" /root/application/mcp/docker-compose.yaml
-            sed -i "s|\${!PUBLIC_IP:-}|${!public_ip}|g" /root/application/mcp/docker-compose.yaml
-            sed -i "s|\${!PRIVATE_IP:-}|${!private_ip}|g" /root/application/mcp/docker-compose.yaml
+            sed -i "s|\${!PUBLIC_IP:-}|${public_ip_no_port}|g" /root/application/mcp/docker-compose.yaml
+            sed -i "s|\${!PRIVATE_IP:-}|${private_ip_no_port}|g" /root/application/mcp/docker-compose.yaml
 
             file_path="/etc/systemd/system/quickstart-mcp.service"
             if [ ! -f "$file_path" ]; then
@@ -565,6 +565,24 @@ Resources:
                       - Fn::GetAtt:
                           - InstanceGroup
                           - PrivateIps
+            private_ip_no_port:
+              Fn::Sub:
+                - ${ServerAddress}
+                - ServerAddress:
+                    Fn::Select:
+                      - 0
+                      - Fn::GetAtt:
+                          - InstanceGroup
+                          - PrivateIps
+            public_ip_no_port:
+              Fn::Sub:
+                - ${ServerAddress}
+                - ServerAddress:
+                    Fn::Select:
+                      - 0
+                      - Fn::GetAtt:
+                          - InstanceGroup
+                          - PublicIps
             public_ip:
               Fn::Sub:
                 - ${ServerAddress}:8000
@@ -574,6 +592,11 @@ Resources:
                       - Fn::GetAtt:
                           - InstanceGroup
                           - PublicIps
+            auth:
+              Fn::If:
+                - EnableAuthenticationConditions
+                - ""
+                - "--skip-auth"
 
 Outputs:
   openapi_server_address:
@@ -584,7 +607,7 @@ Outputs:
       Fn::If:
         - EnableAuthenticationConditions
         - Fn::Sub:
-            - http://${ServerAddress}:7680
+            - http://${ServerAddress}:3000
             - ServerAddress:
                 Fn::Select:
                   - 0
