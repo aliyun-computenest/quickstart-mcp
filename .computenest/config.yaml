@@ -22,11 +22,6 @@ Service:
         Type: Custom
         Parameters:
         - EcsInstanceType
-      - Name: 变更ECS实例密码
-        Description: 变更ECS实例密码
-        Type: Custom
-        Parameters:
-        - InstancePassword
       - Name: 修改MCP工具
         Description: 修改已部署的MCP工具
         Type: Custom
@@ -41,11 +36,6 @@ Service:
         Type: Custom
         Parameters:
         - EcsInstanceType
-      - Name: 变更ECS实例密码
-        Description: 变更ECS实例密码
-        Type: Custom
-        Parameters:
-        - InstancePassword
       - Name: 修改MCP工具
         Description: 修改已部署的MCP工具（10个以内）
         Type: Custom

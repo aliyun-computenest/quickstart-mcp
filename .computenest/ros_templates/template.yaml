@@ -11,19 +11,36 @@ Conditions:
     Fn::Equals:
       - Enable
       - Ref: AuthenticationOption
+  EnablePublicAccess:
+    Fn::Equals:
+      - True
+      - Ref: SupportPublicAccess
+    Default: True
   CreateVpcConditions:
     Fn::Equals:
       - NewVPC
       - Ref: VpcOption
-  DisablePublicNetworkCondition:
-    Fn::Equals:
-      - PrivateNet
-      - Ref: NetworkOption
   CreateSecurityGroupConditions:
     Fn::Equals:
       - NewSecurityGroup
       - Ref: SecurityGroupOption
 Parameters:
+  SupportPublicAccess:
+    Type: Boolean
+    Label:
+      zh-cn: 支持公网访问
+      en: Support Public Access
+    AssociationPropertyMetadata:
+      Visible:
+        Condition:
+          Fn::And:
+            - Fn::Equals:
+                - ExistingVPC
+                - ${VpcOption}
+            - Fn::Equals:
+                - ExistingSecurityGroup
+                - ${SecurityGroupOption}
+
   AuthenticationOption:
     Type: String
     Label: 是否开启认证
@@ -68,47 +85,6 @@ Parameters:
       ShowLabel: false
       ShowCounts: 9
       ShowTagsCounts: 10
-
-  MCP_KEY:
-    Type: String
-    Description:
-      zh-cn: MCP工具key，用于保护您的工具不被公网滥用
-      en: MCP tool key, used to protect your tool from being abused by the public network
-    Required:
-      Fn::Equals:
-        - Enable
-        - ${AuthenticationOption}
-    Default: ""
-    AssociationProperty: AutoCompleteInput
-    AssociationPropertyMetadata:
-      Visible:
-        Condition:
-          Fn::Equals:
-            - Enable
-            - ${AuthenticationOption}
-      Length: 10
-      CharacterClasses:
-        - Class: "lowercase"
-          min: 4
-        - Class: "uppercase"
-          min: 4
-        - Class: "number"
-          min: 2
-  NetworkOption:
-    Type: String
-    Label: MCP网络连接方式
-    AllowedValues:
-      - PublicNet
-      - PrivateNet
-    AssociationPropertyMetadata:
-      ValueLabelMapping:
-        PublicNet:
-          zh-cn: 公网访问SSE
-          en: public network access
-        PrivateNet:
-          zh-cn: 私网访问SSE
-          en: private network access
-    Default: PublicNet
   VpcOption:
     Type: String
     AllowedValues:
@@ -240,25 +216,6 @@ Parameters:
       - ecs.e-c1m4.large
     AssociationPropertyMetadata:
       InstanceChargeType: ${PayType}
-
-  InstancePassword:
-    NoEcho: true
-    Type: String
-    Description:
-      en: Server login password, Length 8-30, must contain three(Capital letters, lowercase letters, numbers, ()`~!@#$%^&*_-+=|{}[]:;'<>,.?/ Special symbol in)
-      zh-cn: 服务器登录密码,长度8-30，必须包含三项（大写字母、小写字母、数字、 ()`~!@#$%^&*_-+=|{}[]:;'<>,.?/ 中的特殊符号）
-    AllowedPattern: '^[a-zA-Z0-9-\(\)\`\~\!\@\#\$\%\^\&\*\_\-\+\=\|\{\}\[\]\:\;\<\>\,\.\?\/]*$'
-    Label:
-      en: Instance Password
-      zh-cn: 实例密码
-    ConstraintDescription:
-      en: Length 8-30, must contain three(Capital letters, lowercase letters, numbers, ()`~!@#$%^&*_-+=|{}[]:;'<>,.?/ Special symbol in)
-      zh-cn: 长度8-30，必须包含三项（大写字母、小写字母、数字、 ()`~!@#$%^&*_-+=|{}[]:;'<>,.?/ 中的特殊符号）
-    MinLength: 8
-    MaxLength: 30
-    AssociationProperty: ALIYUN::ECS::Instance::Password
-    AssociationPropertyMetadata:
-      Random: True
   ZoneId:
     Type: String
     Label:
@@ -353,6 +310,28 @@ Parameters:
             - ExistingSecurityGroup
             - ${SecurityGroupOption}
 Resources:
+  MCP_KEY:
+    Type: ALIYUN::RandomString
+    Properties:
+      length: 29
+      character_classes:
+        - class: lowercase
+          min: 1
+        - class: digits
+          min: 1
+  RandomPassword:
+    Type: ALIYUN::RandomString
+    Properties:
+      length: 11
+      character_classes:
+        - class: "lowercase"
+          min: 4
+        - class: "uppercase"
+          min: 4
+        - class: "digits"
+          min: 2
+      character_sequences:
+        - sequence: "!@#$^*-+="
   # 新建vpc
   EcsVpc:
     Type: ALIYUN::ECS::VPC
@@ -407,6 +386,11 @@ Resources:
           SourceCidrIp: 0.0.0.0/0
           IpProtocol: tcp
           NicType: internet
+        - PortRange: 3000/3000
+          Priority: 1
+          SourceCidrIp: 0.0.0.0/0
+          IpProtocol: tcp
+          NicType: internet
   InstanceGroup:
     Type: ALIYUN::ECS::InstanceGroup
     Properties:
@@ -436,13 +420,16 @@ Resources:
           - Ref: SecurityGroupId
       ImageId: ecs_image_quickstart-mcp
       Password:
-        Ref: InstancePassword
+        Ref: RandomPassword
       InstanceType:
         Ref: EcsInstanceType
       SystemDiskCategory: cloud_essd
       SystemDiskSize: 40
       InternetMaxBandwidthOut:
-        Ref: InternetMaxBandwidthOut
+        Fn::If:
+          - EnablePublicAccess
+          - Ref: InternetMaxBandwidthOut
+          - 0
       InternetChargeType:
         Ref: InternetChargeType
       IoOptimized: optimized
@@ -462,6 +449,7 @@ Resources:
           - |
             set -e
             echo "当前时间：${CurTime}"
+            wget -O /root/pre-mcp-tools.json https://service-info-public.oss-cn-hangzhou.aliyuncs.com/mcp/mcp-tools.json
             cpu_cores=$(nproc)
             if [ $cpu_cores -eq 4 ]; then
               workers=1
@@ -542,7 +530,12 @@ Resources:
           - RegionId:
               Ref: ALIYUN::Region
             mcp_KEY:
-              Ref: MCP_KEY
+              Fn::Join:
+                - '-'
+                - - 'sk'
+                  - Fn::GetAtt:
+                      - MCP_KEY
+                      - value
             CurTime:
               Ref: CurTime
             mcp_KEY_command:
@@ -551,7 +544,12 @@ Resources:
                 - Fn::Sub:
                     - "--api-key ${key}"
                     - key:
-                        Ref: MCP_KEY
+                        Fn::Join:
+                          - '-'
+                          - - 'sk'
+                            - Fn::GetAtt:
+                                - MCP_KEY
+                                - value
                 - ""
             MCP_RESULT:
               Fn::Jq:
@@ -576,162 +574,36 @@ Resources:
                       - Fn::GetAtt:
                           - InstanceGroup
                           - PublicIps
-            auth:
-              Fn::If:
-                - EnableAuthenticationConditions
-                - ""
-                - "--skip-auth"
 
 Outputs:
   openapi_server_address:
     Label:
-      en: "Tool OepnAPI Access URL(Recommend AI Assistant: Open WebUI)"
-      zh-cn: 工具OpenAPI访问地址
+      en: "MCP Server control plane"
+      zh-cn: MCP Server控制台
     Value:
-      Fn::Jq:
-        - All
+      Fn::If:
+        - EnableAuthenticationConditions
         - Fn::Sub:
-            - '[.[].serverCode] | map("${URL}" + .)'
-            - URL:
-                Fn::Sub:
-                  - http://${ServerAddress}:8000/
-                  - ServerAddress:
-                      Fn::If:
-                        - DisablePublicNetworkCondition
-                        - Fn::Select:
-                            - 0
-                            - Fn::GetAtt:
-                                - InstanceGroup
-                                - PrivateIps
-                        - Fn::Select:
-                            - 0
-                            - Fn::GetAtt:
-                                - InstanceGroup
-                                - PublicIps
+            - http://${ServerAddress}:7680
+            - ServerAddress:
+                Fn::Select:
+                  - 0
+                  - Fn::GetAtt:
+                      - InstanceGroup
+                      - PublicIps
+        - "public access is forbidden"
 
-
-        - Ref: McpConfigJson
-
-  bailian_server_address:
-    Label:
-      en: '[SSE](https://bailian.console.aliyun.com/?tab=app#/mcp-manage/create) Access URL(Standard Claude Desktop Format)'
-      zh-cn: 'SSE地址 '
+  ApiKey:
+    NoEcho: true
+    Condition: EnableAuthenticationConditions
+    Label: API Key
     Value:
-      Fn::If:
-        - EnableAuthenticationConditions
-        - Fn::Jq:
-            - First
-            - Fn::Sub:
-                - '[ .[ ] | {key: .serverCode,value: {"mcpServers": {(.serverCode): {"type": "sse","url": "${URL}/\(.serverCode)/sse","headers": {"Authorization": "Bearer ${APIKEY}"}}}}}] | map("\"\(.key)\": \(.value | tojson)") | join("<br>\n  ")'
-                - URL:
-                    Fn::Sub:
-                      - http://${ServerAddress}:8080
-                      - ServerAddress:
-                          Fn::If:
-                            - DisablePublicNetworkCondition
-                            - Fn::Select:
-                                - 0
-                                - Fn::GetAtt:
-                                    - InstanceGroup
-                                    - PrivateIps
-                            - Fn::Select:
-                                - 0
-                                - Fn::GetAtt:
-                                    - InstanceGroup
-                                    - PublicIps
-                  APIKEY:
-                    Ref: MCP_KEY
-            - Ref: McpConfigJson
-        - Fn::Jq:
-            - First
-            - Fn::Sub:
-                - '[ .[ ] | {key: .serverCode,value: {"mcpServers": {(.serverCode): {"type": "sse","url": "${URL}/\(.serverCode)/sse"}}}}] | map("\"\(.key)\": \(.value | tojson)") | join("<br>\n  ")'
-                - URL:
-                    Fn::Sub:
-                      - http://${ServerAddress}:8080
-                      - ServerAddress:
-                          Fn::If:
-                            - DisablePublicNetworkCondition
-                            - Fn::Select:
-                                - 0
-                                - Fn::GetAtt:
-                                    - InstanceGroup
-                                    - PrivateIps
-                            - Fn::Select:
-                                - 0
-                                - Fn::GetAtt:
-                                    - InstanceGroup
-                                    - PublicIps
-                  APIKEY:
-                    Ref: MCP_KEY
-            - Ref: McpConfigJson
-  stream_server_address:
-    Label:
-      en: 'Streamable Http'
-      zh-cn: 'Streamable Http'
-    Value:
-      Fn::If:
-        - EnableAuthenticationConditions
-        - Fn::Jq:
-            - First
-            - Fn::Sub:
-                - '[ .[ ] | {key: .serverCode,value: {"mcpServers": {(.serverCode): {"type": "streamableHttp","url": "${URL}/\(.serverCode)","headers": {"Authorization": "Bearer ${APIKEY}"}}}}}] | map("\"\(.key)\": \(.value | tojson)") | join("<br>\n  ")'
-                - URL:
-                    Fn::Sub:
-                      - http://${ServerAddress}:8080
-                      - ServerAddress:
-                          Fn::If:
-                            - DisablePublicNetworkCondition
-                            - Fn::Select:
-                                - 0
-                                - Fn::GetAtt:
-                                    - InstanceGroup
-                                    - PrivateIps
-                            - Fn::Select:
-                                - 0
-                                - Fn::GetAtt:
-                                    - InstanceGroup
-                                    - PublicIps
-                  APIKEY:
-                    Ref: MCP_KEY
-            - Ref: McpConfigJson
-        - Fn::Jq:
-            - First
-            - Fn::Sub:
-                - '[ .[ ] | {key: .serverCode,value: {"mcpServers": {(.serverCode): {"type": "streamableHttp","url": "${URL}/\(.serverCode)"}}}}] | map("\"\(.key)\": \(.value | tojson)") | join("<br>\n  ")'
-                - URL:
-                    Fn::Sub:
-                      - http://${ServerAddress}:8080
-                      - ServerAddress:
-                          Fn::If:
-                            - DisablePublicNetworkCondition
-                            - Fn::Select:
-                                - 0
-                                - Fn::GetAtt:
-                                    - InstanceGroup
-                                    - PrivateIps
-                            - Fn::Select:
-                                - 0
-                                - Fn::GetAtt:
-                                    - InstanceGroup
-                                    - PublicIps
-                  APIKEY:
-                    Ref: MCP_KEY
-            - Ref: McpConfigJson
-
-  mcp_api_key:
-    NoEcho: 'True'
-    Label:
-      en: API key（Bearer）
-      zh-cn: API KEY（Bearer）
-    Description:
-      en: If you have not enabled authentication, please ignore this output value
-      zh-cn: 如果未开启认证，请忽略此输出值。使用时加前缀Bearer）
-    Value:
-      Fn::If:
-        - EnableAuthenticationConditions
-        - Ref: MCP_KEY
-        - "Authentication is disabled"
+      Fn::Join:
+        - '-'
+        - - 'sk'
+          - Fn::GetAtt:
+              - MCP_KEY
+              - value
 
 Metadata:
   ALIYUN::ROS::Interface:
@@ -739,7 +611,6 @@ Metadata:
       - Parameters:
           - McpConfigJson
           - AuthenticationOption
-          - MCP_KEY
         Label:
           Default: Mcp配置(可多选，10个以内)
 
@@ -754,7 +625,6 @@ Metadata:
           - NetworkOption
           - InternetChargeType
           - InternetMaxBandwidthOut
-          - InstancePassword
         Label:
           default: 资源配置
       - Parameters:
@@ -766,6 +636,7 @@ Metadata:
           - VSwitchCidrBlock
           - SecurityGroupOption
           - SecurityGroupId
+          - SupportPublicAccess
         Label:
           default: 可用区配置
     QuickDeployConfig:
@@ -786,12 +657,6 @@ Metadata:
             zh-cn: 付费时长
             en: Pay Period
           Value: '${PayPeriod} ${PayPeriodUnit}'
-      CustomFields:
-        - Key: InstancePassword
-        - Key: MCP_KEY
-          Label:
-            zh-cn: MCP 认证秘钥
-            en: MCP Key
       CostRelatedKeys:
         - RegionId
         - PayPeriod
