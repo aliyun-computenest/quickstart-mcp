@@ -292,7 +292,7 @@ Artifact:
         if [ -e "/root/code/mcp/" ]; then cp -r "/root/code/mcp/" "/root/application/"; fi
         cd /root/application
         sed -i 's/pull_policy: always/pull_policy: if_not_present/g' mcp/docker-compose.yaml
-        docker compose -f mcp/docker-compose.yaml build 2>&1 | stdbuf -oL grep -viE 'Downloading|sha256|extracting|KiB|Downloaded|%' || true;
+        docker compose -f mcp/docker-compose.yaml build --no-cache 2>&1 | stdbuf -oL grep -viE 'Downloading|sha256|extracting|KiB|Downloaded|%' || true;
         docker compose -f mcp/docker-compose.yaml pull 2>&1 | stdbuf -oL grep -viE 'Downloading|sha256|extracting|KiB|Downloaded|%' || true;
 
 

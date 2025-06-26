@@ -99,11 +99,11 @@ MCP Server社区版在计算巢上的费用主要涉及：
 
 
 ## Cherry Studio使用示例
-1. 来到计算巢实例界面，![img_7.png](img-deploy/img_7.png),接下来的操作需要使用"MCP Server访问地址"部分
+1. 来到计算巢实例界面，![img_7.png](img-deploy/img_7.png),点击MCP 控制台
+2. 选择要使用的工具点进进去，![img.png](img.png)
 2. 打开您的Cherry Studio助手，按照下图示例，新建MCP服务器。![img.png](cherry-studio/img.png)
 3. "名称"和描述可以随便填。
-4. 类型选择"服务器发送时间（sse)
-5. URL填写实例界面的此处链接![img_1.png](cherry-studio/img_1.png)  注意此处使用的是http协议，结尾是sse后缀
+4. 类型根据自己需要选择。以下以sse为例
 6. 在请求头添加上鉴权参数：![img_2.png](cherry-studio/img_2.png)。注意此处需要将":"改为"="填入，比如Authorization=Bearer 123
 7. 点击右上角的启用按钮和保存按钮。![img_3.png](cherry-studio/img_3.png)
 8. 来到对话界面，选择要使用的MCP工具。![img_4.png](cherry-studio/img_4.png)
@@ -111,7 +111,7 @@ MCP Server社区版在计算巢上的费用主要涉及：
 
 
 ## Dify 使用示例
-1. 来到计算巢实例界面，![img_7.png](img-deploy/img_7.png),接下来的操作需要使用"MCP Server访问地址"部分
+1. 来到计算巢实例界面，![img_7.png](img-deploy/img_7.png),点击MCP 控制台
 2. 打开您的Dify，按照下图示例，安装"SSE发现和调用MCP工具"![img.png](dify/img.png)
 3. 如果后续使用出现问题，可将此工具版本降低到0.0.10。![img_1.png](dify/img_1.png)
 4. 点击"授权"按钮对SSE工具进行配置。此处可直接粘贴步骤一中的MCP Server访问地址![img_2.png](dify/img_2.png)
@@ -120,7 +120,7 @@ MCP Server社区版在计算巢上的费用主要涉及：
 7. 对话，即可调用MCP工具。![img_5.png](dify/img_5.png)
 
 ## 百炼使用示例
-1. 来到计算巢实例界面，![img_7.png](img-deploy/img_7.png),接下来的操作需要使用"百炼Mcp Server地址"部分
+1. 来到计算巢实例界面，![img_7.png](img-deploy/img_7.png),点击MCP 控制台
 2. 打开您的[百炼控制台](https://bailian.console.aliyun.com/?tab=mcp#/mcp-market)，进入到MCP界面![img_1.png](bailian/img_1.png)
 3. 选择SSE的安装方式，填写合适的服务名称和描述![img.png](bailian/img_6.png)
 4. 选择要使用的MCP工具，将其配置粘贴到"MCP服务配置"中，示例如下。![img_2.png](bailian/img_2.png)
@@ -134,7 +134,7 @@ MCP Server社区版在计算巢上的费用主要涉及：
 
 ## Open WebUI使用示例
 
-1. 访问计算巢实例界面，![img_7.png](img-deploy/img_7.png)![img.png](bailian/img.png)
+1. 来到计算巢实例界面，![img_7.png](img-deploy/img_7.png),点击MCP 控制台
 2. 打开您的Open WebUI客户端，如Open WebUI，并将地址和API秘钥粘贴进去。![img_8.png](img-deploy/img_8.png)
 3. 新建个对话，并开启MCP工具![img_9.png](img-deploy/img_9.png)
 4. 验证一下AI使用您的MCP工具！ ![img_10.png](img-deploy/img_10.png)
