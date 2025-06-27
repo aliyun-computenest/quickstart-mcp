@@ -602,19 +602,16 @@ Outputs:
   openapi_server_address:
     Label:
       en: "MCP Server control plane"
-      zh-cn: MCP Server控制台
+      zh-cn: MCP Server总览控制台
     Value:
-      Fn::If:
-        - EnableAuthenticationConditions
-        - Fn::Sub:
-            - http://${ServerAddress}:3000
-            - ServerAddress:
-                Fn::Select:
-                  - 0
-                  - Fn::GetAtt:
-                      - InstanceGroup
-                      - PublicIps
-        - "public access is forbidden"
+      Fn::Sub:
+        - http://${ServerAddress}:3000
+        - ServerAddress:
+            Fn::Select:
+              - 0
+              - Fn::GetAtt:
+                  - InstanceGroup
+                  - PublicIps
 
   ApiKey:
     NoEcho: true
@@ -627,6 +624,19 @@ Outputs:
           - Fn::GetAtt:
               - MCP_KEY
               - value
+  DebugConsole:
+    Label:
+      en: "MCP Server Debug Console"
+      zh-cn: MCP Server调试控制台
+    Value:
+      Fn::Sub:
+        - http://${ServerAddress}:8000/docs
+        - ServerAddress:
+            Fn::Select:
+              - 0
+              - Fn::GetAtt:
+                  - InstanceGroup
+                  - PublicIps
 
 Metadata:
   ALIYUN::ROS::Interface:
