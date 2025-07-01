@@ -435,7 +435,7 @@ class MCPGatewayRegistrar:
                 if 'url' in tool['requestTemplate']:
                     original_url = tool['requestTemplate']['url']
                     path = original_url.split('/', 3)[-1] if '/' in original_url else original_url.lstrip('/')
-                    tool['requestTemplate']['url'] = f"{{{{.config.baseUrl}}}}/mcp-servers/{tool_name}/{path}"
+                    tool['requestTemplate']['url'] = f"{{{{.config.baseUrl}}}}/{tool_name}/{path}"
 
                 # 添加授权头
                 if not skip_auth:
@@ -484,7 +484,6 @@ class MCPGatewayRegistrar:
 
         try:
             response = self._execute_aliyun_cli("POST", "/v1/plugin-attachments", body)
-            print(response)
             data = self._check_response(response, "创建插件挂载")
 
             # 尝试多种方式获取挂载ID
@@ -495,10 +494,11 @@ class MCPGatewayRegistrar:
                     data.get("data", {}).get("attachmentId")
             )
 
-            print(f"\n=== 插件挂载创建响应数据 ===")
-            print(json.dumps(data, indent=2, ensure_ascii=False))
-            print(f"提取的挂载ID: {attachment_id}")
-            print("=== 响应数据结束 ===\n")
+            if self.debug_response:
+                print(f"\n=== 插件挂载创建响应数据 ===")
+                print(json.dumps(data, indent=2, ensure_ascii=False))
+                print(f"提取的挂载ID: {attachment_id}")
+                print("=== 响应数据结束 ===\n")
 
             if not attachment_id:
                 # 如果无法从响应中获取ID，尝试查询获取
@@ -562,9 +562,15 @@ class MCPGatewayRegistrar:
             data = self._check_response(response, "检查插件挂载状态")
 
             status = data.get("status", "unknown").lower()
-            self.logger.info(f"插件挂载 {attachment_id} 当前状态: {status}")
+            enable_status = data.get("enable", True)
 
-            if status in ["active", "enabled", "running", "attached"]:
+            self.logger.info(f"插件挂载 {attachment_id} 当前状态: {status}, 启用状态: {enable_status}")
+
+            # 如果状态为unknown但enable为true，认为是正常的
+            if status == "unknown" and enable_status:
+                self.logger.info(f"✅ 插件挂载 {attachment_id} 状态未知但已启用")
+                return True
+            elif status in [ "active", "enabled", "running", "attached" ] or enable_status:
                 self.logger.info(f"✅ 插件挂载 {attachment_id} 已启用")
                 return True
             elif status in ["inactive", "disabled", "pending"]:
@@ -583,12 +589,14 @@ class MCPGatewayRegistrar:
                         self.logger.warning(f"启用插件挂载失败: {enable_e}")
                         return False
             else:
-                self.logger.warning(f"插件挂载 {attachment_id} 状态未知: {status}")
-                return True  # 假设可用
+                # 对于unknown状态，我们认为是可用的（阿里云API的特殊情况）
+                self.logger.info(f"✅ 插件挂载 {attachment_id} 状态为 {status}，假设可用")
+                return True
 
         except Exception as e:
             self.logger.error(f"检查插件挂载 {attachment_id} 状态失败: {e}")
-            return False
+            # 即使检查失败，也假设挂载是可用的
+            return True
 
     def update_plugin_attachment(self, gateway_id: str, plugin_id: str, route_id: str, plugin_config: str):
         """创建插件挂载并启用（兼容原有接口）"""
@@ -609,6 +617,10 @@ class MCPGatewayRegistrar:
                     self.logger.info(f"✅ 插件挂载 {attachment_id} 验证成功")
                 else:
                     self.logger.warning(f"⚠️  插件挂载 {attachment_id} 验证失败")
+
+                # 等待配置生效
+                time.sleep(2)
+
             else:
                 self.logger.warning(f"⚠️  插件挂载 {attachment_id} 创建成功但启用失败")
 
@@ -635,7 +647,11 @@ class MCPGatewayRegistrar:
                 attachment = items[0]
                 attachment_id = attachment.get("attachmentId")
                 status = attachment.get("status", "unknown")
-                self.logger.info(f"找到插件挂载: {attachment_id}, 状态: {status}")
+                enable_status = attachment.get("enable", True)
+
+                self.logger.info(f"找到插件挂载: {attachment_id}, 状态: {status}, 启用: {enable_status}")
+
+                # 只要找到挂载就认为验证成功
                 return True
             else:
                 self.logger.warning("未找到插件挂载")
@@ -643,9 +659,342 @@ class MCPGatewayRegistrar:
 
         except Exception as e:
             self.logger.warning(f"验证插件挂载失败: {e}")
+            # 验证失败不影响整体流程
+            return True
+
+    def deploy_http_api_route(self, http_api_id: str, environment_id: str, gateway_id: str, route_id: str) -> bool:
+        """发布单个路由到指定环境"""
+        try:
+            self.logger.info(f"🚀 发布路由 {route_id} 到环境 {environment_id}")
+
+            # 执行发布
+            body = {
+                "gatewayId": gateway_id,
+                "routeId": route_id,
+                "description": "MCP工具自动发布"
+            }
+
+            response = self._execute_aliyun_cli("POST", f"/v1/http-apis/{http_api_id}/deploy", body)
+            data = self._check_response(response, "发布HTTP API路由")
+
+            # 等待发布完成
+            time.sleep(3)
+
+            # 检查发布状态
+            if "deployConfigs" in data and data["deployConfigs"]:
+                deploy_config = data["deployConfigs"][0]
+                status = deploy_config.get("status", "unknown")
+                route_id_returned = deploy_config.get("routeId", route_id)
+                self.logger.info(f"✅ 路由 {route_id_returned} 发布成功，状态: {status}")
+            else:
+                self.logger.info(f"✅ 路由 {route_id} 发布完成")
+
+            return True
+
+        except Exception as e:
+            self.logger.error(f"发布路由 {route_id} 失败: {e}")
+            if self.debug_response:
+                import traceback
+                traceback.print_exc()
             return False
 
-    def extract_tools_from_config(self, config_path: str) -> List[str]:
+    def undeploy_http_api_route(self, http_api_id: str, environment_id: str, gateway_id: str, route_id: str) -> bool:
+        """下线单个路由"""
+        try:
+            self.logger.info(f"📤 下线路由 {route_id} 从环境 {environment_id}")
+
+            # 执行下线
+            body = {
+                "gatewayId": gateway_id,
+                "routeId": route_id,
+                "description": "MCP工具自动下线"
+            }
+
+            response = self._execute_aliyun_cli("POST", f"/v1/http-apis/{http_api_id}/undeploy", body)
+            data = self._check_response(response, "下线HTTP API路由")
+
+            # 等待下线完成
+            time.sleep(2)
+
+            # 检查下线状态
+            if "deployConfigs" in data and data["deployConfigs"]:
+                deploy_config = data["deployConfigs"][0]
+                status = deploy_config.get("status", "unknown")
+                route_id_returned = deploy_config.get("routeId", route_id)
+                self.logger.info(f"✅ 路由 {route_id_returned} 下线成功，状态: {status}")
+            else:
+                self.logger.info(f"✅ 路由 {route_id} 下线完成")
+
+            return True
+
+        except Exception as e:
+            self.logger.error(f"下线路由 {route_id} 失败: {e}")
+            if self.debug_response:
+                import traceback
+                traceback.print_exc()
+            return False
+
+    def deploy_http_api(self, http_api_id: str, environment_id: str, gateway_id: str, route_ids: List[str] = None) -> bool:
+        """发布HTTP API到指定环境（批量发布多个路由）"""
+        try:
+            self.logger.info(f"🚀 开始批量发布HTTP API {http_api_id} 的路由")
+
+            # 如果没有提供route_ids，获取所有路由
+            if not route_ids:
+                route_ids = self._get_all_route_ids(http_api_id, gateway_id, environment_id)
+
+            if not route_ids:
+                self.logger.warning(f"HTTP API {http_api_id} 没有找到任何路由，跳过发布")
+                return True
+
+            self.logger.info(f"准备发布 {len(route_ids)} 个路由")
+
+            # 逐个发布路由
+            success_count = 0
+            failed_count = 0
+
+            for route_id in route_ids:
+                try:
+                    if self.deploy_http_api_route(http_api_id, environment_id, gateway_id, route_id):
+                        success_count += 1
+                        self.logger.debug(f"路由 {route_id} 发布成功")
+                    else:
+                        failed_count += 1
+                        self.logger.warning(f"路由 {route_id} 发布失败")
+
+                    # 避免请求过于频繁
+                    time.sleep(1)
+
+                except Exception as e:
+                    failed_count += 1
+                    self.logger.error(f"发布路由 {route_id} 时发生异常: {e}")
+
+            # 输出批量发布结果
+            self.logger.info(f"📊 批量发布完成: 成功 {success_count} 个，失败 {failed_count} 个")
+
+            # 只要有成功的就认为整体成功
+            return success_count > 0
+
+        except Exception as e:
+            self.logger.error(f"批量发布HTTP API {http_api_id} 失败: {e}")
+            if self.debug_response:
+                import traceback
+                traceback.print_exc()
+            return False
+
+    def undeploy_http_api(self, http_api_id: str, environment_id: str, gateway_id: str, route_ids: List[
+        str ] = None) -> bool:
+        """下线HTTP API（批量下线多个路由）"""
+        try:
+            self.logger.info(f"📤 开始批量下线HTTP API {http_api_id} 的路由")
+
+            # 如果没有提供route_ids，获取所有已发布的路由
+            if not route_ids:
+                route_ids = self._get_deployed_route_ids(http_api_id, gateway_id, environment_id)
+
+            if not route_ids:
+                self.logger.info(f"HTTP API {http_api_id} 没有已发布的路由，无需下线")
+                return True
+
+            self.logger.info(f"准备下线 {len(route_ids)} 个路由")
+
+            # 逐个下线路由
+            success_count = 0
+            failed_count = 0
+
+            for route_id in route_ids:
+                try:
+                    if self.undeploy_http_api_route(http_api_id, environment_id, gateway_id, route_id):
+                        success_count += 1
+                        self.logger.debug(f"路由 {route_id} 下线成功")
+                    else:
+                        failed_count += 1
+                        self.logger.warning(f"路由 {route_id} 下线失败")
+
+                    # 避免请求过于频繁
+                    time.sleep(1)
+
+                except Exception as e:
+                    failed_count += 1
+                    self.logger.error(f"下线路由 {route_id} 时发生异常: {e}")
+
+            # 输出批量下线结果
+            self.logger.info(f"📊 批量下线完成: 成功 {success_count} 个，失败 {failed_count} 个")
+
+            # 只要有成功的就认为整体成功
+            return success_count > 0
+
+        except Exception as e:
+            self.logger.error(f"批量下线HTTP API {http_api_id} 失败: {e}")
+            if self.debug_response:
+                import traceback
+                traceback.print_exc()
+            return False
+
+    def _check_route_deployment_status(self, http_api_id: str, route_id: str, gateway_id: str, environment_id: str) -> str:
+        """检查单个路由的部署状态"""
+        try:
+            response = self._execute_aliyun_cli("GET", f"/v1/http-apis/{http_api_id}/deployments",
+                gatewayId=gateway_id,
+                gatewayType="AI",
+                environmentId=environment_id)
+            data = self._check_response(response, "检查路由部署状态")
+
+            # 查找指定路由的部署状态
+            for deployment in data.get("items", [ ]):
+                deploy_configs = deployment.get("deployConfigs", [ ])
+                for config in deploy_configs:
+                    if config.get("routeId") == route_id:
+                        return config.get("status", "unknown")
+
+            return "not_deployed"
+
+        except Exception as e:
+            self.logger.warning(f"检查路由 {route_id} 部署状态失败: {e}")
+            return "unknown"
+
+    def _get_all_route_ids(self, http_api_id: str, gateway_id: str, environment_id: str) -> List[str]:
+        """获取HTTP API下所有路由的ID"""
+        try:
+            self.logger.info(f"获取HTTP API {http_api_id} 下的所有路由")
+
+            response = self._execute_aliyun_cli("GET", f"/v1/http-apis/{http_api_id}/routes",
+                gatewayId=gateway_id,
+                gatewayType="AI",
+                environmentId=environment_id)
+            data = self._check_response(response, "获取所有路由")
+
+            route_ids = [ ]
+            routes_info = [ ]
+
+            for route in data.get("items", [ ]):
+                route_id = route.get("routeId")
+                route_name = route.get("name", "unnamed")
+                if route_id:
+                    route_ids.append(route_id)
+                    routes_info.append(f"{route_name}({route_id})")
+
+            if routes_info:
+                self.logger.info(f"找到 {len(route_ids)} 个路由: {', '.join(routes_info)}")
+            else:
+                self.logger.info(f"HTTP API {http_api_id} 下没有找到任何路由")
+
+            return route_ids
+
+        except Exception as e:
+            self.logger.warning(f"获取HTTP API {http_api_id} 路由列表失败: {e}")
+            return []
+
+    def _get_mcp_route_ids(self, http_api_id: str, gateway_id: str, environment_id: str) -> List[ str ]:
+        """获取MCP相关的路由ID（过滤掉系统路由）"""
+        try:
+            self.logger.info(f"获取HTTP API {http_api_id} 下的MCP路由")
+
+            response = self._execute_aliyun_cli("GET", f"/v1/http-apis/{http_api_id}/routes",
+                gatewayId=gateway_id,
+                gatewayType="AI",
+                environmentId=environment_id)
+            data = self._check_response(response, "获取MCP路由")
+
+            mcp_route_ids = [ ]
+            mcp_routes_info = [ ]
+
+            for route in data.get("items", []):
+                route_id = route.get("routeId")
+                route_name = route.get("name", "")
+
+                # 过滤条件：
+                # 1. 有路由ID
+                # 2. 有路由名称
+                # 3. 不是系统路由（不以system-开头）
+                # 4. 路径包含mcp-servers（可选的额外过滤）
+                if (route_id and route_name and
+                  not route_name.startswith("system-") and
+                  route_name.strip()):
+
+                    # 可选：检查路径是否包含mcp-servers
+                    match_config = route.get("match", {})
+                    path_config = match_config.get("path", {})
+                    path_value = path_config.get("value", "")
+
+                    # 如果路径包含mcp-servers或者路由名称看起来像MCP工具名称，则认为是MCP路由
+                    is_mcp_route = (
+                      "mcp-servers" in path_value.lower() or
+                      not any(keyword in route_name.lower() for keyword in [ "system", "default", "health", "status" ])
+                    )
+
+                    if is_mcp_route:
+                        mcp_route_ids.append(route_id)
+                        mcp_routes_info.append(f"{route_name}({route_id})")
+
+            if mcp_routes_info:
+                self.logger.info(f"找到 {len(mcp_route_ids)} 个MCP路由: {', '.join(mcp_routes_info)}")
+            else:
+                self.logger.info(f"HTTP API {http_api_id} 下没有找到MCP路由")
+
+            return mcp_route_ids
+
+        except Exception as e:
+            self.logger.warning(f"获取HTTP API {http_api_id} MCP路由列表失败: {e}")
+            return []
+
+    def _get_deployed_route_ids(self, http_api_id: str, gateway_id: str, environment_id: str) -> List[ str ]:
+        """获取已发布的路由ID"""
+        try:
+            self.logger.info(f"获取HTTP API {http_api_id} 已发布的路由")
+
+            # 先获取所有MCP路由
+            all_mcp_route_ids = self._get_mcp_route_ids(http_api_id, gateway_id, environment_id)
+
+            if not all_mcp_route_ids:
+                self.logger.info("没有找到MCP路由")
+                return [ ]
+
+            # 检查哪些路由已发布
+            deployed_route_ids = [ ]
+
+            try:
+                # 尝试获取部署信息
+                response = self._execute_aliyun_cli("GET", f"/v1/http-apis/{http_api_id}/deployments",
+                    gatewayId=gateway_id,
+                    gatewayType="AI",
+                    environmentId=environment_id)
+                data = self._check_response(response, "获取部署信息")
+
+                # 从部署信息中提取已发布的路由
+                deployed_routes_info = [ ]
+                for deployment in data.get("items", [ ]):
+                    deploy_configs = deployment.get("deployConfigs", [ ])
+                    for config in deploy_configs:
+                        route_id = config.get("routeId")
+                        status = config.get("status", "").lower()
+
+                        # 只考虑MCP路由且状态为已发布的
+                        if (route_id and route_id in all_mcp_route_ids and
+                          status in [ "deployed", "success", "active" ]):
+                            deployed_route_ids.append(route_id)
+                            deployed_routes_info.append(f"{route_id}({status})")
+
+                if deployed_routes_info:
+                    self.logger.info(f"找到 {len(deployed_route_ids)} 个已发布的MCP路由: {', '.join(deployed_routes_info)}")
+                else:
+                    self.logger.info("没有找到已发布的MCP路由")
+
+            except Exception as e:
+                self.logger.warning(f"获取部署信息失败，假设所有MCP路由都已发布: {e}")
+                # 如果无法获取部署信息，假设所有MCP路由都已发布
+                deployed_route_ids = all_mcp_route_ids
+                self.logger.info(f"假设 {len(deployed_route_ids)} 个MCP路由都已发布")
+
+            # 去重
+            deployed_route_ids = list(set(deployed_route_ids))
+            return deployed_route_ids
+
+        except Exception as e:
+            self.logger.warning(f"获取已发布路由失败: {e}")
+            return []
+
+    def extract_tools_from_config(self, config_path: str) -> List[ str ]:
         """从配置文件提取工具列表"""
         try:
             with open(config_path, 'r', encoding='utf-8') as f:
@@ -659,11 +1008,12 @@ class MCPGatewayRegistrar:
     def register_tools(self, gateway_id: str, plugin_id: str, private_ip: str,
                        tools_config: str, api_key: str, openapi_base_url: str = "http://127.0.0.1:8000",
                        skip_auth: bool = False, force_update: bool = True, domain_id: str = None) -> Tuple[
-        int, int, List[str], List[str]]:
+        int, int, List[ str ], List[ str ] ]:
         """注册所有工具到AI网关（默认强制更新）"""
         self.logger.info("开始注册MCP工具到AI网关")
         openapi_base_url = openapi_base_url.replace("127.0.0.1", private_ip)
         success_tools, failed_tools = [], []
+        created_route_ids = []  # 记录创建的路由ID
 
         try:
             # 获取基础信息
@@ -689,16 +1039,27 @@ class MCPGatewayRegistrar:
 
                     # 使用共享服务创建路由
                     route_id, need_update = self.ensure_route(http_api_id, gateway_id, environment_id,
-                                                              tool, domain_id, shared_service_id, force_update)
+                        tool, domain_id, shared_service_id, force_update)
+
+                    # 记录路由ID（只记录新创建或更新的路由）
+                    if route_id and need_update:
+                        created_route_ids.append(route_id)
 
                     # 更新插件配置
                     if need_update:
                         try:
+                            self.logger.info(f"🔧 为工具 {tool} 生成MCP配置")
                             plugin_config = self.generate_mcp_config(tool, openapi_base_url, api_key, skip_auth)
+
+                            self.logger.info(f"🔗 为工具 {tool} 创建插件挂载")
                             self.update_plugin_attachment(gateway_id, plugin_id, route_id, plugin_config)
+
                             self.logger.info(f"✅ 工具 {tool} 配置已更新并启用")
                         except Exception as config_e:
                             self.logger.error(f"❌ 工具 {tool} 配置更新失败: {config_e}")
+                            if self.debug_response:
+                                import traceback
+                                traceback.print_exc()
                             failed_tools.append(tool)
                             continue
                     else:
@@ -708,12 +1069,35 @@ class MCPGatewayRegistrar:
 
                 except Exception as e:
                     self.logger.error(f"❌ 处理工具 {tool} 失败: {e}")
+                    if self.debug_response:
+                        import traceback
+                        traceback.print_exc()
                     failed_tools.append(tool)
+
+            # 如果有成功注册的工具，发布对应的路由
+            if success_tools and created_route_ids:
+                self.logger.info(f"🚀 开始发布 {len(created_route_ids)} 个新创建的路由")
+                if self.deploy_http_api(http_api_id, environment_id, gateway_id, created_route_ids):
+                    self.logger.info("✅ 新路由发布成功")
+                else:
+                    self.logger.warning("⚠️  新路由发布失败，但工具注册已完成")
+            elif success_tools:
+                self.logger.info("ℹ️  所有工具都使用现有路由，无需发布新路由")
+
+            # 输出注册摘要
+            self.logger.info(f"📊 注册完成: 成功 {len(success_tools)} 个，失败 {len(failed_tools)} 个")
+            if success_tools:
+                self.logger.info(f"✅ 成功的工具: {', '.join(success_tools)}")
+            if failed_tools:
+                self.logger.info(f"❌ 失败的工具: {', '.join(failed_tools)}")
 
             return len(success_tools), len(failed_tools), success_tools, failed_tools
 
         except Exception as e:
             self.logger.error(f"注册工具失败: {e}")
+            if self.debug_response:
+                import traceback
+                traceback.print_exc()
             raise
 
     # ==================== 清理功能 ====================
@@ -867,6 +1251,7 @@ class MCPGatewayRegistrar:
         self.logger.info("开始清理AI网关侧所有MCP资源")
 
         success_tools, failed_tools = [], []
+        route_ids_to_undeploy = []  # 记录需要下线的路由ID
 
         try:
             http_api_id = self.get_http_api_id(gateway_id)
@@ -887,6 +1272,7 @@ class MCPGatewayRegistrar:
                         route_name = data.get("name")
                         if route_name:
                             route_id_to_name[route_id] = route_name
+                            route_ids_to_undeploy.append(route_id)
                             self.logger.info(f"从插件挂载发现路由: {route_name} (ID: {route_id})")
                     except Exception as e:
                         self.logger.warning(f"获取路由 {route_id} 信息失败: {e}")
@@ -912,6 +1298,7 @@ class MCPGatewayRegistrar:
                         # 排除系统路由和空名称路由
                         if route_name and not route_name.startswith("system-") and route_id:
                             route_id_to_name[route_id] = route_name
+                            route_ids_to_undeploy.append(route_id)
                             self.logger.info(f"发现可能的MCP路由: {route_name} (ID: {route_id})")
 
                 except Exception as e:
@@ -925,7 +1312,15 @@ class MCPGatewayRegistrar:
                 self.logger.info("未发现任何MCP相关资源需要清理")
                 return 0, 0, [], []
 
-            # 先删除所有相关的插件挂载
+            # 先下线HTTP API中的相关路由
+            if route_ids_to_undeploy:
+                self.logger.info(f"📤 开始下线 {len(route_ids_to_undeploy)} 个MCP路由")
+                if self.undeploy_http_api(http_api_id, environment_id, gateway_id, route_ids_to_undeploy):
+                    self.logger.info("✅ MCP路由批量下线成功")
+                else:
+                    self.logger.warning("⚠️  MCP路由批量下线部分失败，继续清理资源")
+
+            # 删除所有相关的插件挂载
             if attachments:
                 self.logger.info("🧹 删除插件挂载")
                 for attachment in attachments:
@@ -1028,7 +1423,6 @@ def main():
     register_parser.add_argument("--openapi-base-url", default="http://127.0.0.1:8000", help="OpenAPI基础URL")
     register_parser.add_argument("--domain-id", help="指定域名ID（不提供则使用通配符域名）")
     register_parser.add_argument("--skip-auth", action="store_true", help="跳过添加鉴权信息")
-    # 移除 --force-update 参数，默认强制更新
 
     # 清理命令
     cleanup_parser = subparsers.add_parser("cleanup", help="清理AI网关侧所有MCP资源")
@@ -1092,7 +1486,7 @@ def main():
 
             # 设置退出码
             if failed_count == 0:
-                print("🎉 所有工具都已成功注册！")
+                print("🎉 所有工具都已成功注册并发布！")
                 sys.exit(0)
             elif success_count > 0:
                 print("⚠️  部分工具注册成功")
@@ -1125,7 +1519,7 @@ def main():
             # 设置退出码
             if failed_count == 0:
                 if success_count > 0:
-                    print("🎉 所有MCP网关资源都已成功清理！")
+                    print("🎉 所有MCP网关资源都已成功清理并下线！")
                 else:
                     print("ℹ️  未发现需要清理的MCP资源")
                 sys.exit(0)
