@@ -412,30 +412,16 @@ Resources:
 Outputs:
   openapi_server_address:
     Label:
-      en: 'Tool OepnAPI Access URL(Recommend AI Assistant: Open WebUI)'
-      zh-cn: 工具OpenAPI访问地址(推荐AI助手：Open WebUI)
+      en: 'MCP Control plane'
+      zh-cn: MCP管控平台
     Value:
-      Fn::Jq:
-        - All
-        - Fn::Sub:
-            - '[.[].serverCode] | map("${URL}" + .)'
-            - URL:
-                Fn::Sub:
-                  - http://${ServerAddress}:8000/
-                  - ServerAddress:
-                      Fn::If:
-                        - DisablePublicNetworkCondition
-                        - Fn::Select:
-                            - 0
-                            - Fn::GetAtt:
-                                - InstanceGroup
-                                - PrivateIps
-                        - Fn::Select:
-                            - 0
-                            - Fn::GetAtt:
-                                - InstanceGroup
-                                - PublicIps
-        - Ref: McpConfigJson
+      Fn::Sub:
+        - 'https://apig.console.aliyun.com/#/${RegionId}/ai-gateway/${GatewayId}/mcp-server?region=${RegionId}'
+        - RegionId:
+            Ref: ALIYUN::Region
+          GatewayId:
+            Ref: HigressAI
+
 
 Metadata:
   ALIYUN::ROS::Interface:
