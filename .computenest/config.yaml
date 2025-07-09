@@ -152,6 +152,11 @@ Service:
       ArchitectureDiagramUrl: 'resources/architecture/architecture.jpg'
       AllowedRegions:
       - ap-southeast-1
+      OutputConfigs:
+        - OutputKey: DebugInnerConsole
+          EnableWebProxy: true
+        - OutputKey: openapi_server_inner_address
+          EnableWebProxy: true
       PredefinedParameters:
       - Name: 入门套餐（1-3个MCP工具）
         Parameters:
