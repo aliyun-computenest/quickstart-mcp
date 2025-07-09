@@ -15,6 +15,10 @@ Conditions:
     Fn::Equals:
       - True
       - Ref: SupportPublicAccess
+  DisablePublicAccess:
+    Fn::Equals:
+      - False
+      - Ref: SupportPublicAccess
   CreateVpcConditions:
     Fn::Equals:
       - NewVPC
@@ -600,6 +604,7 @@ Resources:
 
 Outputs:
   openapi_server_address:
+    Condition: EnablePublicAccess
     Label:
       en: "MCP Server control plane"
       zh-cn: MCP Server总览控制台
@@ -612,7 +617,20 @@ Outputs:
               - Fn::GetAtt:
                   - InstanceGroup
                   - PublicIps
-
+  openapi_server_inner_address:
+    Condition: DisablePublicAccess
+    Label:
+      en: "MCP Server control plane"
+      zh-cn: MCP Server总览控制台(内网访问)
+    Value:
+      Fn::Sub:
+        - http://${ServerAddress}:3000
+        - ServerAddress:
+            Fn::Select:
+              - 0
+              - Fn::GetAtt:
+                  - InstanceGroup
+                  - PrivateIps
   ApiKey:
     NoEcho: true
     Condition: EnableAuthenticationConditions
@@ -628,6 +646,7 @@ Outputs:
     Label:
       en: "MCP Server Debug Console"
       zh-cn: MCP Server调试控制台
+    Condition: EnablePublicAccess
     Value:
       Fn::Sub:
         - http://${ServerAddress}:8000/docs
@@ -637,6 +656,20 @@ Outputs:
               - Fn::GetAtt:
                   - InstanceGroup
                   - PublicIps
+  DebugInnerConsole:
+    Label:
+      en: "MCP Server Debug Console"
+      zh-cn: MCP Server调试内网控制台
+    Condition: DisablePublicAccess
+    Value:
+      Fn::Sub:
+        - http://${ServerAddress}:8000/docs
+        - ServerAddress:
+            Fn::Select:
+              - 0
+              - Fn::GetAtt:
+                  - InstanceGroup
+                  - PrivateIps
 
 Metadata:
   ALIYUN::ROS::Interface:
