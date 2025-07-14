@@ -130,26 +130,20 @@ Parameters:
       - ecs.u1-c1m1.4xlarge
       - ecs.e-c1m2.xlarge
       - ecs.e-c1m4.large
-  InstancePassword:
-    NoEcho: true
-    Type: String
-    Description:
-      en: Server login password, Length 8-30, must contain three(Capital letters, lowercase letters, numbers, ()`~!@#$%^&*_-+=|{}[]:;'<>,.?/ Special symbol in)
-      zh-cn: 服务器登录密码,长度8-30，必须包含三项（大写字母、小写字母、数字、 ()`~!@#$%^&*_-+=|{}[]:;'<>,.?/ 中的特殊符号）
-    AllowedPattern: ^[a-zA-Z0-9-\(\)\`\~\!\@\#\$\%\^\&\*\_\-\+\=\|\{\}\[\]\:\;\<\>\,\.\?\/]*$
-    Label:
-      en: Instance Password
-      zh-cn: 实例密码
-    ConstraintDescription:
-      en: Length 8-30, must contain three(Capital letters, lowercase letters, numbers, ()`~!@#$%^&*_-+=|{}[]:;'<>,.?/ Special symbol in)
-      zh-cn: 长度8-30，必须包含三项（大写字母、小写字母、数字、 ()`~!@#$%^&*_-+=|{}[]:;'<>,.?/ 中的特殊符号）
-    MinLength: 8
-    MaxLength: 30
-    AssociationProperty: ALIYUN::ECS::Instance::Password
-    AssociationPropertyMetadata:
-      Random: true
-      InstanceType: ${EcsInstanceType}
 Resources:
+  RandomPassword:
+    Type: ALIYUN::RandomString
+    Properties:
+      length: 11
+      character_classes:
+        - class: "lowercase"
+          min: 4
+        - class: "uppercase"
+          min: 4
+        - class: "digits"
+          min: 2
+      character_sequences:
+        - sequence: "!@#$^*-+="
   ExistVsw:
     Type: DATASOURCE::VPC::VSwitch
     Properties:
@@ -275,7 +269,9 @@ Resources:
         Ref: SecurityGroup
       ImageId: ecs_image_quickstart-mcp
       Password:
-        Ref: InstancePassword
+        Fn::GetAtt:
+          - RandomPassword
+          - value
       InstanceType:
         Ref: EcsInstanceType
       SystemDiskCategory: cloud_essd
@@ -423,6 +419,18 @@ Outputs:
             Ref: ALIYUN::Region
           GatewayId:
             Ref: HigressAI
+  InstancePassword:
+    NoEcho: 'True'
+    Label:
+      en: Ecs Instance password
+      zh-cn: ECS实例密码
+    Description:
+      en: Initial instance password
+      zh-cn: ECS实例密码
+    Value:
+      Fn::GetAtt:
+        - RandomPassword
+        - value
 
 
 Metadata:
@@ -445,7 +453,6 @@ Metadata:
           - NetworkOption
           - InternetChargeType
           - InternetMaxBandwidthOut
-          - InstancePassword
         Label:
           default: 资源配置
     QuickDeployConfig:
