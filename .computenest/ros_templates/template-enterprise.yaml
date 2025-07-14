@@ -370,7 +370,7 @@ Resources:
             --profile EcsProfile \
             --mode EcsRamRole \
             --ram-role-name ${RamRoleName} \
-            --region cn-hangzhou
+            --region ${RegionId}
             # 先清理
             python higress_enterprise.py register --gateway-id ${GatewayID} ${mcp_KEY} --private-ip ${private_ip} --domain-id "${DomainId}" --tools-config /root/config.json --region ${RegionId} --si {{ serviceInstanceId }} --mode update
             # 再新建

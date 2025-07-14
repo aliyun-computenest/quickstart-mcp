@@ -182,7 +182,7 @@ class MCPGatewayRegistrar:
                 command.extend([f"--{key}", str(value)])
 
         # 添加请求体
-        if body:
+        if body is not None:  # 改为检查是否为 None，而不是检查布尔值
             command.extend(["--body", json.dumps(body)])
 
         command.extend(["--header", "Content-Type=application/json;"])
@@ -1478,23 +1478,48 @@ class MCPGatewayRegistrar:
         """删除服务（支持强制删除）"""
         try:
             self.logger.info(f"删除服务: {service_id}")
-            response = self._execute_aliyun_cli("DELETE", f"/v1/services/{service_id}",
-                                                gatewayId=gateway_id,
-                                                gatewayType="AI")
-            self._check_response(response, "删除服务")
+
+            # 使用特殊的CLI调用，传递region而不是endpoint
+            command = ["./aliyun", "apig", "DELETE", f"/v1/services/{service_id}"]
+            command.extend(["--region", self.region])
+            command.extend(["--header", "Content-Type=application/json"])
+            command.extend(["--body", "{}"])
+
+            self.logger.info(f"执行删除服务CLI: {command}")
+            result = subprocess.run(
+                command,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                universal_newlines=True,
+                check=True
+            )
+
+            response = json.loads(result.stdout) if result.stdout else {}
+
+            if self.debug_response:
+                print(f"\n=== DELETE /v1/services/{service_id} 响应 ===")
+                print(json.dumps(response, indent=2, ensure_ascii=False))
+                print("=== 响应结束 ===\n")
+
+            data = self._check_response(response, "删除服务")
             self.logger.info(f"服务 {service_id} 删除成功")
             return True
-        except RuntimeError as e:
+
+        except subprocess.CalledProcessError as e:
+            error_msg = f"删除服务 {service_id} 失败: {e.stderr}"
+            self.logger.error(error_msg)
+
             # 如果是因为有引用而删除失败，且允许强制删除
-            if force and ("ServiceIsReferencedWhenDelete" in str(e) or "存在其他资源引用此服务" in str(e)):
+            if force and ("ServiceIsReferencedWhenDelete" in str(e.stderr) or "存在其他资源引用此服务" in str(e.stderr)):
                 self.logger.warning(f"服务 {service_id} 有引用，尝试强制删除")
                 return self._force_delete_service_with_references(gateway_id, service_id)
             else:
-                self.logger.error(f"删除服务 {service_id} 失败: {e}")
                 return False
+
         except Exception as e:
             self.logger.error(f"删除服务 {service_id} 失败: {e}")
             return False
+
 
     def cleanup_all_with_state(self, gateway_id: str, plugin_id: str, shared_service_name: str = None) -> Tuple[int, int, List[str], List[str]]:
         """基于状态的完全清理（包括指定的共享服务）"""
