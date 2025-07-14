@@ -371,8 +371,10 @@ Resources:
             --mode EcsRamRole \
             --ram-role-name ${RamRoleName} \
             --region cn-hangzhou
-            # 测试
-            python higress_enterprise.py register --gateway-id ${GatewayID} ${mcp_KEY} --private-ip ${private_ip} --domain-id "${DomainId}" --tools-config /root/config.json --region ${RegionId}
+            # 先清理
+            python higress_enterprise.py register --gateway-id ${GatewayID} ${mcp_KEY} --private-ip ${private_ip} --domain-id "${DomainId}" --tools-config /root/config.json --region ${RegionId} --si {{ serviceInstanceId }} --mode update
+            # 再新建
+            python higress_enterprise.py register --gateway-id ${GatewayID} ${mcp_KEY} --private-ip ${private_ip} --domain-id "${DomainId}" --tools-config /root/config.json --region ${RegionId} --si {{ serviceInstanceId }} --mode create
             sleep 10
           - RegionId:
               Ref: ALIYUN::Region
