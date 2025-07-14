@@ -130,6 +130,11 @@ class MCPGatewayState:
             self.state["last_updated"] = datetime.now().isoformat()
             self._save_state()
 
+    def clear_all_state(self):
+        """清空所有状态"""
+        self.state = {}
+        self._save_state()
+
     def get_gateway_info(self) -> Dict:
         """获取网关基础信息"""
         return {
@@ -1148,7 +1153,7 @@ class MCPGatewayRegistrar:
 
     def cleanup_specific_tools(self, gateway_id: str, plugin_id: str,
                                tools_to_cleanup: Dict[str, Dict]) -> Tuple[int, int, List[str], List[str]]:
-        """清理指定的工具（用于变配场景）"""
+        """清理指定的工具（用于变配场景）- 修复字典遍历问题"""
         if not tools_to_cleanup:
             self.logger.info("没有需要清理的工具")
             return 0, 0, [], []
@@ -1172,8 +1177,11 @@ class MCPGatewayRegistrar:
                 self.logger.info(f"📤 下线 {len(route_ids_to_undeploy)} 个路由")
                 self.undeploy_http_api(http_api_id, environment_id, gateway_id, route_ids_to_undeploy)
 
+            # 先收集所有工具信息，避免在遍历时修改字典
+            tools_to_process = list(tools_to_cleanup.items())  # 转换为列表
+
             # 逐个清理工具资源
-            for tool_name, tool_info in tools_to_cleanup.items():
+            for tool_name, tool_info in tools_to_process:  # 遍历列表而不是字典
                 try:
                     self.logger.info(f"🧹 清理工具: {tool_name}")
 
@@ -1488,41 +1496,45 @@ class MCPGatewayRegistrar:
             self.logger.error(f"删除服务 {service_id} 失败: {e}")
             return False
 
-    def cleanup_all_with_state(self, gateway_id: str, plugin_id: str) -> Tuple[int, int, List[str], List[str]]:
-        """基于状态的完全清理"""
+    def cleanup_all_with_state(self, gateway_id: str, plugin_id: str, shared_service_name: str = None) -> Tuple[int, int, List[str], List[str]]:
+        """基于状态的完全清理（包括指定的共享服务）"""
         gateway_info = self.state.get_gateway_info()
 
         if not self.state.has_state():
             self.logger.warning("状态文件中没有网关信息，使用传统清理方式")
-            return self.cleanup_gateway_resources(gateway_id, plugin_id)
+            return self.cleanup_gateway_resources(gateway_id, plugin_id, shared_service_name)
 
         # 基于状态清理
         tools_in_state = self.state.state.get("tools", {})
         if not tools_in_state:
             self.logger.info("状态中没有工具记录")
+            # 即使没有工具记录，也要尝试清理指定的共享服务
+            if shared_service_name:
+                self._cleanup_specific_shared_service(gateway_id, shared_service_name)
             return 0, 0, [], []
 
         success, failed, success_list, failed_list = self.cleanup_specific_tools(
             gateway_id, plugin_id, tools_in_state
         )
 
-        # 清理共享服务（如果需要）
-        if success > 0:
-            http_api_id = gateway_info.get("http_api_id")
-            shared_service_id = gateway_info.get("shared_service_id")
-            shared_service_name = gateway_info.get("shared_service_name")
+        # 清理指定的共享服务
+        if shared_service_name:
+            self.logger.info(f"🧹 清理指定的共享服务: {shared_service_name}")
+            self._cleanup_specific_shared_service(gateway_id, shared_service_name)
+        else:
+            # 如果没有指定共享服务名称，尝试从状态中获取
+            state_shared_service_name = gateway_info.get("shared_service_name")
+            if state_shared_service_name:
+                self.logger.info(f"🧹 清理状态中记录的共享服务: {state_shared_service_name}")
+                self._cleanup_specific_shared_service(gateway_id, state_shared_service_name)
 
-            if http_api_id and shared_service_id:
-                self.logger.info(f"🧹 清理共享服务: {shared_service_name} (ID: {shared_service_id})")
-                self._cleanup_shared_service_if_needed(gateway_id, http_api_id, force_delete=True)
-
-        # 清空状态
-        self.state.clear_all_tools()
+        # 完全清空状态
+        self.state.clear_all_state()
 
         return success, failed, success_list, failed_list
 
-    def cleanup_gateway_resources(self, gateway_id: str, plugin_id: str) -> Tuple[int, int, List[str], List[str]]:
-        """清理AI网关侧的所有MCP路由和插件挂载资源"""
+    def cleanup_gateway_resources(self, gateway_id: str, plugin_id: str, shared_service_name: str = None) -> Tuple[int, int, List[str], List[str]]:
+        """清理AI网关侧的所有MCP路由和插件挂载资源（包括指定的共享服务）"""
         self.logger.info("开始清理AI网关侧所有MCP资源")
 
         success_tools, failed_tools = [], []
@@ -1585,6 +1597,9 @@ class MCPGatewayRegistrar:
 
             if not tools_to_cleanup:
                 self.logger.info("未发现任何MCP相关资源需要清理")
+                # 即使没有工具，也要尝试清理指定的共享服务
+                if shared_service_name:
+                    self._cleanup_specific_shared_service(gateway_id, shared_service_name)
                 return 0, 0, [], []
 
             # 先下线HTTP API中的相关路由
@@ -1621,10 +1636,12 @@ class MCPGatewayRegistrar:
                     self.logger.error(f"❌ 清理工具 {route_name} 时发生异常: {e}")
                     failed_tools.append(route_name)
 
-            # 检查是否需要清理共享服务（使用强制删除）
-            if success_tools or failed_tools:
-                self.logger.info("🧹 检查是否需要清理共享MCP服务")
-                self._cleanup_shared_service_if_needed(gateway_id, http_api_id, force_delete=True)
+            # 清理指定的共享服务
+            if shared_service_name:
+                self.logger.info(f"🧹 清理指定的共享服务: {shared_service_name}")
+                self._cleanup_specific_shared_service(gateway_id, shared_service_name)
+            else:
+                self.logger.info("🧹 未指定共享服务名称，跳过共享服务清理")
 
             # 去重（避免同一工具被重复计算）
             success_tools = list(set(success_tools))
@@ -1636,78 +1653,29 @@ class MCPGatewayRegistrar:
             self.logger.error(f"清理网关资源失败: {e}")
             raise
 
-    def _cleanup_shared_service_if_needed(self, gateway_id: str, http_api_id: str, force_delete: bool = True):
-        """如果共享服务不再被任何路由使用，则清理它（支持强制删除）"""
+    def _cleanup_specific_shared_service(self, gateway_id: str, shared_service_name: str):
+        """清理指定名称的共享服务"""
         try:
-            # 从状态中获取共享服务信息
-            gateway_info = self.state.get_gateway_info()
-            shared_service_name = gateway_info.get("shared_service_name")
-            shared_service_id = gateway_info.get("shared_service_id")
+            self.logger.info(f"查找并清理共享服务: {shared_service_name}")
 
-            # 如果状态中没有共享服务信息，尝试查找所有可能的共享服务
-            if not shared_service_name or not shared_service_id:
-                self.logger.info("状态中没有共享服务信息，查找所有可能的MCP共享服务")
-                # 查找所有服务，寻找可能的MCP共享服务
-                try:
-                    response = self._execute_aliyun_cli("GET", "/v1/services",
-                                                        gatewayId=gateway_id,
-                                                        gatewayType="AI",
-                                                        pageSize="100")
-                    data = self._check_response(response, "查询所有服务")
+            # 查找指定名称的服务
+            existing_services = self._find_items_by_name(gateway_id, "/v1/services", shared_service_name)
 
-                    for service in data.get("items", []):
-                        service_name = service.get("name", "")
-                        service_id = service.get("serviceId")
+            if not existing_services:
+                self.logger.info(f"未找到名为 {shared_service_name} 的服务")
+                return
 
-                        # 查找可能的MCP共享服务（名称包含mcp或shared等关键词）
-                        if (service_name and service_id and
-                                any(keyword in service_name.lower() for keyword in ["mcp", "shared", "si-"])):
-                            self.logger.info(f"发现可能的MCP共享服务: {service_name} (ID: {service_id})")
-                            self._try_cleanup_service(gateway_id, http_api_id, service_id, service_name, force_delete)
+            service_id = existing_services[0].get("serviceId")
+            self.logger.info(f"找到共享服务: {shared_service_name} (ID: {service_id})")
 
-                    return
-                except Exception as e:
-                    self.logger.warning(f"查找MCP共享服务失败: {e}")
-                    return
-
-            self.logger.info(f"检查共享MCP服务: {shared_service_name} (ID: {shared_service_id})")
-            self._try_cleanup_service(gateway_id, http_api_id, shared_service_id, shared_service_name, force_delete)
-
-        except Exception as e:
-            self.logger.warning(f"检查共享服务状态失败: {e}")
-
-    def _try_cleanup_service(self, gateway_id: str, http_api_id: str, service_id: str, service_name: str, force_delete: bool):
-        """尝试清理指定的服务"""
-        try:
-            # 检查是否还有路由在使用这个服务
-            response = self._execute_aliyun_cli("GET", f"/v1/http-apis/{http_api_id}/routes",
-                                                gatewayId=gateway_id,
-                                                gatewayType="AI")
-            data = self._check_response(response, "检查剩余路由")
-
-            service_in_use = False
-            using_routes = []
-
-            for route in data.get("items", []):
-                backend_config = route.get("backendConfig", {})
-                services_config = backend_config.get("services", [])
-                for svc in services_config:
-                    if svc.get("serviceId") == service_id:
-                        service_in_use = True
-                        using_routes.append(route.get('name', 'unnamed'))
-                        break
-
-            if not service_in_use:
-                self.logger.info(f"🗑️  共享服务 {service_name} 不再被使用，开始清理")
-                if self.delete_service(gateway_id, service_id, force=force_delete):
-                    self.logger.info(f"✅ 共享服务 {service_name} 清理成功")
-                else:
-                    self.logger.warning(f"⚠️  清理共享服务 {service_name} 失败")
+            # 尝试删除服务
+            if self.delete_service(gateway_id, service_id, force=True):
+                self.logger.info(f"✅ 共享服务 {shared_service_name} 删除成功")
             else:
-                self.logger.info(f"ℹ️  共享服务 {service_name} 仍被以下路由使用: {', '.join(using_routes)}，保留")
+                self.logger.warning(f"⚠️  共享服务 {shared_service_name} 删除失败")
 
         except Exception as e:
-            self.logger.warning(f"检查服务 {service_name} 状态失败: {e}")
+            self.logger.warning(f"清理共享服务 {shared_service_name} 失败: {e}")
 
 
 def main():
@@ -1732,9 +1700,10 @@ def main():
     register_parser.add_argument("--si", required=True, help="共享服务名称（必须传入，格式如：si-xxxx）")
 
     # 清理命令
-    cleanup_parser = subparsers.add_parser("cleanup", help="清理AI网关侧所有MCP资源")
+    cleanup_parser = subparsers.add_parser("cleanup", help="清理AI网关侧所有MCP资源（包括指定的共享服务）")
     cleanup_parser.add_argument("--gateway-id", required=True, help="AI网关ID")
     cleanup_parser.add_argument("--plugin-id", help="插件ID（不提供则自动获取）")
+    cleanup_parser.add_argument("--si", required=True, help="要删除的共享服务名称（必须传入，格式如：si-xxxx）")
 
     # 通用参数
     for subparser in [register_parser, cleanup_parser]:
@@ -1840,17 +1809,24 @@ def main():
                     sys.exit(1)
 
         elif args.command == "cleanup":
+            # 验证 --si 参数格式
+            if not args.si.startswith("si-"):
+                print("❌ --si 参数格式错误，必须以 'si-' 开头，例如：si-12345")
+                sys.exit(1)
+
             # 执行清理
             success_count, failed_count, success_tools, failed_tools = registrar.cleanup_all_with_state(
                 gateway_id=args.gateway_id,
-                plugin_id=plugin_id
+                plugin_id=plugin_id,
+                shared_service_name=args.si
             )
 
             # 输出清理结果
             print(f"\n{'=' * 50}")
-            print("🧹 AI网关MCP资源清理结果")
+            print("🧹 AI网关MCP资源完全清理结果")
             print(f"{'=' * 50}")
             print(f"🔧 插件ID: {plugin_id}")
+            print(f"🏷️  目标共享服务: {args.si}")
             print(f"📁 状态文件: {registrar.state.state_file}")
             print(f"✅ 成功清理: {success_count} 个工具")
             if success_tools:
@@ -1859,6 +1835,8 @@ def main():
             if failed_tools:
                 print(f"   {', '.join(failed_tools)}")
             print(f"📈 总计: {success_count + failed_count} 个工具")
+            print(f"🗑️  共享服务 {args.si} 已清理")
+            print("📄 状态文件已清空")
             print(f"{'=' * 50}")
 
             # 设置退出码
@@ -1866,7 +1844,7 @@ def main():
                 if success_count > 0:
                     print("🎉 所有MCP网关资源都已成功清理并下线！")
                 else:
-                    print("ℹ️  未发现需要清理的MCP资源")
+                    print("ℹ️  未发现需要清理的MCP资源，但已清理指定的共享服务")
                 sys.exit(0)
             elif success_count > 0:
                 print("⚠️  部分MCP网关资源清理成功")
@@ -1882,3 +1860,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+

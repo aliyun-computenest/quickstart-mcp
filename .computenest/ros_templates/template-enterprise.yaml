@@ -405,7 +405,7 @@ Resources:
         Fn::Sub:
           - |
             cd /root/application/mcp/
-            python higress_enterprise.py cleanup --gateway-id ${GatewayID} --region ${RegionId}
+            python higress_enterprise.py cleanup --gateway-id ${GatewayID} --region ${RegionId} --si {{ serviceInstanceId }}
             sleep 10
           - RegionId:
               Ref: ALIYUN::Region
