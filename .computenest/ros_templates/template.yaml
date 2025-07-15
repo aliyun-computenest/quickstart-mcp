@@ -424,7 +424,9 @@ Resources:
           - Ref: SecurityGroupId
       ImageId: ecs_image_quickstart-mcp
       Password:
-        Ref: RandomPassword
+        Fn::GetAtt:
+          - RandomPassword
+          - value
       InstanceType:
         Ref: EcsInstanceType
       SystemDiskCategory: cloud_essd
