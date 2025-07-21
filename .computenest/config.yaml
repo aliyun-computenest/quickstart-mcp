@@ -255,9 +255,11 @@ Service:
   ServiceInfo:
     # 英文版可以再配置Locale为en-US的服务信息
   - Locale: zh-CN
-    Name: MCP Server社区版
-    ShortDescription: "本服务创造性地解决了传统MCP市场的以下问题：\n  1.  本服务支持多选MCP工具同时部署\n  2.  本服务支持OpenAPI和SSE的两种方式调用，支持Dify，Cherry
-      Studio，OpenWebUI等AI助手。\n  3. 本服务支持通过变配动态增删要使用的MCP工具。"
+    Name: MCP Server
+    ShortDescription: "阿里云计算巢MCP市场 - 企业级AI工具生态平台。 海量MCP工具生态：提供数百个即用型MCP工具，涵盖搜索、开发、自动化等各类场景
+      灵活部署方案： • 单机版：基于Higress网关，5分钟极速部署 • 企业版：集成AI网关，支持企业级安全与治理。 全协议兼容：原生支持MCP、OpenAPI、SSE等多种协议，无缝对接Dify、Cherry
+      Studio、OpenWebUI等主流AI助手。 动态扩展能力：支持多选部署、在线变配，随需增删MCP工具，真正做到按需使用。数据安全保障：工具部署在用户云账号下，确保数据主权与合规要求
+      从单一工具到完整生态，从概念验证到生产就绪 - 这里是您的AI工具超市。"
     Image: 
       https://service-info-public.oss-cn-hangzhou.aliyuncs.com/1853370294850618/service-image/ba45d5c8-8654-44a9-a60a-a3090a958c77.png
     Softwares:
