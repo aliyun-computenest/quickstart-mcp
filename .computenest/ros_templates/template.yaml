@@ -314,6 +314,57 @@ Parameters:
             - ExistingSecurityGroup
             - ${SecurityGroupOption}
 Resources:
+  OSSBucket:
+    Type: 'ALIYUN::OSS::Bucket'
+    Properties:
+      DeletionForce: true
+      BucketName:
+        Ref: ALIYUN::StackName
+  OSSRamUser:
+    DependsOn: OSSBucket
+    Type: ALIYUN::RAM::Role
+    Properties:
+      RoleName:
+        Ref: ALIYUN::StackName
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service:
+                - ecs.aliyuncs.com
+        Version: '1'
+      Policies:
+        - PolicyName:
+            Ref: ALIYUN::StackName
+          PolicyDocument:
+            Statement:
+              - Action:
+                  - ram:CreateServiceLinkedRole
+                Resource:
+                  - '*'
+                Effect: Allow
+                Condition:
+                  StringEquals:
+                    ram:ServiceName:
+                      - supplier.computenest.aliyuncs.com
+              - Action:
+                  - oss:*
+                Effect: Allow
+                Resource:
+                  - Fn::Sub:
+                      - "acs:oss:*:*:${BucketName}"
+                      - BucketName:
+                          Fn::GetAtt:
+                            - OSSBucket
+                            - Name
+                  - Fn::Sub:
+                      - "acs:oss:*:*:${BucketName}/*"
+                      - BucketName:
+                          Fn::GetAtt:
+                            - OSSBucket
+                            - Name
+            Version: '1'
   MCP_KEY:
     Type: ALIYUN::RandomString
     Properties:
@@ -431,6 +482,10 @@ Resources:
         Ref: EcsInstanceType
       SystemDiskCategory: cloud_essd
       SystemDiskSize: 40
+      RamRoleName:
+        Fn::GetAtt:
+          - OSSRamUser
+          - RoleName
       InternetMaxBandwidthOut:
         Fn::If:
           - EnablePublicAccess
@@ -442,6 +497,8 @@ Resources:
       MaxAmount: 1
   RunInstallCommand:
     Type: ALIYUN::ECS::RunCommand
+    DependsOn:
+      - OSSRamUser
     Properties:
       InstanceIds:
         Fn::GetAtt:
@@ -456,6 +513,32 @@ Resources:
             set -e
             echo "当前时间：${CurTime}"
             wget -O /root/pre-mcp-tools.json https://service-info-public.oss-cn-hangzhou.aliyuncs.com/mcp/mcp-tools.json
+            # 前置条件检查和ossutil安装
+            if ! command -v ossutil64 &> /dev/null; then
+              echo "安装ossutil..."
+              curl -o ossutil-2.1.1-linux-amd64.zip https://gosspublic.alicdn.com/ossutil/v2/2.1.1/ossutil-2.1.1-linux-amd64.zip
+              unzip ossutil-2.1.1-linux-amd64.zip
+              cd ossutil-2.1.1-linux-amd64
+              chmod 755 ossutil
+              sudo mv ossutil /usr/local/bin/ && sudo ln -s /usr/local/bin/ossutil /usr/bin/ossutil
+            fi
+            
+            # 配置ossutil（通过实例RAM角色）
+            if [ ! -f ~/.ossutilconfig ]; then
+              echo "配置ossutil..."
+            cat > ~/.ossutilconfig << EOF
+            [Credentials]
+            endpoint = oss-${RegionId}-internal.aliyuncs.com
+            region = ${RegionId}
+            mode = EcsRamRole
+            ecsRoleName = ${RamRoleName}
+            EOF
+            fi
+
+            # 创建本地包目录（不存在才创建）
+            mkdir -p /root/package
+            chmod -R 777 /root/package
+            
             cpu_cores=$(nproc)
             if [ $cpu_cores -eq 4 ]; then
               workers=1
@@ -468,6 +551,12 @@ Resources:
             cat > config.json << EOF
             ${MCP_RESULT}
             EOF
+            set +e
+            cd /root/application
+            echo "开始下载MCP服务器包..."
+            python download_oss.py '${bucketName}' /root/config.json
+            download_result=$?
+            set -e
             sed -i "s|\${!MCP_KEY:-}|${mcp_KEY}|g" /root/application/mcp/docker-compose.yaml
             sed -i "s|\${!MCPO_WORKERS:-4}|${!workers}|g" /root/application/mcp/docker-compose.yaml
             sed -i "s|\${!PUBLIC_IP:-}|${public_ip_no_port}|g" /root/application/mcp/docker-compose.yaml
@@ -562,6 +651,12 @@ Resources:
                 - "First"
                 - '{mcpServers: map({ key: .serverCode, value: { command, args, env,type,url } }) | from_entries }'
                 - Ref: McpConfigJson
+
+            OSS_JSON:
+              Fn::Jq:
+                - "First"
+                - '{mcpServers: map({ key: .serverCode, value: { command, args, env,type,url,packageOssPath } }) | from_entries }'
+                - Ref: McpConfigJson
             private_ip:
               Fn::Sub:
                 - ${ServerAddress}:8000
@@ -603,6 +698,14 @@ Resources:
                 - EnableAuthenticationConditions
                 - ""
                 - "--skip-auth"
+            bucketName:
+              Fn::GetAtt:
+                - OSSBucket
+                - Name
+            RamRoleName:
+              Fn::GetAtt:
+                - OSSRamUser
+                - RoleName
 
 Outputs:
   openapi_server_address:

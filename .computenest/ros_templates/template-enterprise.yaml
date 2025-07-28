@@ -146,6 +146,12 @@ Resources:
     Properties:
       GatewayId:
         Ref: HigressAI
+  OSSBucket:
+    Type: 'ALIYUN::OSS::Bucket'
+    Properties:
+      DeletionForce: true
+      BucketName:
+        Ref: ALIYUN::StackName
   EcsRole:
     Type: ALIYUN::RAM::Role
     Properties:
@@ -174,28 +180,23 @@ Resources:
                     ram:ServiceName:
                       - supplier.computenest.aliyuncs.com
               - Action:
-                  - ram:CreateServiceLinkedRole
-                Resource:
-                  - '*'
-                Effect: Allow
-                Condition:
-                  StringEquals:
-                    ram:ServiceName: cloudmonitor.aliyuncs.com
-              - Action:
-                  - computenestsupplier:*
-                  - apig:*
-                  - cms:*
-                  - ecs:*
-                  - vpc:*
                   - oss:*
-                  - ros:*
-                  - tag:*
-                  - ots:*
-                  - ram:GetRole
-                Resource:
-                  - '*'
                 Effect: Allow
+                Resource:
+                  - Fn::Sub:
+                      - "acs:oss:*:*:${BucketName}"
+                      - BucketName:
+                          Fn::GetAtt:
+                            - OSSBucket
+                            - Name
+                  - Fn::Sub:
+                      - "acs:oss:*:*:${BucketName}/*"
+                      - BucketName:
+                          Fn::GetAtt:
+                            - OSSBucket
+                            - Name
             Version: '1'
+
   SecurityGroup:
     Type: ALIYUN::ECS::SecurityGroup
     Properties:

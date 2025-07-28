@@ -11,10 +11,71 @@ import tempfile
 import json
 import traceback
 import inspect
+import base64
 
 
 class HigressClient:
 
+    def update_higress_console_secret(self, api_key):
+        """
+        更新 secrets/higress-console.yaml 文件中的 adminPassword（仅在文件存在时）
+
+        Args:
+            api_key: 需要设置的 API 密钥
+        """
+        self._log_caller_info()
+
+        # 检查 secrets 目录是否存在
+        secrets_dir = os.path.join(os.getcwd(), "secrets")
+        if not os.path.exists(secrets_dir):
+            self.logger.info(f"secrets 目录不存在，跳过更新 higress-console.yaml")
+            return None
+
+        # 配置文件路径
+        secret_file_path = os.path.join(secrets_dir, "higress-console.yaml")
+
+        # 检查文件是否存在
+        if not os.path.exists(secret_file_path):
+            self.logger.info(f"higress-console.yaml 文件不存在，跳过更新")
+            return None
+
+        try:
+            # 将 API 密钥进行 base64 编码
+            encoded_password = base64.b64encode(api_key.encode('utf-8')).decode('utf-8')
+            self.logger.info(f"API 密钥已进行 base64 编码")
+
+            # 读取现有文件
+            self.logger.info(f"读取现有的 higress-console.yaml 文件")
+            with open(secret_file_path, 'r', encoding='utf-8') as f:
+                secret_config = yaml.safe_load(f)
+
+            # 确保 data 部分存在
+            if 'data' not in secret_config:
+                self.logger.warning(f"higress-console.yaml 文件中缺少 data 部分")
+                secret_config['data'] = {}
+
+            # 检查是否需要更新
+            old_password = secret_config['data'].get('adminPassword', '')
+            if old_password == encoded_password:
+                self.logger.info(f"higress-console.yaml 中的 adminPassword 无需更新")
+                return secret_file_path
+
+            # 更新 adminPassword
+            secret_config['data']['adminPassword'] = encoded_password
+
+            # 写入文件
+            with open(secret_file_path, 'w', encoding='utf-8') as f:
+                yaml.dump(secret_config, f, default_flow_style=False, allow_unicode=True)
+
+            self.logger.info(f"已更新 higress-console.yaml 中的 adminPassword")
+            return secret_file_path
+
+        except Exception as e:
+            self.logger.error(f"更新 higress-console.yaml 失败: {str(e)}")
+            self.logger.error(traceback.format_exc())
+            # 不抛出异常，继续走原有逻辑
+            self.logger.info(f"更新失败，将继续使用原有登录逻辑")
+            return None
 
     def init_system(self, api_key, domain):
         """
@@ -91,6 +152,10 @@ class HigressClient:
 
         # 测试连接
         self.check_and_create_higress_config(domain)
+
+        # 尝试更新 higress-console.yaml 文件中的密码（仅在文件存在时）
+        self.update_higress_console_secret(apikey)
+
         self._test_connection()
         self.init_system(apikey, domain)
 
@@ -765,7 +830,6 @@ class HigressClient:
             # 返回原始文件路径，不中断流程
             return yaml_path
 
-
     def extract_tools_from_config(self, config_path):
         """从 MCP 配置文件中提取工具列表"""
         self._log_caller_info()
@@ -854,41 +918,41 @@ class HigressClient:
             logger.info("使用内置模板")
             # 内置模板
             config_template = """
-    apiVersion: v1
-    kind: ConfigMap
-    metadata:
-      name: higress-config
-      namespace: higress-system
-      creationTimestamp: "2000-01-01T00:00:00Z"
-      resourceVersion: "1"
-    data:
-      higress: |-
-        mcpServer:
-          sse_path_suffix: /sse  # SSE 连接的路径后缀
-          enable: true          # 启用 MCP Server
-          redis:
-            address: ${domain}:6379 # Redis服务地址。这里需要使用本机的内网 IP，不可以使用 127.0.0.1
-            username: "" # Redis用户名（可选）
-            password: "" # Redis密码（可选）
-            db: 0 # Redis数据库（可选）
-          match_list:          # MCP Server 会话保持路由规则（当匹配下面路径时，将被识别为一个 MCP 会话，通过 SSE 等机制进行会话保持）
-            - match_rule_domain: "*"
-              match_rule_path: /
-              match_rule_type: "prefix"
-          servers: []
-        downstream:
-          connectionBufferLimits: 32768
-          http2:
-            initialConnectionWindowSize: 1048576
-            initialStreamWindowSize: 65535
-            maxConcurrentStreams: 100
-          idleTimeout: 180
-          maxRequestHeadersKb: 60
-          routeTimeout: 0
-        upstream:
-          connectionBufferLimits: 10485760
-          idleTimeout: 10
-    """
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: higress-config
+  namespace: higress-system
+  creationTimestamp: "2000-01-01T00:00:00Z"
+  resourceVersion: "1"
+data:
+  higress: |-
+    mcpServer:
+      sse_path_suffix: /sse  # SSE 连接的路径后缀
+      enable: true          # 启用 MCP Server
+      redis:
+        address: ${domain}:6379 # Redis服务地址。这里需要使用本机的内网 IP，不可以使用 127.0.0.1
+        username: "" # Redis用户名（可选）
+        password: "" # Redis密码（可选）
+        db: 0 # Redis数据库（可选）
+      match_list:          # MCP Server 会话保持路由规则（当匹配下面路径时，将被识别为一个 MCP 会话，通过 SSE 等机制进行会话保持）
+        - match_rule_domain: "*"
+          match_rule_path: /
+          match_rule_type: "prefix"
+      servers: []
+    downstream:
+      connectionBufferLimits: 32768
+      http2:
+        initialConnectionWindowSize: 1048576
+        initialStreamWindowSize: 65535
+        maxConcurrentStreams: 100
+      idleTimeout: 180
+      maxRequestHeadersKb: 60
+      routeTimeout: 0
+    upstream:
+      connectionBufferLimits: 10485760
+      idleTimeout: 10
+"""
 
         # 替换模板中的变量
         config_content = config_template.replace("${domain}", clean_domain)
@@ -1029,8 +1093,6 @@ class HigressClient:
             self.logger.error(f"异常类型: {type(e).__name__}")
             self.logger.error(traceback.format_exc())
             raise RuntimeError(f"从配置文件配置工具失败: {str(e)}")
-
-
 
 
 def parse_args():

@@ -10,6 +10,7 @@ services:
       - "8000:8000"
     volumes:
       - /root/config.json:/app/config.json
+      - /root/package:/package
     restart: unless-stopped
     environment:
       API_KEY: ${MCP_KEY:-}
