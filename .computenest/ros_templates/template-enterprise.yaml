@@ -195,6 +195,12 @@ Resources:
                           Fn::GetAtt:
                             - OSSBucket
                             - Name
+              - Action:
+                  - apig:*
+                  - ram:GetRole
+                Resource:
+                  - '*'
+                Effect: Allow
             Version: '1'
 
   SecurityGroup:
@@ -289,6 +295,7 @@ Resources:
         Fn::Sub:
           - |
             set -e
+            wget -O /root/pre-mcp-tools.json https://service-info-public.oss-cn-hangzhou.aliyuncs.com/mcp/mcp-tools.json
             cpu_cores=$(nproc)
             workers=$((cpu_cores * 2))
             cd /root

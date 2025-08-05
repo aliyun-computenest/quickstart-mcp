@@ -237,6 +237,106 @@ class MCPGatewayRegistrar:
         except Exception:
             return []
 
+    def _load_pre_mcp_tools_config(self, pre_config_path: str = "/root/pre-mcp-tools.json") -> Dict[str, Dict]:
+        """加载预定义的MCP工具配置"""
+        try:
+            if os.path.exists(pre_config_path):
+                with open(pre_config_path, 'r', encoding='utf-8') as f:
+                    pre_tools = json.load(f)
+
+                # 转换为以ServerCode为key的字典
+                pre_tools_dict = {}
+                for tool in pre_tools:
+                    server_code = tool.get("ServerCode")
+                    if server_code:
+                        pre_tools_dict[server_code] = tool
+
+                self.logger.info(f"加载预定义工具配置: {len(pre_tools_dict)} 个工具")
+                return pre_tools_dict
+            else:
+                self.logger.warning(f"预定义工具配置文件不存在: {pre_config_path}")
+                return {}
+        except Exception as e:
+            self.logger.warning(f"加载预定义工具配置失败: {e}")
+            return {}
+
+    def _generate_route_description(self, tool_name: str, tools_config_path: str,
+                                    pre_config_path: str = "/root/pre-mcp-tools.json") -> str:
+        """生成路由描述信息"""
+        try:
+            # 加载主配置文件
+            with open(tools_config_path, 'r', encoding='utf-8') as f:
+                main_config = json.load(f)
+
+            # 加载预定义配置
+            pre_tools_config = self._load_pre_mcp_tools_config(pre_config_path)
+
+            # 查找当前工具的配置
+            tool_config = None
+            mcp_servers = main_config.get("mcpServers", [])
+            if isinstance(mcp_servers, list):
+                # 新格式：mcpServers是数组
+                for server in mcp_servers:
+                    if server.get("serverCode") == tool_name:
+                        tool_config = server
+                        break
+            else:
+                # 旧格式：mcpServers是对象
+                tool_config = mcp_servers.get(tool_name, {})
+
+            if not tool_config:
+                self.logger.warning(f"未找到工具 {tool_name} 的配置")
+                return tool_name
+
+            # 查找预定义配置
+            pre_config = pre_tools_config.get(tool_name, {})
+
+            # 构建描述JSON
+            description_json = {}
+
+            # 获取描述信息（优先中文）
+            description_info = pre_config.get("Description", {})
+            if isinstance(description_info, dict):
+                description_json["Description"] = description_info.get("zh-cn",
+                                                                       description_info.get("en", tool_name))
+            else:
+                description_json["Description"] = str(description_info) if description_info else tool_name
+
+            #TODO 后续删除
+            description_json["Description"] = "test"
+
+
+            # 获取包路径
+            package_path = tool_config.get("packageOssPath")
+            if package_path:
+                description_json["Path"] = f"oss://packages{package_path}"
+
+
+            # 获取图标
+            icon = tool_config.get("customIcon") or pre_config.get("Icon")
+            if icon:
+                description_json["Icon"] = icon
+
+            # 添加其他有用信息
+            if pre_config.get("ServiceName"):
+                service_name = pre_config["ServiceName"]
+                if isinstance(service_name, dict):
+                    description_json["ServiceName"] = service_name.get("zh-cn",
+                                                                       service_name.get("en", tool_name))
+
+            # if pre_config.get("Tags"):
+            #     description_json["Tags"] = pre_config["Tags"]
+
+            # if pre_config.get("ReadMeUrl"):
+            #     description_json["ReadMeUrl"] = pre_config["ReadMeUrl"]
+
+            # 转换为JSON字符串
+            return json.dumps(description_json, ensure_ascii=False, separators=(',', ':'))
+
+        except Exception as e:
+            self.logger.warning(f"生成工具 {tool_name} 描述失败: {e}")
+            return tool_name
+
     def get_mcp_plugin_id(self, gateway_id: str) -> Optional[str]:
         """获取指定网关的MCP服务器插件ID"""
         self.logger.info(f"获取网关 {gateway_id} 的MCP插件ID")
@@ -431,8 +531,13 @@ class MCPGatewayRegistrar:
             return False
 
     def ensure_route(self, http_api_id: str, gateway_id: str, environment_id: str,
-                     tool_name: str, domain_id: str, service_id: str, force_update: bool = True) -> Tuple[str, bool]:
+                     tool_name: str, domain_id: str, service_id: str, force_update: bool = True,
+                     tools_config_path: str = None, pre_config_path: str = "/root/pre-mcp-tools.json") -> Tuple[str, bool]:
         """确保路由存在，返回(route_id, need_update_config)（默认强制更新）"""
+
+        # 生成描述信息
+        description = self._generate_route_description(tool_name, tools_config_path, pre_config_path) if tools_config_path else tool_name
+
         # 检查现有路由
         existing_routes = self._find_items_by_name(gateway_id, f"/v1/http-apis/{http_api_id}/routes",
                                                    tool_name, environmentId=environment_id)
@@ -440,15 +545,20 @@ class MCPGatewayRegistrar:
             route_id = existing_routes[0].get("routeId")
             self.logger.info(f"路由 {tool_name} 已存在，ID: {route_id}")
 
-            # 检查路由是否使用了正确的域名
+            # 检查路由是否使用了正确的域名和描述
             try:
                 response = self._execute_aliyun_cli("GET", f"/v1/http-apis/{http_api_id}/routes/{route_id}")
                 route_data = self._check_response(response, "获取路由详情")
                 current_domain_ids = route_data.get("domainIds", [])
+                current_description = route_data.get("description", "")
 
-                if domain_id not in current_domain_ids:
-                    self.logger.info(f"路由 {tool_name} 需要更新域名配置")
-                    # 更新路由的域名配置
+                # 检查是否需要更新
+                need_update = (domain_id not in current_domain_ids or
+                               current_description != description)
+
+                if need_update:
+                    self.logger.info(f"路由 {tool_name} 需要更新配置")
+                    # 更新路由配置
                     update_body = {
                         "domainIds": [domain_id],
                         "environmentId": environment_id,
@@ -456,12 +566,12 @@ class MCPGatewayRegistrar:
                         "backendConfig": route_data.get("backendConfig"),
                         "mcpRouteConfig": route_data.get("mcpRouteConfig"),
                         "name": tool_name,
-                        "description": route_data.get("description", tool_name)
+                        "description": description  # 使用新生成的描述
                     }
                     self._execute_aliyun_cli("PUT", f"/v1/http-apis/{http_api_id}/routes/{route_id}", update_body)
-                    self.logger.info(f"路由 {tool_name} 域名配置已更新")
+                    self.logger.info(f"路由 {tool_name} 配置已更新")
             except Exception as e:
-                self.logger.warning(f"检查或更新路由域名配置失败: {e}")
+                self.logger.warning(f"检查或更新路由配置失败: {e}")
 
             # 检查并解决插件冲突
             conflict_resolved = self._check_and_resolve_plugin_conflicts(route_id, force_update)
@@ -476,7 +586,7 @@ class MCPGatewayRegistrar:
             "backendConfig": {"scene": "SingleService", "services": [{"serviceId": service_id}]},
             "mcpRouteConfig": {"protocol": "HTTP"},
             "name": tool_name,
-            "description": tool_name
+            "description": description  # 使用新生成的描述
         }
         response = self._execute_aliyun_cli("POST", f"/v1/http-apis/{http_api_id}/routes", body)
         data = self._check_response(response, "创建路由")
@@ -1140,12 +1250,22 @@ class MCPGatewayRegistrar:
             self.logger.warning(f"获取已发布路由失败: {e}")
             return []
 
-    def extract_tools_from_config(self, config_path: str) -> List[ str ]:
+    def extract_tools_from_config(self, config_path: str) -> List[str]:
         """从配置文件提取工具列表"""
         try:
             with open(config_path, 'r', encoding='utf-8') as f:
                 config = json.load(f)
-            tools = list(config.get('mcpServers', {}).keys())
+
+            # 适应新的配置格式
+            mcp_servers = config.get('mcpServers', [])
+            if isinstance(mcp_servers, list):
+                # 新格式：mcpServers是数组
+                tools = [server.get('serverCode') for server in mcp_servers
+                         if server.get('serverCode')]
+            else:
+                # 旧格式：mcpServers是对象
+                tools = list(mcp_servers.keys())
+
             self.logger.info(f"找到 {len(tools)} 个工具: {', '.join(tools)}")
             return tools
         except Exception as e:
@@ -1249,7 +1369,8 @@ class MCPGatewayRegistrar:
                                   openapi_base_url: str = "http://127.0.0.1:8000",
                                   skip_auth: bool = False, force_update: bool = True,
                                   domain_id: str = None,
-                                  mode: str = "create") -> Tuple[int, int, List[str], List[str]]:
+                                  mode: str = "create",
+                                  pre_config_path: str = "/root/pre-mcp-tools.json") -> Tuple[int, int, List[str], List[str]]:
         """带状态管理的工具注册（支持变配模式）"""
         self.logger.info(f"开始{mode}模式的MCP工具操作，共享服务名称: {shared_service_name}")
 
@@ -1288,10 +1409,11 @@ class MCPGatewayRegistrar:
                         failed_tools.append(tool_name)
                         continue
 
-                    # 创建路由
+                    # 创建路由（传递配置文件路径）
                     route_id, need_update = self.ensure_route(
                         http_api_id, gateway_id, environment_id,
-                        tool_name, domain_id, shared_service_id, force_update
+                        tool_name, domain_id, shared_service_id, force_update,
+                        tools_config, pre_config_path  # 传递配置文件路径
                     )
 
                     if route_id and need_update:
@@ -1716,6 +1838,8 @@ def main():
     register_parser.add_argument("--plugin-id", help="插件ID（不提供则自动获取）")
     register_parser.add_argument("--private-ip", required=True, help="内网IP地址")
     register_parser.add_argument("--tools-config", required=True, help="工具配置文件路径")
+    register_parser.add_argument("--pre-config", default="/root/pre-mcp-tools.json",
+                                 help="预定义工具配置文件路径（默认: /root/pre-mcp-tools.json）")
     register_parser.add_argument("--api-key", required=False, help="API密钥")
     register_parser.add_argument("--openapi-base-url", default="http://127.0.0.1:8000", help="OpenAPI基础URL")
     register_parser.add_argument("--domain-id", help="指定域名ID（不提供则使用通配符域名）")
@@ -1776,7 +1900,8 @@ def main():
                 skip_auth=args.skip_auth,
                 force_update=True,
                 domain_id=args.domain_id,
-                mode=args.mode
+                mode=args.mode,
+                pre_config_path=args.pre_config  # 传递预定义配置文件路径
             )
 
             # 输出结果
@@ -1885,4 +2010,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
