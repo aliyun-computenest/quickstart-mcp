@@ -294,6 +294,19 @@ class MCPGatewayRegistrar:
             # 构建描述JSON
             description_json = {}
 
+            # 添加 name 字段
+            name_info = pre_config.get("ServiceName", {})
+            if isinstance(name_info, dict):
+                description_json["name"] = name_info.get("zh-cn", name_info.get("en", tool_name))
+            elif name_info:
+                description_json["name"] = str(name_info)
+            else:
+                # 如果预定义配置中没有ServiceName，使用工具名称
+                description_json["name"] = tool_name
+
+            # 添加 code 字段
+            description_json["code"] = tool_name  # 使用serverCode作为code
+
             # 获取描述信息（优先中文）
             description_info = pre_config.get("Description", {})
             if isinstance(description_info, dict):

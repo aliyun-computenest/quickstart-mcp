@@ -17,7 +17,6 @@ Parameters:
     Label:
       zh-cn: AI域名
       en: AI DomainId
-    Default: ""
   InternetMaxBandwidthOut:
     Type: Number
     Label:
@@ -473,8 +472,6 @@ Metadata:
             zh-cn: 付费时长
             en: Pay Period
           Value: ${PayPeriod} ${PayPeriodUnit}
-      CustomFields:
-        - Key: InstancePassword
       CostRelatedKeys:
         - RegionId
         - PayPeriod
