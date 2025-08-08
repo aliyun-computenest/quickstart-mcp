@@ -22,7 +22,7 @@ Service:
         Type: Custom
         Parameters:
         - EcsInstanceType
-      - Name: 修改MCP工具
+      - Name: Modify-MCP-Servers
         Description: 修改已部署的MCP工具
         Type: Custom
         SupportPredefinedParameters: false
@@ -36,7 +36,7 @@ Service:
         Type: Custom
         Parameters:
         - EcsInstanceType
-      - Name: 修改MCP工具
+      - Name: Modify-MCP-Servers
         Description: 修改已部署的MCP工具（10个以内）
         Type: Custom
         SupportPredefinedParameters: false
