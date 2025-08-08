@@ -151,6 +151,12 @@ MCP Server社区版在计算巢上的费用主要涉及：
 3. 新建个对话，并开启MCP工具![img_9.png](img-deploy/img_9.png)
 4. 验证一下AI使用您的MCP工具！ ![img_10.png](img-deploy/img_10.png)
 
+## Cline使用示例
+1. 来到计算巢实例界面，![img_7.png](img-deploy/img_7.png),点击MCP 控制台
+2. 进入控制台，将配置复制好。![img_5.png](cline/img_5.png)
+3. 打开Cline，按照图示位置打开MCP的配置，将第二部的配置信息粘贴。![img_6.png](cline/img_6.png)
+4. 调用MCP工具。![img_7.png](cline/img_7.png)
+
 ## 问题排查
 
 如果发现实例一直未部署成功，90%的概率是环境变量配置错误，可参考以下步骤排查：
