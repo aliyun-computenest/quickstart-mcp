@@ -475,5 +475,3 @@ Metadata:
       CostRelatedKeys:
         - RegionId
         - PayPeriod
-      AutomaticZone:
-        ZoneIdKey: ZoneId
