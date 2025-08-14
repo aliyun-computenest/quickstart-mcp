@@ -27,6 +27,10 @@ Conditions:
     Fn::Equals:
       - NewSecurityGroup
       - Ref: SecurityGroupOption
+  CreateOssConditions:
+    Fn::Equals:
+      - NewOSS
+      - Ref: OssOption
 Parameters:
   SupportPublicAccess:
     Type: Boolean
@@ -313,15 +317,54 @@ Parameters:
           Fn::Equals:
             - ExistingSecurityGroup
             - ${SecurityGroupOption}
+  OssOption:
+    Type: String
+    AllowedValues:
+      - NewOSS
+      - ExistingOSS
+    AssociationPropertyMetadata:
+      ValueLabelMapping:
+        NewOSS:
+          zh-cn: 新建OSS存储桶
+          en: New OSS Bucket
+        ExistingOSS:
+          zh-cn: 已有OSS存储桶
+          en: Existing OSS Bucket
+    Label:
+      en: Select Existing or New OSS Bucket
+      zh-cn: 选择已有/新建的OSS存储桶
+    Required: true
+    Default: NewOSS
+  BucketName:
+    Type: String
+    Label:
+      en: OSS Bucket Name
+      zh-cn: OSS存储桶名称
+    Required:
+      Fn::Equals:
+        - ExistingOSS
+        - ${OssOption}
+    Default: ''
+    AssociationProperty: ALIYUN::OSS::Bucket::BucketName
+    AssociationPropertyMetadata:
+      Visible:
+        Condition:
+          Fn::Equals:
+            - ExistingOSS
+            - ${OssOption}
 Resources:
   OSSBucket:
     Type: 'ALIYUN::OSS::Bucket'
+    Condition: CreateOssConditions
     Properties:
       DeletionForce: true
       BucketName:
-        Ref: ALIYUN::StackName
+        Fn::If:
+          - CreateOssConditions
+          - Ref: ALIYUN::StackName
+          - Ref: BucketName
   OSSRamUser:
-    DependsOn: OSSBucket
+    Condition: CreateOssConditions
     Type: ALIYUN::RAM::Role
     Properties:
       RoleName:
@@ -355,15 +398,21 @@ Resources:
                   - Fn::Sub:
                       - "acs:oss:*:*:${BucketName}"
                       - BucketName:
-                          Fn::GetAtt:
-                            - OSSBucket
-                            - Name
+                          Fn::If:
+                            - CreateOssConditions
+                            - Fn::GetAtt:
+                                - OSSBucket
+                                - Name
+                            - Ref: BucketName
                   - Fn::Sub:
                       - "acs:oss:*:*:${BucketName}/*"
                       - BucketName:
-                          Fn::GetAtt:
-                            - OSSBucket
-                            - Name
+                          Fn::If:
+                            - CreateOssConditions
+                            - Fn::GetAtt:
+                                - OSSBucket
+                                - Name
+                            - Ref: BucketName
             Version: '1'
   MCP_KEY:
     Type: ALIYUN::RandomString
@@ -595,14 +644,18 @@ Resources:
             
             for ((i=1; i<=MAX_ATTEMPTS; i++))
               do
-                LATEST_LOG=$(docker logs mcpo-service 2>&1 | tail -n 10)
-                if echo "$LATEST_LOG" | grep -q "Application startup complete"
-                  then
-                    echo "success"
-                    break
-                  else
-                    sleep $INTERVAL
-              fi
+                if [ -f "/root/application/mcp/logs/mcpo.log" ]; then
+                  LATEST_LOG=$(tail -n 10 /root/application/mcp/logs/mcpo.log 2>/dev/null)
+                  if echo "$LATEST_LOG" | grep -q "Application startup complete"
+                    then
+                      echo "success"
+                      break
+                    else
+                      sleep $INTERVAL
+                  fi
+                else
+                  sleep $INTERVAL
+                fi
             done
             for ((i=1; i<=MAX_ATTEMPTS; i++))
               do
@@ -699,9 +752,12 @@ Resources:
                 - ""
                 - "--skip-auth"
             bucketName:
-              Fn::GetAtt:
-                - OSSBucket
-                - Name
+              Fn::If:
+                - CreateOssConditions
+                - Fn::GetAtt:
+                    - OSSBucket
+                    - Name
+                - Ref: BucketName
             RamRoleName:
               Fn::GetAtt:
                 - OSSRamUser
@@ -784,7 +840,11 @@ Metadata:
           - AuthenticationOption
         Label:
           Default: Mcp配置(可多选，10个以内)
-
+      - Parameters:
+          - OssOption
+          - BucketName
+        Label:
+          Default: OSS存储配置
       - Parameters:
           - PayType
           - PayPeriodUnit

@@ -321,8 +321,8 @@ class MCPGatewayRegistrar:
 
             # 获取包路径
             package_path = tool_config.get("packageOssPath")
-            if package_path:
-                description_json["Path"] = f"oss://packages{package_path}"
+            # if package_path:
+            #     description_json["Path"] = f"oss://packages{package_path}"
 
 
             # 获取图标
@@ -334,7 +334,7 @@ class MCPGatewayRegistrar:
             if pre_config.get("ServiceName"):
                 service_name = pre_config["ServiceName"]
                 if isinstance(service_name, dict):
-                    description_json["ServiceName"] = service_name.get("zh-cn",
+                    description_json["Name"] = service_name.get("zh-cn",
                                                                        service_name.get("en", tool_name))
 
             # if pre_config.get("Tags"):

@@ -1,4 +1,9 @@
 ROSTemplateFormatVersion: '2015-09-01'
+Conditions:
+  CreateOssConditions:
+    Fn::Equals:
+      - NewOSS
+      - Ref: OssOption
 Parameters:
   HigressAI:
     Type: String
@@ -17,6 +22,41 @@ Parameters:
     Label:
       zh-cn: AI域名
       en: AI DomainId
+  OssOption:
+    Type: String
+    AllowedValues:
+      - NewOSS
+      - ExistingOSS
+    AssociationPropertyMetadata:
+      ValueLabelMapping:
+        NewOSS:
+          zh-cn: 新建OSS存储桶
+          en: New OSS Bucket
+        ExistingOSS:
+          zh-cn: 已有OSS存储桶
+          en: Existing OSS Bucket
+    Label:
+      en: Select Existing or New OSS Bucket
+      zh-cn: 选择已有/新建的OSS存储桶
+    Required: true
+    Default: NewOSS
+  BucketName:
+    Type: String
+    Label:
+      en: OSS Bucket Name
+      zh-cn: OSS存储桶名称
+    Required:
+      Fn::Equals:
+        - ExistingOSS
+        - ${OssOption}
+    Default: ''
+    AssociationProperty: ALIYUN::OSS::Bucket::BucketName
+    AssociationPropertyMetadata:
+      Visible:
+        Condition:
+          Fn::Equals:
+            - ExistingOSS
+            - ${OssOption}
   InternetMaxBandwidthOut:
     Type: Number
     Label:
@@ -147,8 +187,60 @@ Resources:
         Ref: HigressAI
   OSSBucket:
     Type: 'ALIYUN::OSS::Bucket'
+    Condition: CreateOssConditions
     Properties:
       DeletionForce: true
+      Policy:
+        Version: "1"
+        Statement:
+          - Effect: "Allow"
+            Action:
+              - "oss:GetObject"
+              - "oss:PutObject"
+              - "oss:GetObjectAcl"
+              - "oss:PutObjectAcl"
+              - "oss:AbortMultipartUpload"
+              - "oss:ListParts"
+              - "oss:RestoreObject"
+              - "oss:GetVodPlaylist"
+              - "oss:PostVodPlaylist"
+              - "oss:PublishRtmpStream"
+              - "oss:ListObjectVersions"
+              - "oss:GetObjectVersion"
+              - "oss:GetObjectVersionAcl"
+              - "oss:RestoreObjectVersion"
+            Principal:
+              - Ref: ALIYUN::AccountId  # 执行者账号ID（可能是子账号）
+            Resource:
+              - Fn::Sub:
+                  - "acs:oss:*:${TenantId}:${BucketName}/*"
+                  - TenantId:
+                      Ref: ALIYUN::TenantId
+                    BucketName:
+                      Fn::If:
+                        - CreateOssConditions
+                        - Ref: ALIYUN::StackName
+                        - Ref: BucketName
+          - Effect: "Allow"
+            Action:
+              - "oss:ListObjects"
+            Principal:
+              - Ref: ALIYUN::AccountId  # 执行者账号ID（可能是子账号）
+            Resource:
+              - Fn::Sub:
+                  - "acs:oss:*:${TenantId}:${BucketName}"
+                  - TenantId:
+                      Ref: ALIYUN::TenantId
+                    BucketName:
+                      Fn::If:
+                        - CreateOssConditions
+                        - Ref: ALIYUN::StackName
+                        - Ref: BucketName
+            Condition:
+              StringLike:
+                "oss:Prefix":
+                  - "*"
+
       BucketName:
         Ref: ALIYUN::StackName
   EcsRole:
@@ -185,15 +277,21 @@ Resources:
                   - Fn::Sub:
                       - "acs:oss:*:*:${BucketName}"
                       - BucketName:
-                          Fn::GetAtt:
-                            - OSSBucket
-                            - Name
+                          Fn::If:
+                            - CreateOssConditions
+                            - Fn::GetAtt:
+                                - OSSBucket
+                                - Name
+                            - Ref: BucketName
                   - Fn::Sub:
                       - "acs:oss:*:*:${BucketName}/*"
                       - BucketName:
-                          Fn::GetAtt:
-                            - OSSBucket
-                            - Name
+                          Fn::If:
+                            - CreateOssConditions
+                            - Fn::GetAtt:
+                                - OSSBucket
+                                - Name
+                            - Ref: BucketName
               - Action:
                   - apig:*
                   - ram:GetRole
@@ -337,14 +435,18 @@ Resources:
 
             for ((i=1; i<=MAX_ATTEMPTS; i++))
               do
-                LATEST_LOG=$(docker logs mcpo-service 2>&1 | tail -n 10)
-                if echo "$LATEST_LOG" | grep -q "Application startup complete"
-                  then
-                    echo "success"
-                    break
-                  else
-                    sleep $INTERVAL
-              fi
+                if [ -f "/root/application/mcp/logs/mcpo.log" ]; then
+                  LATEST_LOG=$(tail -n 10 /root/application/mcp/logs/mcpo.log 2>/dev/null)
+                  if echo "$LATEST_LOG" | grep -q "Application startup complete"
+                    then
+                      echo "success"
+                      break
+                    else
+                      sleep $INTERVAL
+                  fi
+                else
+                  sleep $INTERVAL
+                fi
             done
             sleep 15
 
@@ -436,6 +538,12 @@ Metadata:
         Label:
           zh-cn: Mcp配置(可多选)
           en: Mcp Config
+      - Parameters:
+          - OssOption
+          - BucketName
+        Label:
+          zh-cn: OSS存储配置
+          en: OSS Storage Configuration
       - Parameters:
           - HigressAI
           - HigressDomainId
