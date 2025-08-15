@@ -468,6 +468,25 @@ Resources:
             --mode EcsRamRole \
             --ram-role-name ${RamRoleName} \
             --region ${RegionId}
+            
+            # 前置条件检查和ossutil安装
+            if ! command -v ossutil64 &> /dev/null; then
+              echo "安装ossutil..."
+              sudo -v ; curl https://gosspublic.alicdn.com/ossutil/install.sh | sudo bash
+            fi
+            
+            # 配置ossutil（通过实例RAM角色）
+            cat > ~/.ossutilconfig << EOF
+            [Credentials]
+            endpoint = oss-${RegionId}-internal.aliyuncs.com
+            region = ${RegionId}
+            mode = EcsRamRole
+            ecsRoleName = ${RamRoleName}
+            EOF
+            
+            # 创建本地包目录。不存在才创建
+            mkdir -p /root/package
+            python download_oss.py ${BucketName} /root/config.json
             # 再新建
             python higress_enterprise.py register --gateway-id ${GatewayID} ${mcp_KEY} --private-ip ${private_ip} --domain-id "${DomainId}" --tools-config /root/config.json --region ${RegionId} --si {{ serviceInstanceId }} --mode create-skip
             sleep 10
@@ -496,6 +515,11 @@ Resources:
                           - PrivateIps
             DomainId:
               Ref: HigressDomainId
+            BucketName:
+              Fn::If:
+                - CreateOssConditions
+                - Ref: ALIYUN::StackName
+                - Ref: BucketName
       CommandContentOnDeletion:
         Fn::Sub:
           - |
