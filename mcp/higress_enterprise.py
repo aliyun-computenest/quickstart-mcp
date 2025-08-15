@@ -304,44 +304,28 @@ class MCPGatewayRegistrar:
                 # 如果预定义配置中没有ServiceName，使用工具名称
                 description_json["Name"] = tool_name
 
-            # 添加 code 字段
-            # description_json["Code"] = tool_name  # 使用serverCode作为code
-
             # 获取描述信息（优先中文）
             description_info = pre_config.get("Description", {})
             if isinstance(description_info, dict):
-                description_json["Description"] = description_info.get("zh-cn",
-                                                                       description_info.get("en", tool_name))
+                full_description = description_info.get("zh-cn", description_info.get("en", tool_name))
             else:
-                description_json["Description"] = str(description_info) if description_info else tool_name
+                full_description = str(description_info) if description_info else tool_name
 
-            #TODO 后续删除
-            description_json["Description"] = "test"
-
+            # 截取前20个字符并添加省略号
+            if len(full_description) > 60:
+                description_json["Description"] = full_description[:60] + "..."
+            else:
+                description_json["Description"] = full_description
 
             # 获取包路径
             package_path = tool_config.get("packageOssPath")
             # if package_path:
             #     description_json["Path"] = f"oss://packages{package_path}"
 
-
             # 获取图标
             icon = tool_config.get("icon") or pre_config.get("Icon")
             if icon:
                 description_json["Icon"] = icon
-
-            # 添加其他有用信息
-            # if pre_config.get("ServiceName"):
-            #     service_name = pre_config["ServiceName"]
-            #     if isinstance(service_name, dict):
-            #         description_json["Name"] = service_name.get("zh-cn",
-            #                                                            service_name.get("en", tool_name))
-
-            # if pre_config.get("Tags"):
-            #     description_json["Tags"] = pre_config["Tags"]
-
-            # if pre_config.get("ReadMeUrl"):
-            #     description_json["ReadMeUrl"] = pre_config["ReadMeUrl"]
 
             # 转换为JSON字符串
             return json.dumps(description_json, ensure_ascii=False, separators=(',', ':'))
@@ -1384,16 +1368,16 @@ class MCPGatewayRegistrar:
                                   domain_id: str = None,
                                   mode: str = "create",
                                   pre_config_path: str = "/root/pre-mcp-tools.json") -> Tuple[int, int, List[str], List[str]]:
-        """带状态管理的工具注册（支持变配模式）"""
+        """带状态管理的工具注册（支持变配模式和跳过已存在工具模式）"""
         self.logger.info(f"开始{mode}模式的MCP工具操作，共享服务名称: {shared_service_name}")
 
         if mode == "update":
             # update模式：只清理现有工具，不创建新工具
             return self.cleanup_for_update(gateway_id, plugin_id, tools_config)
 
-        # create模式：正常的创建流程
+        # create 和 create-skip 模式：正常的创建流程
         current_tools_list = self.extract_tools_from_config(tools_config)
-        success_tools, failed_tools = [], []
+        success_tools, failed_tools, skipped_tools = [], [], []
 
         try:
             # 获取基础信息
@@ -1416,17 +1400,30 @@ class MCPGatewayRegistrar:
                 try:
                     self.logger.info(f"📝 处理工具: {tool_name}")
 
+                    # create-skip 模式：检查工具是否已存在
+                    if mode == "create-skip":
+                        existing_routes = self._find_items_by_name(gateway_id, f"/v1/http-apis/{http_api_id}/routes",
+                                                                   tool_name, environmentId=environment_id)
+                        if existing_routes:
+                            self.logger.info(f"⏭️  工具 {tool_name} 已存在，跳过创建")
+                            skipped_tools.append(tool_name)
+                            continue
+
                     # 验证工具
                     if not self._validate_mcp_service_tools(openapi_base_url, tool_name):
                         self.logger.error(f"❌ 工具 {tool_name} 验证失败")
-                        failed_tools.append(tool_name)
+                        if mode == "create-skip":
+                            skipped_tools.append(tool_name)
+                        else:
+                            failed_tools.append(tool_name)
                         continue
 
                     # 创建路由（传递配置文件路径）
                     route_id, need_update = self.ensure_route(
                         http_api_id, gateway_id, environment_id,
-                        tool_name, domain_id, shared_service_id, force_update,
-                        tools_config, pre_config_path  # 传递配置文件路径
+                        tool_name, domain_id, shared_service_id,
+                        force_update if mode == "create" else False,  # create-skip 模式不强制更新
+                        tools_config, pre_config_path
                     )
 
                     if route_id and need_update:
@@ -1451,13 +1448,21 @@ class MCPGatewayRegistrar:
                     success_tools.append(tool_name)
 
                 except Exception as e:
-                    self.logger.error(f"❌ 处理工具 {tool_name} 失败: {e}")
-                    failed_tools.append(tool_name)
+                    if mode == "create-skip":
+                        self.logger.warning(f"⚠️  处理工具 {tool_name} 失败，跳过: {e}")
+                        skipped_tools.append(tool_name)
+                    else:
+                        self.logger.error(f"❌ 处理工具 {tool_name} 失败: {e}")
+                        failed_tools.append(tool_name)
 
             # 发布新创建的路由
             if created_route_ids:
                 self.logger.info(f"🚀 发布 {len(created_route_ids)} 个新路由")
                 self.deploy_http_api(http_api_id, environment_id, gateway_id, created_route_ids)
+
+            # 输出跳过的工具信息
+            if mode == "create-skip" and skipped_tools:
+                self.logger.info(f"⏭️  跳过 {len(skipped_tools)} 个已存在的工具: {', '.join(skipped_tools)}")
 
             return len(success_tools), len(failed_tools), success_tools, failed_tools
 
@@ -1857,8 +1862,8 @@ def main():
     register_parser.add_argument("--openapi-base-url", default="http://127.0.0.1:8000", help="OpenAPI基础URL")
     register_parser.add_argument("--domain-id", help="指定域名ID（不提供则使用通配符域名）")
     register_parser.add_argument("--skip-auth", action="store_true", help="跳过添加鉴权信息")
-    register_parser.add_argument("--mode", choices=["create", "update"], default="create",
-                                 help="模式：create(新建/创建工具) 或 update(变配/清理现有工具)")
+    register_parser.add_argument("--mode", choices=["create", "create-skip", "update"], default="create",
+                                 help="模式：create(新建/创建工具) 或 create-skip(创建工具但跳过已存在的) 或 update(变配/清理现有工具)")
     register_parser.add_argument("--si", required=True, help="共享服务名称（必须传入，格式如：si-xxxx）")
 
     # 清理命令
@@ -1944,9 +1949,12 @@ def main():
                     print("⚠️  部分工具清理失败")
                     sys.exit(1)
             else:
-                # create模式的输出
+                # create 和 create-skip 模式的输出
                 print(f"\n{'=' * 50}")
-                print("📊 MCP工具创建统计结果")
+                if args.mode == "create-skip":
+                    print("📊 MCP工具创建统计结果（跳过已存在）")
+                else:
+                    print("📊 MCP工具创建统计结果")
                 print(f"{'=' * 50}")
                 print(f"🔧 插件ID: {plugin_id}")
                 print(f"🏷️  共享服务名称: {args.si}")
@@ -1962,7 +1970,10 @@ def main():
 
                 # 设置退出码
                 if failed_count == 0:
-                    print("🎉 所有工具都已成功注册并发布！")
+                    if args.mode == "create-skip":
+                        print("🎉 所有工具都已成功处理（包括跳过的已存在工具）！")
+                    else:
+                        print("🎉 所有工具都已成功注册并发布！")
                     sys.exit(0)
                 elif success_count > 0:
                     print("⚠️  部分工具注册成功")
