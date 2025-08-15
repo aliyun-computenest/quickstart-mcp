@@ -297,15 +297,15 @@ class MCPGatewayRegistrar:
             # 添加 name 字段
             name_info = pre_config.get("ServiceName", {})
             if isinstance(name_info, dict):
-                description_json["name"] = name_info.get("zh-cn", name_info.get("en", tool_name))
+                description_json["Name"] = name_info.get("zh-cn", name_info.get("en", tool_name))
             elif name_info:
-                description_json["name"] = str(name_info)
+                description_json["Name"] = str(name_info)
             else:
                 # 如果预定义配置中没有ServiceName，使用工具名称
-                description_json["name"] = tool_name
+                description_json["Name"] = tool_name
 
             # 添加 code 字段
-            description_json["code"] = tool_name  # 使用serverCode作为code
+            # description_json["Code"] = tool_name  # 使用serverCode作为code
 
             # 获取描述信息（优先中文）
             description_info = pre_config.get("Description", {})
@@ -326,16 +326,16 @@ class MCPGatewayRegistrar:
 
 
             # 获取图标
-            icon = tool_config.get("customIcon") or pre_config.get("Icon")
+            icon = tool_config.get("icon") or pre_config.get("icon")
             if icon:
                 description_json["Icon"] = icon
 
             # 添加其他有用信息
-            if pre_config.get("ServiceName"):
-                service_name = pre_config["ServiceName"]
-                if isinstance(service_name, dict):
-                    description_json["Name"] = service_name.get("zh-cn",
-                                                                       service_name.get("en", tool_name))
+            # if pre_config.get("ServiceName"):
+            #     service_name = pre_config["ServiceName"]
+            #     if isinstance(service_name, dict):
+            #         description_json["Name"] = service_name.get("zh-cn",
+            #                                                            service_name.get("en", tool_name))
 
             # if pre_config.get("Tags"):
             #     description_json["Tags"] = pre_config["Tags"]

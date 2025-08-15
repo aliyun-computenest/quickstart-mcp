@@ -10,6 +10,8 @@ Parameters:
     AssociationProperty: ALIYUN::APIG::Gateway::GatewayId
     AssociationPropertyMetadata:
       GatewayType: AI
+      RegionId:
+        Ref: ALIYUN::Region
     Label:
       zh-cn: AI网关
       en: AI Gateway
@@ -64,6 +66,7 @@ Parameters:
       en: Internet Max Bandwidth Out (Mbps)
     MinValue: 1
     MaxValue: 100
+    Default: 8
   InternetChargeType:
     Type: String
     Label:
@@ -76,6 +79,7 @@ Parameters:
     AllowedValues:
       - PayByBandwidth
       - PayByTraffic
+    Default: PayByTraffic
   McpConfigJson:
     Type: Json
     Label:
@@ -475,7 +479,7 @@ Resources:
             MCP_RESULT:
               Fn::Jq:
                 - First
-                - '{mcpServers: map({ key: .serverCode, value: { command, args, env,type,url } }) | from_entries }'
+                - '{mcpServers: map({ key: .serverCode, value: { command, args, env,type,url,packageOssPath,icon } }) | from_entries }'
                 - Ref: McpConfigJson
             GatewayID:
               Ref: HigressAI
