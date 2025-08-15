@@ -326,7 +326,7 @@ class MCPGatewayRegistrar:
 
 
             # 获取图标
-            icon = tool_config.get("icon") or pre_config.get("icon")
+            icon = tool_config.get("icon") or pre_config.get("Icon")
             if icon:
                 description_json["Icon"] = icon
 
