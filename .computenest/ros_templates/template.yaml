@@ -364,7 +364,6 @@ Resources:
           - Ref: ALIYUN::StackName
           - Ref: BucketName
   OSSRamUser:
-    Condition: CreateOssConditions
     Type: ALIYUN::RAM::Role
     Properties:
       RoleName:
@@ -583,7 +582,7 @@ Resources:
             --region ${RegionId}
             
             # 前置条件检查和ossutil安装
-            if ! command -v ossutil64 &> /dev/null; then
+            if ! command -v ossutil &> /dev/null; then
               echo "安装ossutil..."
               curl -o ossutil-2.1.1-linux-amd64.zip https://gosspublic.alicdn.com/ossutil/v2/2.1.1/ossutil-2.1.1-linux-amd64.zip
               unzip ossutil-2.1.1-linux-amd64.zip
@@ -591,6 +590,7 @@ Resources:
               chmod 755 ossutil
               sudo mv ossutil /usr/local/bin/ && sudo ln -s /usr/local/bin/ossutil /usr/bin/ossutil
             fi
+          
             
             # 配置ossutil（通过实例RAM角色）
             if [ ! -f ~/.ossutilconfig ]; then
@@ -603,9 +603,7 @@ Resources:
             ecsRoleName = ${RamRoleName}
             EOF
             fi
-            
 
-            python download_oss.py ${BucketName} /root/config.json
             
             cpu_cores=$(nproc)
             if [ $cpu_cores -eq 4 ]; then
@@ -620,7 +618,7 @@ Resources:
             ${MCP_RESULT}
             EOF
             set +e
-            cd /root/application
+            cd /root/application/mcp
             echo "开始下载MCP服务器包..."
             python download_oss.py '${bucketName}' /root/config.json
             download_result=$?
