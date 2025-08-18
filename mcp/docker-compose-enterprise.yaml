@@ -10,7 +10,7 @@ services:
       - "8000:8000"
     volumes:
       - /root/config.json:/app/config.json
-      - /root/package:/package
+      - /root/mcp-package:/mcp-package
       - ./logs:/app/logs  # 挂载本地目录到容器内的日志目录
     restart: unless-stopped
     environment:
