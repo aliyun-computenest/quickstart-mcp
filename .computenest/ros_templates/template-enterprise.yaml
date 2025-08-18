@@ -422,6 +422,8 @@ Resources:
             
             # 创建本地包目录。不存在才创建
             mkdir -p /root/mcp-package
+            cd /root/application/mcp
+
             python download_oss.py ${BucketName} /root/config.json
 
             file_path="/etc/systemd/system/quickstart-mcp.service"
