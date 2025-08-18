@@ -719,13 +719,13 @@ Resources:
             MCP_RESULT:
               Fn::Jq:
                 - "First"
-                - '{mcpServers: map({ key: .serverCode, value: { command, args, env,type,url } }) | from_entries }'
+                - '{mcpServers: map({ key: .serverCode, value: { command, args, env,type,url,packageOssPath,icon } }) | from_entries }'
                 - Ref: McpConfigJson
 
             OSS_JSON:
               Fn::Jq:
                 - "First"
-                - '{mcpServers: map({ key: .serverCode, value: { command, args, env,type,url,packageOssPath } }) | from_entries }'
+                - '{mcpServers: map({ key: .serverCode, value: { command, args, env,type,url,packageOssPath,packageOssPath,icon } }) | from_entries }'
                 - Ref: McpConfigJson
             private_ip:
               Fn::Sub:
