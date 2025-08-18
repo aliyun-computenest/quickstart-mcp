@@ -485,7 +485,7 @@ Resources:
             EOF
             
             # 创建本地包目录。不存在才创建
-            mkdir -p /root/package
+            mkdir -p /root/mcp-package
             python download_oss.py ${BucketName} /root/config.json
             # 再新建
             python higress_enterprise.py register --gateway-id ${GatewayID} ${mcp_KEY} --private-ip ${private_ip} --domain-id "${DomainId}" --tools-config /root/config.json --region ${RegionId} --si {{ serviceInstanceId }} --mode create-skip

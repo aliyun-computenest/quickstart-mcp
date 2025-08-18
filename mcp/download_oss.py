@@ -69,10 +69,10 @@ def download_package(package_oss_path, bucket_name):
 
     # 从OSS路径中提取文件名
     filename = os.path.basename(package_oss_path.replace('oss://', '').split('/', 1)[1] if package_oss_path.startswith('oss://') else package_oss_path)
-    local_path = f"/root/package/{filename}"
+    local_path = f"/root/mcp-package/{filename}"
 
     # 确保目录存在
-    os.makedirs("/root/package", exist_ok=True)
+    os.makedirs("/root/mcp-package", exist_ok=True)
 
     # 检查本地文件是否已存在，并比较MD5
     if os.path.exists(local_path):
