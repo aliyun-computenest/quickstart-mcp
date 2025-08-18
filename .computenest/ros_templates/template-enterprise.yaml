@@ -405,6 +405,21 @@ Resources:
             EOF
             #sed -i "s|\${!MCP_KEY}|${mcp_KEY}|g" /root/application/mcp/docker-compose-enterprise.yaml
             sed -i "s|\${!MCP_KEY}|${mcp_KEY}|g" /root/application/mcp/docker-compose-enterprise.yaml
+            
+            # 静默卸载 aliyun-cli
+            yum remove aliyun-cli -y
+
+            # 静默下载 aliyun-cli
+            curl -s https://aliyuncli.alicdn.com/aliyun-cli-linux-latest-amd64.tgz -o aliyun-cli-linux-latest.tgz
+
+            # 静默解压 aliyun-cli
+            tar xzf aliyun-cli-linux-latest.tgz
+            ./aliyun configure set \
+            --profile EcsProfile \
+            --mode EcsRamRole \
+            --ram-role-name ${RamRoleName} \
+            --region ${RegionId}
+            
             # 前置条件检查和ossutil安装
             if ! command -v ossutil64 &> /dev/null; then
               echo "安装ossutil..."
@@ -475,19 +490,6 @@ Resources:
             sleep 15
 
             chmod +x /root/application/mcp/openapi-to-mcp
-            # 静默卸载 aliyun-cli
-            yum remove aliyun-cli -y
-
-            # 静默下载 aliyun-cli
-            curl -s https://aliyuncli.alicdn.com/aliyun-cli-linux-latest-amd64.tgz -o aliyun-cli-linux-latest.tgz
-
-            # 静默解压 aliyun-cli
-            tar xzf aliyun-cli-linux-latest.tgz
-            ./aliyun configure set \
-            --profile EcsProfile \
-            --mode EcsRamRole \
-            --ram-role-name ${RamRoleName} \
-            --region ${RegionId}
             
             # 再新建
             python higress_enterprise.py register --gateway-id ${GatewayID} ${mcp_KEY} --private-ip ${private_ip} --domain-id "${DomainId}" --tools-config /root/config.json --region ${RegionId} --si {{ serviceInstanceId }} --mode create-skip
