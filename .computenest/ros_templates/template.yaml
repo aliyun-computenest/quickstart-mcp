@@ -71,6 +71,7 @@ Parameters:
       en: Internet Max Bandwidth Out (Mbps)-Recommended 8Mbps
     MinValue: 1
     MaxValue: 100
+    Default: 8
   InternetChargeType:
     Type: String
     Label:
@@ -83,6 +84,7 @@ Parameters:
     AllowedValues:
       - PayByBandwidth
       - PayByTraffic
+    Default: PayByTraffic
   McpConfigJson:
     Type: Json
     Label:
@@ -212,7 +214,6 @@ Parameters:
       zh-cn: 实例类型
     AssociationProperty: ALIYUN::ECS::Instance::InstanceType
     AllowedValues:
-      - ecs.u1-c1m2.large
       - ecs.u1-c1m4.large
       - ecs.u1-c1m1.xlarge
       - ecs.u1-c1m2.xlarge
@@ -224,6 +225,8 @@ Parameters:
       - ecs.e-c1m4.large
     AssociationPropertyMetadata:
       InstanceChargeType: ${PayType}
+    Default: ecs.u1-c1m1.xlarge
+
   ZoneId:
     Type: String
     Label:
@@ -888,13 +891,40 @@ Metadata:
         Label:
           default: 可用区配置
     QuickDeployConfig:
+      PredefinedParameters:
+        - Name: "入门套餐（1-3个MCP工具）"
+          Parameters:
+            PayType: "PrePaid"
+            EcsInstanceType: "ecs.u1-c1m2.large"
+            InternetChargeType: "PayByBandwidth"
+            InternetMaxBandwidthOut: 10
+            PayPeriod: '1'
+            PayPeriodUnit: "Month"
+          OrderList:
+            - "PayType"
+            - "EcsInstanceType"
+            - "InternetChargeType"
+            - "InternetMaxBandwidthOut"
+          Type: "Normal"
+        - Name: "尝鲜套餐（10个MCP工具以内"
+          Parameters:
+            PayType: "PostPaid"
+            EcsInstanceType: "ecs.u1-c1m4.large"
+            InternetChargeType: "PayByBandwidth"
+            InternetMaxBandwidthOut: 10
+          OrderList:
+            - "PayType"
+            - "EcsInstanceType"
+            - "InternetChargeType"
+            - "InternetMaxBandwidthOut"
+          Type: "Normal"
       PackageFields:
         - Key: EcsInstanceType
         - Key: InternetChargeType
           Label:
             zh-cn: 公网带宽
             en: Internet Charge Type
-          Value: '${InternetChargeType } / ${InternetMaxBandwidthOut} Mbps'
+          Value: '${InternetChargeType} / ${InternetMaxBandwidthOut} Mbps'
         - Key: PayType
           Label:
             zh-cn: 付费类型
@@ -906,7 +936,8 @@ Metadata:
             en: Pay Period
           Value: '${PayPeriod} ${PayPeriodUnit}'
       CostRelatedKeys:
-        - RegionId
-        - PayPeriod
+        - "RegionId"
+        - "PayPeriod"
+        - "PayPeriodUnit"
       AutomaticZone:
-        ZoneIdKey: ZoneId
+        ZoneIdKey: "ZoneId"
