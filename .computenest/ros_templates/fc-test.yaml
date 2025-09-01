@@ -6,6 +6,20 @@ Conditions:
       - NewOSS
       - Ref: OssOption
 
+  CreateGatewayConditions:
+    Fn::Equals:
+      - NewGateway
+      - Ref: GatewayOption
+
+  CreateVpcConditions:
+    Fn::And:
+      - Fn::Equals:
+          - NewGateway
+          - Ref: GatewayOption
+      - Fn::Equals:
+          - NewVPC
+          - Ref: VpcOption
+
 Locals:
   CurTime:
     Type: Eval
@@ -56,11 +70,11 @@ Locals:
         - |
           .[] | [
             if .command == "npx" then 
-              "acs:fc:cn-hangzhou:official:layers/Nodejs-MCP/versions/2" 
+              "acs:fc:cn-hangzhou:official:layers/Nodejs-MCP/versions/2"
             elif .command == "uvx" and (.pkgType == "private") then 
-              "acs:fc:cn-hangzhou:official:layers/Python312/versions/1" 
+              "acs:fc:cn-hangzhou:official:layers/Python312/versions/1"
             else 
-              "acs:fc:cn-hangzhou:official:layers/Python3x-MCP/versions/4" 
+              "acs:fc:cn-hangzhou:official:layers/Python3x-MCP/versions/4"
             end, 
             "acs:fc:cn-hangzhou:1730431480417716:layers/MCP-Runtime-V2/versions/1"
           ]
@@ -123,7 +137,7 @@ Locals:
             [
               "supergateway", 
               "--sse", 
-              ("https://" + .serverCode + "-zwiyplvfcq.cn-hangzhou.fcapp.run/sse"), 
+              .url,
               "--port", "8080", 
               "--ssePath", "/sse", 
               "--messagePath", "/message"
@@ -156,6 +170,16 @@ Locals:
             - Name
         - Ref: BucketName
 
+  # 获取实际使用的网关ID
+  ActualGatewayId:
+    Value:
+      Fn::If:
+        - CreateGatewayConditions
+        - Fn::GetAtt:
+            - NewApigGateway
+            - GatewayId
+        - Ref: HigressAI
+
 Parameters:
   McpConfigJson:
     Type: Json
@@ -168,33 +192,287 @@ Parameters:
       ShowCounts: 9
       ShowTagsCounts: 10
 
+  GatewayOption:
+    Type: String
+    AllowedValues:
+      - ExistingGateway
+      - NewGateway
+    AssociationPropertyMetadata:
+      ValueLabelMapping:
+        ExistingGateway:
+          zh-cn: 使用已有AI网关
+          en: Use Existing AI Gateway
+        NewGateway:
+          zh-cn: 新建AI网关
+          en: Create New AI Gateway
+    Label:
+      en: AI Gateway Option
+      zh-cn: AI网关选项
+    Required: true
+    Default: ExistingGateway
+
   HigressAI:
     Type: String
-    Required: true
+    Required:
+      Fn::Equals:
+        - ExistingGateway
+        - ${GatewayOption}
     AssociationProperty: ALIYUN::APIG::Gateway::GatewayId
     AssociationPropertyMetadata:
       GatewayType: AI
       RegionId:
         Ref: ALIYUN::Region
+      Visible:
+        Condition:
+          Fn::Equals:
+            - ExistingGateway
+            - ${GatewayOption}
     Label:
-      zh-cn: AI网关
-      en: AI Gateway
+      zh-cn: 已有AI网关
+      en: Existing AI Gateway
     Description:
-      zh-cn: AI网关实例ID，用于注册MCP服务
-      en: AI Gateway instance ID for registering MCP services
+      zh-cn: 选择已有的AI网关实例ID
+      en: Select existing AI Gateway instance ID
 
   HigressDomainId:
     Type: String
-    Required: true
+    Required:
+      Fn::Equals:
+        - ExistingGateway
+        - ${GatewayOption}
     AssociationProperty: ALIYUN::APIG::Gateway::ListDomains
     AssociationPropertyMetadata:
       GatewayType: AI
+      Visible:
+        Condition:
+          Fn::Equals:
+            - ExistingGateway
+            - ${GatewayOption}
     Label:
       zh-cn: AI域名
       en: AI DomainId
     Description:
       zh-cn: AI网关域名ID，用于路由配置
       en: AI Gateway domain ID for route configuration
+
+  # 新建网关相关参数
+  GatewayName:
+    Type: String
+    Required:
+      Fn::Equals:
+        - NewGateway
+        - ${GatewayOption}
+    Default: "mcp-ai-gateway"
+    AssociationPropertyMetadata:
+      Visible:
+        Condition:
+          Fn::Equals:
+            - NewGateway
+            - ${GatewayOption}
+    Label:
+      zh-cn: AI网关名称
+      en: AI Gateway Name
+    Description:
+      zh-cn: 新建AI网关的名称
+      en: Name for the new AI Gateway
+
+  GatewaySpec:
+    Type: String
+    Required:
+      Fn::Equals:
+        - NewGateway
+        - ${GatewayOption}
+    Default: "apigw.small.x1"
+    AllowedValues:
+      - "apigw.small.x1"
+      - "apigw.medium.x1"
+      - "apigw.large.x1"
+    AssociationPropertyMetadata:
+      Visible:
+        Condition:
+          Fn::Equals:
+            - NewGateway
+            - ${GatewayOption}
+    Label:
+      zh-cn: 网关规格
+      en: Gateway Specification
+    Description:
+      zh-cn: AI网关实例规格
+      en: AI Gateway instance specification
+
+  VpcOption:
+    Type: String
+    Required:
+      Fn::Equals:
+        - NewGateway
+        - ${GatewayOption}
+    AllowedValues:
+      - ExistingVPC
+      - NewVPC
+    AssociationPropertyMetadata:
+      ValueLabelMapping:
+        ExistingVPC:
+          zh-cn: 使用已有VPC
+          en: Use Existing VPC
+        NewVPC:
+          zh-cn: 新建VPC
+          en: Create New VPC
+      Visible:
+        Condition:
+          Fn::Equals:
+            - NewGateway
+            - ${GatewayOption}
+    Label:
+      en: VPC Option
+      zh-cn: VPC选项
+    Default: NewVPC
+
+  VpcId:
+    Type: String
+    Required:
+      Fn::And:
+        - Fn::Equals:
+            - NewGateway
+            - ${GatewayOption}
+        - Fn::Equals:
+            - ExistingVPC
+            - ${VpcOption}
+    AssociationProperty: ALIYUN::ECS::VPC::VPCId
+    AssociationPropertyMetadata:
+      Visible:
+        Condition:
+          Fn::And:
+            - Fn::Equals:
+                - NewGateway
+                - ${GatewayOption}
+            - Fn::Equals:
+                - ExistingVPC
+                - ${VpcOption}
+    Label:
+      zh-cn: VPC ID
+      en: VPC ID
+    Description:
+      zh-cn: 选择已有的VPC
+      en: Select existing VPC
+    Default: ""
+
+  VSwitchId:
+    Type: String
+    Required:
+      Fn::And:
+        - Fn::Equals:
+            - NewGateway
+            - ${GatewayOption}
+        - Fn::Equals:
+            - ExistingVPC
+            - ${VpcOption}
+    AssociationProperty: ALIYUN::VPC::VSwitch::VSwitchId
+    AssociationPropertyMetadata:
+      VpcId: ${VpcId}
+      Visible:
+        Condition:
+          Fn::And:
+            - Fn::Equals:
+                - NewGateway
+                - ${GatewayOption}
+            - Fn::Equals:
+                - ExistingVPC
+                - ${VpcOption}
+    Label:
+      zh-cn: 交换机ID
+      en: VSwitch ID
+    Description:
+      zh-cn: 选择已有的交换机
+      en: Select existing VSwitch
+    Default: ""
+
+  VpcCidrBlock:
+    Type: String
+    Required:
+      Fn::And:
+        - Fn::Equals:
+            - NewGateway
+            - ${GatewayOption}
+        - Fn::Equals:
+            - NewVPC
+            - ${VpcOption}
+    Default: "192.168.0.0/16"
+    AllowedValues:
+      - "192.168.0.0/16"
+      - "172.16.0.0/12"
+      - "10.0.0.0/8"
+    AssociationPropertyMetadata:
+      Visible:
+        Condition:
+          Fn::And:
+            - Fn::Equals:
+                - NewGateway
+                - ${GatewayOption}
+            - Fn::Equals:
+                - NewVPC
+                - ${VpcOption}
+    Label:
+      zh-cn: VPC网段
+      en: VPC CIDR Block
+    Description:
+      zh-cn: 新建VPC的网段
+      en: CIDR block for new VPC
+
+  VSwitchCidrBlock:
+    Type: String
+    Required:
+      Fn::And:
+        - Fn::Equals:
+            - NewGateway
+            - ${GatewayOption}
+        - Fn::Equals:
+            - NewVPC
+            - ${VpcOption}
+    Default: "192.168.1.0/24"
+    AssociationPropertyMetadata:
+      Visible:
+        Condition:
+          Fn::And:
+            - Fn::Equals:
+                - NewGateway
+                - ${GatewayOption}
+            - Fn::Equals:
+                - NewVPC
+                - ${VpcOption}
+    Label:
+      zh-cn: 交换机网段
+      en: VSwitch CIDR Block
+    Description:
+      zh-cn: 新建交换机的网段
+      en: CIDR block for new VSwitch
+
+  ZoneId:
+    Type: String
+    Required:
+      Fn::And:
+        - Fn::Equals:
+            - NewGateway
+            - ${GatewayOption}
+        - Fn::Equals:
+            - NewVPC
+            - ${VpcOption}
+    AssociationProperty: ALIYUN::ECS::Instance::ZoneId
+    AssociationPropertyMetadata:
+      Visible:
+        Condition:
+          Fn::And:
+            - Fn::Equals:
+                - NewGateway
+                - ${GatewayOption}
+            - Fn::Equals:
+                - NewVPC
+                - ${VpcOption}
+    Label:
+      zh-cn: 可用区
+      en: Availability Zone
+    Description:
+      zh-cn: 选择可用区
+      en: Select availability zone
 
   OssOption:
     Type: String
@@ -234,12 +512,68 @@ Parameters:
             - ${OssOption}
 
 Resources:
+  # 新建VPC（当选择新建网关且新建VPC时）
+  EcsVpc:
+    Type: ALIYUN::ECS::VPC
+    Condition: CreateVpcConditions
+    Properties:
+      VpcName:
+        Fn::Sub: "${ALIYUN::StackName}-vpc"
+      CidrBlock:
+        Ref: VpcCidrBlock
+
+  # 新建VSwitch（当选择新建网关且新建VPC时）
+  EcsVSwitch:
+    Type: ALIYUN::ECS::VSwitch
+    Condition: CreateVpcConditions
+    Properties:
+      VSwitchName:
+        Fn::Sub: "${ALIYUN::StackName}-vswitch"
+      VpcId:
+        Ref: EcsVpc
+      ZoneId:
+        Ref: ZoneId
+      CidrBlock:
+        Ref: VSwitchCidrBlock
+
+  # 新建AI网关
+  NewApigGateway:
+    Type: ALIYUN::APIG::Gateway
+    Condition: CreateGatewayConditions
+    DependsOn:
+      - EcsVpc
+      - EcsVSwitch
+    Properties:
+      GatewayName:
+        Ref: GatewayName
+      GatewayType: "AI"
+      PaymentType: "PayAsYouGo"
+      Spec:
+        Ref: GatewaySpec
+      ZoneConfig:
+        SelectOption: "Auto"
+      NetworkAccessConfig:
+        Type: "InternetAndIntranet"
+      Vpc:
+        VpcId:
+          Fn::If:
+            - CreateVpcConditions
+            - Ref: EcsVpc
+            - Ref: VpcId
+      VSwitch:
+        VSwitchId:
+          Fn::If:
+            - CreateVpcConditions
+            - Ref: EcsVSwitch
+            - Ref: VSwitchId
+
   # 查询网关详情，获取VPC、VSwitch、SecurityGroup等信息
   ApigGateway:
     Type: DATASOURCE::APIG::Gateway
     Properties:
       GatewayId:
-        Ref: HigressAI
+        Ref: ActualGatewayId
+
   ExistVsw:
     Type: DATASOURCE::VPC::VSwitch
     Properties:
@@ -249,6 +583,7 @@ Resources:
           - Fn::GetAtt:
               - ApigGateway
               - VSwitch
+
   SecurityGroup:
     Type: ALIYUN::ECS::SecurityGroup
     Properties:
@@ -277,6 +612,11 @@ Resources:
           IpProtocol: tcp
           NicType: internet
         - PortRange: 8443/8443
+          Priority: 1
+          SourceCidrIp: 0.0.0.0/0
+          IpProtocol: tcp
+          NicType: internet
+        - PortRange: 3000/3000
           Priority: 1
           SourceCidrIp: 0.0.0.0/0
           IpProtocol: tcp
@@ -459,8 +799,7 @@ Resources:
                   else 
                     "fc-layers-cn-hangzhou" 
                   end
-                - BucketName:
-                    Ref: OssBucketName
+                - BRef: OssBucketName
             - Fn::Select:
                 - Ref: ALIYUN::Index
                 - Ref: McpConfigJson
@@ -582,7 +921,7 @@ Resources:
     DependsOn: McpFunctions
     Properties:
       GatewayId:
-        Ref: HigressAI
+        Ref: ActualGatewayId
       SourceType: "FC3"
       ServiceName:
         Fn::Sub:
@@ -622,7 +961,15 @@ Resources:
                 - Ref: ALIYUN::Index
                 - Ref: ServerCodeArray
       DomainIds:
-        - Ref: HigressDomainId
+        - Fn::If:
+            - CreateGatewayConditions
+            - Fn::Jq:
+                - First
+                - '.[0].DomainId'
+                - Fn::GetAtt:
+                    - NewApigGateway
+                    - Environments
+            - Ref: HigressDomainId
       EnvironmentInfo:
         EnvironmentId:
           Fn::Jq:
@@ -633,7 +980,7 @@ Resources:
                 - Environments
         GatewayInfo:
           GatewayId:
-            Ref: HigressAI
+            Ref: ActualGatewayId
       Match:
         Path:
           Type: "Prefix"
@@ -680,7 +1027,7 @@ Outputs:
         - RegionId:
             Ref: ALIYUN::Region
           GatewayId:
-            Ref: HigressAI
+            Ref: ActualGatewayId
 
   mcp_config_count:
     Description:
@@ -714,6 +1061,26 @@ Outputs:
       Fn::GetAtt:
         - McpHttpApi
         - HttpApiName
+
+  # 网关信息
+  gateway_id:
+    Description:
+      zh-cn: 使用的AI网关ID
+      en: AI Gateway ID used
+    Value:
+      Ref: ActualGatewayId
+
+  gateway_name:
+    Description:
+      zh-cn: AI网关名称
+      en: AI Gateway Name
+    Value:
+      Fn::If:
+        - CreateGatewayConditions
+        - Fn::GetAtt:
+            - NewApigGateway
+            - GatewayName
+        - "Existing Gateway"
 
   # OSS存储桶信息
   oss_bucket_name:
@@ -793,11 +1160,9 @@ Outputs:
       en: AI Gateway deployment summary
     Value:
       Fn::Sub:
-        - "AI网关ID: ${GatewayId}, 域名ID: ${DomainId}, HTTP API: ${HttpApiId}, VPC: ${VpcId}, OSS: ${OssBucket}, FC角色: ${FcRole}, 创建了${Count}个MCP服务和路由"
+        - "AI网关ID: ${GatewayId}, HTTP API: ${HttpApiId}, VPC: ${VpcId}, OSS: ${OssBucket}, FC角色: ${FcRole}, 创建了${Count}个MCP服务和路由"
         - GatewayId:
-            Ref: HigressAI
-          DomainId:
-            Ref: HigressDomainId
+            Ref: ActualGatewayId
           HttpApiId:
             Fn::GetAtt:
               - McpHttpApi
@@ -825,12 +1190,26 @@ Metadata:
             zh-cn: MCP服务配置
             en: MCP Service Configuration
       - Parameters:
+          - GatewayOption
           - HigressAI
           - HigressDomainId
+          - GatewayName
+          - GatewaySpec
         Label:
           default:
             zh-cn: AI网关配置
             en: AI Gateway Configuration
+      - Parameters:
+          - VpcOption
+          - VpcId
+          - VSwitchId
+          - VpcCidrBlock
+          - VSwitchCidrBlock
+          - ZoneId
+        Label:
+          default:
+            zh-cn: 网络配置
+            en: Network Configuration
       - Parameters:
           - OssOption
           - BucketName
