@@ -227,6 +227,7 @@ Parameters:
           Fn::Equals:
             - ExistingGateway
             - ${GatewayOption}
+    Default: ""
     Label:
       zh-cn: 已有AI网关
       en: Existing AI Gateway
@@ -255,27 +256,6 @@ Parameters:
       zh-cn: AI网关域名ID，用于路由配置
       en: AI Gateway domain ID for route configuration
 
-  # 新建网关相关参数
-  GatewayName:
-    Type: String
-    Required:
-      Fn::Equals:
-        - NewGateway
-        - ${GatewayOption}
-    Default: "mcp-ai-gateway"
-    AssociationPropertyMetadata:
-      Visible:
-        Condition:
-          Fn::Equals:
-            - NewGateway
-            - ${GatewayOption}
-    Label:
-      zh-cn: AI网关名称
-      en: AI Gateway Name
-    Description:
-      zh-cn: 新建AI网关的名称
-      en: Name for the new AI Gateway
-
   GatewaySpec:
     Type: String
     Required:
@@ -299,6 +279,123 @@ Parameters:
     Description:
       zh-cn: AI网关实例规格
       en: AI Gateway instance specification
+
+  # 网关付费类型
+  PayType:
+    Type: String
+    Label:
+      en: Gateway Charge Type
+      zh-cn: 网关付费类型
+    Default: PostPaid
+    AllowedValues:
+      - PostPaid
+      - PrePaid
+    AssociationProperty: ChargeType
+    AssociationPropertyMetadata:
+      LocaleKey: InstanceChargeType
+      Visible:
+        Condition:
+          Fn::Equals:
+            - NewGateway
+            - ${GatewayOption}
+
+  PayPeriodUnit:
+    Type: String
+    Label:
+      en: Pay Period Unit
+      zh-cn: 购买资源时长周期
+    Default: Month
+    AllowedValues:
+      - Month
+      - Year
+    AssociationProperty: PayPeriodUnit
+    AssociationPropertyMetadata:
+      Visible:
+        Condition:
+          Fn::And:
+            - Fn::Equals:
+                - NewGateway
+                - ${GatewayOption}
+            - Fn::Not:
+                Fn::Equals:
+                  - ${PayType}
+                  - PostPaid
+
+  PayPeriod:
+    Type: Number
+    Label:
+      en: Period
+      zh-cn: 购买资源时长
+    Default: 1
+    AllowedValues:
+      - 1
+      - 2
+      - 3
+      - 4
+      - 5
+      - 6
+      - 7
+      - 8
+      - 9
+    AssociationProperty: PayPeriod
+    AssociationPropertyMetadata:
+      Visible:
+        Condition:
+          Fn::And:
+            - Fn::Equals:
+                - NewGateway
+                - ${GatewayOption}
+            - Fn::Not:
+                Fn::Equals:
+                  - ${PayType}
+                  - PostPaid
+
+  # 主可用区ID
+  PrimaryZoneId:
+    Type: String
+    Label:
+      en: Primary Zone ID
+      zh-cn: 主可用区ID
+    Description:
+      zh-cn: AI网关主可用区，用于创建主交换机
+      en: Primary zone for AI Gateway, used to create primary VSwitch
+    AssociationProperty: ALIYUN::ECS::Instance::ZoneId
+    AssociationPropertyMetadata:
+      DefaultValueStrategy: random
+      ExclusiveTo:
+        - SecondaryZoneId
+      Visible:
+        Condition:
+          Fn::Equals:
+            - NewGateway
+            - ${GatewayOption}
+    Required:
+      Fn::Equals:
+        - NewGateway
+        - ${GatewayOption}
+
+  # 备可用区ID
+  SecondaryZoneId:
+    Type: String
+    Label:
+      en: Secondary Zone ID
+      zh-cn: 备可用区ID
+    Description:
+      zh-cn: AI网关备可用区，用于创建备交换机，必须与主可用区不同
+      en: Secondary zone for AI Gateway, used to create secondary VSwitch, must be different from primary zone
+    AssociationProperty: ALIYUN::ECS::Instance::ZoneId
+    AssociationPropertyMetadata:
+      ExclusiveTo:
+        - PrimaryZoneId
+      Visible:
+        Condition:
+          Fn::Equals:
+            - NewGateway
+            - ${GatewayOption}
+    Required:
+      Fn::Equals:
+        - NewGateway
+        - ${GatewayOption}
 
   VpcOption:
     Type: String
@@ -338,6 +435,7 @@ Parameters:
             - ExistingVPC
             - ${VpcOption}
     AssociationProperty: ALIYUN::ECS::VPC::VPCId
+    Default: ''
     AssociationPropertyMetadata:
       Visible:
         Condition:
@@ -354,9 +452,8 @@ Parameters:
     Description:
       zh-cn: 选择已有的VPC
       en: Select existing VPC
-    Default: ""
 
-  VSwitchId:
+  PrimaryVSwitchId:
     Type: String
     Required:
       Fn::And:
@@ -367,8 +464,10 @@ Parameters:
             - ExistingVPC
             - ${VpcOption}
     AssociationProperty: ALIYUN::VPC::VSwitch::VSwitchId
+    Default: ''
     AssociationPropertyMetadata:
       VpcId: ${VpcId}
+      ZoneId: ${PrimaryZoneId}
       Visible:
         Condition:
           Fn::And:
@@ -379,14 +478,44 @@ Parameters:
                 - ExistingVPC
                 - ${VpcOption}
     Label:
-      zh-cn: 交换机ID
-      en: VSwitch ID
+      zh-cn: 主交换机ID
+      en: Primary VSwitch ID
     Description:
-      zh-cn: 选择已有的交换机
-      en: Select existing VSwitch
-    Default: ""
+      zh-cn: 选择主可用区的交换机
+      en: Select VSwitch in primary zone
 
-  VpcCidrBlock:
+  SecondaryVSwitchId:
+    Type: String
+    Required:
+      Fn::And:
+        - Fn::Equals:
+            - NewGateway
+            - ${GatewayOption}
+        - Fn::Equals:
+            - ExistingVPC
+            - ${VpcOption}
+    AssociationProperty: ALIYUN::VPC::VSwitch::VSwitchId
+    Default: ''
+    AssociationPropertyMetadata:
+      VpcId: ${VpcId}
+      ZoneId: ${SecondaryZoneId}
+      Visible:
+        Condition:
+          Fn::And:
+            - Fn::Equals:
+                - NewGateway
+                - ${GatewayOption}
+            - Fn::Equals:
+                - ExistingVPC
+                - ${VpcOption}
+    Label:
+      zh-cn: 备交换机ID
+      en: Secondary VSwitch ID
+    Description:
+      zh-cn: 选择备可用区的交换机
+      en: Select VSwitch in secondary zone
+
+  pcCidrBlock:
     Type: String
     Required:
       Fn::And:
@@ -418,7 +547,7 @@ Parameters:
       zh-cn: 新建VPC的网段
       en: CIDR block for new VPC
 
-  VSwitchCidrBlock:
+  PrimaryVSwitchCidrBlock:
     Type: String
     Required:
       Fn::And:
@@ -440,13 +569,13 @@ Parameters:
                 - NewVPC
                 - ${VpcOption}
     Label:
-      zh-cn: 交换机网段
-      en: VSwitch CIDR Block
+      zh-cn: 主交换机网段
+      en: Primary VSwitch CIDR Block
     Description:
-      zh-cn: 新建交换机的网段
-      en: CIDR block for new VSwitch
+      zh-cn: 新建主交换机的网段
+      en: CIDR block for new primary VSwitch
 
-  ZoneId:
+  SecondaryVSwitchCidrBlock:
     Type: String
     Required:
       Fn::And:
@@ -456,7 +585,7 @@ Parameters:
         - Fn::Equals:
             - NewVPC
             - ${VpcOption}
-    AssociationProperty: ALIYUN::ECS::Instance::ZoneId
+    Default: "192.168.2.0/24"
     AssociationPropertyMetadata:
       Visible:
         Condition:
@@ -468,11 +597,11 @@ Parameters:
                 - NewVPC
                 - ${VpcOption}
     Label:
-      zh-cn: 可用区
-      en: Availability Zone
+      zh-cn: 备交换机网段
+      en: Secondary VSwitch CIDR Block
     Description:
-      zh-cn: 选择可用区
-      en: Select availability zone
+      zh-cn: 新建备交换机的网段
+      en: CIDR block for new secondary VSwitch
 
   OssOption:
     Type: String
@@ -522,36 +651,52 @@ Resources:
       CidrBlock:
         Ref: VpcCidrBlock
 
-  # 新建VSwitch（当选择新建网关且新建VPC时）
-  EcsVSwitch:
+  # 新建主VSwitch（当选择新建网关且新建VPC时）
+  PrimaryEcsVSwitch:
     Type: ALIYUN::ECS::VSwitch
     Condition: CreateVpcConditions
     Properties:
       VSwitchName:
-        Fn::Sub: "${ALIYUN::StackName}-vswitch"
+        Fn::Sub: "${ALIYUN::StackName}-primary-vswitch"
       VpcId:
         Ref: EcsVpc
       ZoneId:
-        Ref: ZoneId
+        Ref: PrimaryZoneId
       CidrBlock:
-        Ref: VSwitchCidrBlock
+        Ref: PrimaryVSwitchCidrBlock
+
+  # 新建备VSwitch（当选择新建网关且新建VPC时）
+  SecondaryEcsVSwitch:
+    Type: ALIYUN::ECS::VSwitch
+    Condition: CreateVpcConditions
+    Properties:
+      VSwitchName:
+        Fn::Sub: "${ALIYUN::StackName}-secondary-vswitch"
+      VpcId:
+        Ref: EcsVpc
+      ZoneId:
+        Ref: SecondaryZoneId
+      CidrBlock:
+        Ref: SecondaryVSwitchCidrBlock
 
   # 新建AI网关
   NewApigGateway:
     Type: ALIYUN::APIG::Gateway
     Condition: CreateGatewayConditions
-    DependsOn:
-      - EcsVpc
-      - EcsVSwitch
     Properties:
       GatewayName:
-        Ref: GatewayName
+        Ref: ALIYUN::StackName
       GatewayType: "AI"
-      PaymentType: "PayAsYouGo"
+      PaymentType:
+        Ref: PayType
+      Period:
+        Ref: PayPeriod
+      PeriodUnit:
+        Ref: PayPeriodUnit
       Spec:
         Ref: GatewaySpec
       ZoneConfig:
-        SelectOption: "Auto"
+        SelectOption: "Manual"
       NetworkAccessConfig:
         Type: "InternetAndIntranet"
       Vpc:
@@ -564,8 +709,8 @@ Resources:
         VSwitchId:
           Fn::If:
             - CreateVpcConditions
-            - Ref: EcsVSwitch
-            - Ref: VSwitchId
+            - Ref: PrimaryEcsVSwitch
+            - Ref: PrimaryVSwitchId
 
   # 查询网关详情，获取VPC、VSwitch、SecurityGroup等信息
   ApigGateway:
@@ -799,7 +944,8 @@ Resources:
                   else 
                     "fc-layers-cn-hangzhou" 
                   end
-                - BRef: OssBucketName
+                - BucketName:
+                    Ref: OssBucketName
             - Fn::Select:
                 - Ref: ALIYUN::Index
                 - Ref: McpConfigJson
@@ -1082,6 +1228,27 @@ Outputs:
             - GatewayName
         - "Existing Gateway"
 
+  # 可用区信息
+  primary_zone_id:
+    Description:
+      zh-cn: 主可用区ID
+      en: Primary Zone ID
+    Value:
+      Fn::If:
+        - CreateGatewayConditions
+        - Ref: PrimaryZoneId
+        - "N/A"
+
+  secondary_zone_id:
+    Description:
+      zh-cn: 备可用区ID
+      en: Secondary Zone ID
+    Value:
+      Fn::If:
+        - CreateGatewayConditions
+        - Ref: SecondaryZoneId
+        - "N/A"
+
   # OSS存储桶信息
   oss_bucket_name:
     Description:
@@ -1193,8 +1360,12 @@ Metadata:
           - GatewayOption
           - HigressAI
           - HigressDomainId
-          - GatewayName
           - GatewaySpec
+          - PayType
+          - PayPeriodUnit
+          - PayPeriod
+          - PrimaryZoneId
+          - SecondaryZoneId
         Label:
           default:
             zh-cn: AI网关配置
@@ -1202,10 +1373,11 @@ Metadata:
       - Parameters:
           - VpcOption
           - VpcId
-          - VSwitchId
+          - PrimaryVSwitchId
+          - SecondaryVSwitchId
           - VpcCidrBlock
-          - VSwitchCidrBlock
-          - ZoneId
+          - PrimaryVSwitchCidrBlock
+          - SecondaryVSwitchCidrBlock
         Label:
           default:
             zh-cn: 网络配置
