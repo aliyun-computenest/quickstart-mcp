@@ -1,5 +1,24 @@
 ROSTemplateFormatVersion: '2015-09-01'
 
+Conditions:
+  CreateOssConditions:
+    Fn::Equals:
+      - NewOSS
+      - Ref: OssOption
+
+  CreateGatewayConditions:
+    Fn::Equals:
+      - NewGateway
+      - Ref: GatewayOption
+
+  CreateVpcConditions:
+    Fn::And:
+      - Fn::Equals:
+          - NewGateway
+          - Ref: GatewayOption
+      - Fn::Equals:
+          - NewVPC
+          - Ref: VpcOption
 
 Locals:
   CurTime:
@@ -173,17 +192,626 @@ Parameters:
       ShowCounts: 9
       ShowTagsCounts: 10
 
+  GatewayOption:
+    Type: String
+    AllowedValues:
+      - ExistingGateway
+      - NewGateway
+    AssociationPropertyMetadata:
+      ValueLabelMapping:
+        ExistingGateway:
+          zh-cn: 使用已有AI网关
+          en: Use Existing AI Gateway
+        NewGateway:
+          zh-cn: 新建AI网关
+          en: Create New AI Gateway
+    Label:
+      en: AI Gateway Option
+      zh-cn: AI网关选项
+    Required: true
+    Default: ExistingGateway
+
+  HigressAI:
+    Type: String
+    Required:
+      Fn::Equals:
+        - ExistingGateway
+        - ${GatewayOption}
+    AssociationProperty: ALIYUN::APIG::Gateway::GatewayId
+    AssociationPropertyMetadata:
+      GatewayType: AI
+      RegionId:
+        Ref: ALIYUN::Region
+      Visible:
+        Condition:
+          Fn::Equals:
+            - ExistingGateway
+            - ${GatewayOption}
+    Default: ""
+    Label:
+      zh-cn: 已有AI网关
+      en: Existing AI Gateway
+    Description:
+      zh-cn: 选择已有的AI网关实例ID
+      en: Select existing AI Gateway instance ID
+
+  HigressDomainId:
+    Type: String
+    Required:
+      Fn::Equals:
+        - ExistingGateway
+        - ${GatewayOption}
+    AssociationProperty: ALIYUN::APIG::Gateway::ListDomains
+    AssociationPropertyMetadata:
+      GatewayType: AI
+    Label:
+      zh-cn: AI域名
+      en: AI DomainId
+    Description:
+      zh-cn: AI网关域名ID，用于路由配置
+      en: AI Gateway domain ID for route configuration
+
+  GatewaySpec:
+    Type: String
+    Required:
+      Fn::Equals:
+        - NewGateway
+        - ${GatewayOption}
+    Default: "aigw.small.x1"
+    AllowedValues:
+      - "aigw.small.x1"
+      - "aigw.medium.x1"
+      - "aigw.large.x1"
+    AssociationPropertyMetadata:
+      Visible:
+        Condition:
+          Fn::Equals:
+            - NewGateway
+            - ${GatewayOption}
+    Label:
+      zh-cn: 网关规格
+      en: Gateway Specification
+    Description:
+      zh-cn: AI网关实例规格
+      en: AI Gateway instance specification
+
+  # 网关付费类型
+  PayType:
+    Type: String
+    Label:
+      en: Gateway Charge Type
+      zh-cn: 网关付费类型
+    Default: PayAsYouGo
+    AllowedValues:
+      - PayAsYouGo
+      - Subscription
+    AssociationPropertyMetadata:
+      ValueLabelMapping:
+        PayAsYouGo:
+          zh-cn: 按量付费
+          en: Pay as you go
+        Subscription:
+          zh-cn: 包年包月
+          en: subscription
+      Visible:
+        Condition:
+          Fn::Equals:
+            - NewGateway
+            - ${GatewayOption}
+
+  PayPeriodUnit:
+    Type: String
+    Label:
+      en: Pay Period Unit
+      zh-cn: 购买资源时长周期
+    Default: Month
+    AllowedValues:
+      - Month
+      - Year
+    AssociationProperty: PayPeriodUnit
+    AssociationPropertyMetadata:
+      Visible:
+        Condition:
+          Fn::And:
+            - Fn::Equals:
+                - NewGateway
+                - ${GatewayOption}
+            - Fn::Not:
+                Fn::Equals:
+                  - ${PayType}
+                  - PayAsYouGo
+
+  PayPeriod:
+    Type: Number
+    Label:
+      en: Period
+      zh-cn: 购买资源时长
+    Default: 1
+    AllowedValues:
+      - 1
+      - 2
+      - 3
+      - 4
+      - 5
+      - 6
+      - 7
+      - 8
+      - 9
+    AssociationProperty: PayPeriod
+    AssociationPropertyMetadata:
+      Visible:
+        Condition:
+          Fn::And:
+            - Fn::Equals:
+                - NewGateway
+                - ${GatewayOption}
+            - Fn::Not:
+                Fn::Equals:
+                  - ${PayType}
+                  - PayAsYouGo
+
+  # 主可用区ID
+  PrimaryZoneId:
+    Type: String
+    Label:
+      en: Primary Zone ID
+      zh-cn: 主可用区ID
+    Description:
+      zh-cn: AI网关主可用区，用于创建主交换机
+      en: Primary zone for AI Gateway, used to create primary VSwitch
+    AssociationProperty: ALIYUN::ECS::Instance::ZoneId
+    AssociationPropertyMetadata:
+      DefaultValueStrategy: random
+      Visible:
+        Condition:
+          Fn::Equals:
+            - NewGateway
+            - ${GatewayOption}
+    Required:
+      Fn::Equals:
+        - NewGateway
+        - ${GatewayOption}
+    Default: ""
+
+  VpcOption:
+    Type: String
+    Required:
+      Fn::Equals:
+        - NewGateway
+        - ${GatewayOption}
+    AllowedValues:
+      - ExistingVPC
+      - NewVPC
+    AssociationPropertyMetadata:
+      ValueLabelMapping:
+        ExistingVPC:
+          zh-cn: 使用已有VPC
+          en: Use Existing VPC
+        NewVPC:
+          zh-cn: 新建VPC
+          en: Create New VPC
+      Visible:
+        Condition:
+          Fn::Equals:
+            - NewGateway
+            - ${GatewayOption}
+    Label:
+      en: VPC Option
+      zh-cn: VPC选项
+    Default: NewVPC
+
+  VpcId:
+    Type: String
+    Required:
+      Fn::And:
+        - Fn::Equals:
+            - NewGateway
+            - ${GatewayOption}
+        - Fn::Equals:
+            - ExistingVPC
+            - ${VpcOption}
+    AssociationProperty: ALIYUN::ECS::VPC::VPCId
+    Default: ''
+    AssociationPropertyMetadata:
+      Visible:
+        Condition:
+          Fn::And:
+            - Fn::Equals:
+                - NewGateway
+                - ${GatewayOption}
+            - Fn::Equals:
+                - ExistingVPC
+                - ${VpcOption}
+    Label:
+      zh-cn: VPC ID
+      en: VPC ID
+    Description:
+      zh-cn: 选择已有的VPC
+      en: Select existing VPC
+
+
+  PrimaryVSwitchId:
+    Type: String
+    Required:
+      Fn::And:
+        - Fn::Equals:
+            - NewGateway
+            - ${GatewayOption}
+        - Fn::Equals:
+            - ExistingVPC
+            - ${VpcOption}
+    AssociationProperty: ALIYUN::VPC::VSwitch::VSwitchId
+    Default: ''
+    AssociationPropertyMetadata:
+      VpcId: ${VpcId}
+      ZoneId: ${PrimaryZoneId}
+      Visible:
+        Condition:
+          Fn::And:
+            - Fn::Equals:
+                - NewGateway
+                - ${GatewayOption}
+            - Fn::Equals:
+                - ExistingVPC
+                - ${VpcOption}
+    Label:
+      zh-cn: 主交换机ID
+      en: Primary VSwitch ID
+    Description:
+      zh-cn: 选择主可用区的交换机
+      en: Select VSwitch in primary zone
+
+
+  VpcCidrBlock:
+    Type: String
+    Required:
+      Fn::And:
+        - Fn::Equals:
+            - NewGateway
+            - ${GatewayOption}
+        - Fn::Equals:
+            - NewVPC
+            - ${VpcOption}
+    Default: "192.168.0.0/16"
+    AllowedValues:
+      - "192.168.0.0/16"
+      - "172.16.0.0/12"
+      - "10.0.0.0/8"
+    AssociationPropertyMetadata:
+      Visible:
+        Condition:
+          Fn::And:
+            - Fn::Equals:
+                - NewGateway
+                - ${GatewayOption}
+            - Fn::Equals:
+                - NewVPC
+                - ${VpcOption}
+    Label:
+      zh-cn: VPC网段
+      en: VPC CIDR Block
+    Description:
+      zh-cn: 新建VPC的网段
+      en: CIDR block for new VPC
+
+  PrimaryVSwitchCidrBlock:
+    Type: String
+    Required:
+      Fn::And:
+        - Fn::Equals:
+            - NewGateway
+            - ${GatewayOption}
+        - Fn::Equals:
+            - NewVPC
+            - ${VpcOption}
+    Default: "192.168.1.0/24"
+    AssociationPropertyMetadata:
+      Visible:
+        Condition:
+          Fn::And:
+            - Fn::Equals:
+                - NewGateway
+                - ${GatewayOption}
+            - Fn::Equals:
+                - NewVPC
+                - ${VpcOption}
+    Label:
+      zh-cn: 主交换机网段
+      en: Primary VSwitch CIDR Block
+    Description:
+      zh-cn: 新建主交换机的网段
+      en: CIDR block for new primary VSwitch
+
+
+  OssOption:
+    Type: String
+    AllowedValues:
+      - NewOSS
+      - ExistingOSS
+    AssociationPropertyMetadata:
+      ValueLabelMapping:
+        NewOSS:
+          zh-cn: 新建OSS存储桶
+          en: New OSS Bucket
+        ExistingOSS:
+          zh-cn: 已有OSS存储桶
+          en: Existing OSS Bucket
+    Label:
+      en: Select Existing or New OSS Bucket
+      zh-cn: 选择已有/新建的OSS存储桶
+    Required: true
+    Default: NewOSS
+
+  BucketName:
+    Type: String
+    Label:
+      en: OSS Bucket Name
+      zh-cn: OSS存储桶名称
+    Required:
+      Fn::Equals:
+        - ExistingOSS
+        - ${OssOption}
+    Default: ''
+    AssociationProperty: ALIYUN::OSS::Bucket::BucketName
+    AssociationPropertyMetadata:
+      Visible:
+        Condition:
+          Fn::Equals:
+            - ExistingOSS
+            - ${OssOption}
 
 Resources:
+  # 新建VPC（当选择新建网关且新建VPC时）
+  EcsVpc:
+    Type: ALIYUN::ECS::VPC
+    Condition: CreateVpcConditions
+    Properties:
+      VpcName:
+        Fn::Sub: "${ALIYUN::StackName}-vpc"
+      CidrBlock:
+        Ref: VpcCidrBlock
+
+  # 新建主VSwitch（当选择新建网关且新建VPC时）
+  PrimaryEcsVSwitch:
+    Type: ALIYUN::ECS::VSwitch
+    Condition: CreateVpcConditions
+    Properties:
+      VSwitchName:
+        Fn::Sub: "${ALIYUN::StackName}-primary-vswitch"
+      VpcId:
+        Ref: EcsVpc
+      ZoneId:
+        Ref: PrimaryZoneId
+      CidrBlock:
+        Ref: PrimaryVSwitchCidrBlock
+
+
+
+  # 新建AI网关
+  NewApigGateway:
+    Type: ALIYUN::APIG::Gateway
+    Condition: CreateGatewayConditions
+    Properties:
+      GatewayName:
+        Ref: ALIYUN::StackName
+      GatewayType: "AI"
+      PaymentType:
+        Ref: PayType
+      Period:
+        Ref: PayPeriod
+      PeriodUnit:
+        Ref: PayPeriodUnit
+      Spec:
+        Ref: GatewaySpec
+      ZoneConfig:
+        SelectOption: "Auto"
+      NetworkAccessConfig:
+        Type: "InternetAndIntranet"
+      Vpc:
+        VpcId:
+          Fn::If:
+            - CreateVpcConditions
+            - Ref: EcsVpc
+            - Ref: VpcId
+      VSwitch:
+        VSwitchId:
+          Fn::If:
+            - CreateVpcConditions
+            - Ref: PrimaryEcsVSwitch
+            - Ref: PrimaryVSwitchId
+
+  # 查询网关详情，获取VPC、VSwitch、SecurityGroup等信息
+  ApigGateway:
+    Type: DATASOURCE::APIG::Gateway
+    Properties:
+      GatewayId:
+        Ref: ActualGatewayId
+
+  ExistVsw:
+    Type: DATASOURCE::VPC::VSwitch
+    Properties:
+      VSwitchId:
+        Fn::GetJsonValue:
+          - VSwitchId
+          - Fn::GetAtt:
+              - ApigGateway
+              - VSwitch
+
+  SecurityGroup:
+    Type: ALIYUN::ECS::SecurityGroup
+    Properties:
+      SecurityGroupName:
+        Ref: ALIYUN::StackName
+      VpcId:
+        Fn::GetJsonValue:
+          - VpcId
+          - Fn::GetAtt:
+              - ApigGateway
+              - Vpc
+      SecurityGroupIngress:
+        - PortRange: 8000/8000
+          Priority: 1
+          SourceCidrIp: 0.0.0.0/0
+          IpProtocol: tcp
+          NicType: internet
+        - PortRange: 8080/8080
+          Priority: 1
+          SourceCidrIp: 0.0.0.0/0
+          IpProtocol: tcp
+          NicType: internet
+        - PortRange: 8001/8001
+          Priority: 1
+          SourceCidrIp: 0.0.0.0/0
+          IpProtocol: tcp
+          NicType: internet
+        - PortRange: 8443/8443
+          Priority: 1
+          SourceCidrIp: 0.0.0.0/0
+          IpProtocol: tcp
+          NicType: internet
+        - PortRange: 3000/3000
+          Priority: 1
+          SourceCidrIp: 0.0.0.0/0
+          IpProtocol: tcp
+          NicType: internet
+
+  # 创建OSS存储桶
+  OSSBucket:
+    Type: ALIYUN::OSS::Bucket
+    Condition: CreateOssConditions
+    Properties:
+      DeletionForce: true
+      BucketName:
+        Fn::Sub: "mcp-${ALIYUN::StackName}"
+      Policy:
+        Version: "1"
+        Statement:
+          - Effect: "Allow"
+            Action:
+              - "oss:GetObject"
+              - "oss:PutObject"
+              - "oss:GetObjectAcl"
+              - "oss:PutObjectAcl"
+              - "oss:AbortMultipartUpload"
+              - "oss:ListParts"
+              - "oss:RestoreObject"
+              - "oss:GetVodPlaylist"
+              - "oss:PostVodPlaylist"
+              - "oss:PublishRtmpStream"
+              - "oss:ListObjectVersions"
+              - "oss:GetObjectVersion"
+              - "oss:GetObjectVersionAcl"
+              - "oss:RestoreObjectVersion"
+            Principal:
+              - Ref: ALIYUN::AccountId
+            Resource:
+              - Fn::Sub:
+                  - "acs:oss:*:${TenantId}:${BucketName}/*"
+                  - TenantId:
+                      Ref: ALIYUN::TenantId
+                    BucketName:
+                      Fn::If:
+                        - CreateOssConditions
+                        - Fn::Sub: "mcp-${ALIYUN::StackName}"
+                        - Ref: BucketName
+          - Effect: "Allow"
+            Action:
+              - "oss:ListObjects"
+            Principal:
+              - Ref: ALIYUN::AccountId
+            Resource:
+              - Fn::Sub:
+                  - "acs:oss:*:${TenantId}:${BucketName}"
+                  - TenantId:
+                      Ref: ALIYUN::TenantId
+                    BucketName:
+                      Fn::If:
+                        - CreateOssConditions
+                        - Fn::Sub: "mcp-${ALIYUN::StackName}"
+                        - Ref: BucketName
+            Condition:
+              StringLike:
+                "oss:Prefix":
+                  - "*"
+
+  # 创建FC角色（所有函数都使用此角色）
+  FcRole:
+    Type: ALIYUN::RAM::Role
+    Properties:
+      RoleName:
+        Fn::Sub: "McpFcRole-${ALIYUN::StackName}"
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service:
+                - fc.aliyuncs.com
+        Version: '1'
+      Policies:
+        - PolicyName:
+            Fn::Sub: "McpFcPolicy-${ALIYUN::StackName}"
+          PolicyDocument:
+            Statement:
+              - Action:
+                  - oss:GetObject
+                  - oss:PutObject
+                  - oss:ListObjects
+                Effect: Allow
+                Resource:
+                  - Fn::Sub:
+                      - "acs:oss:*:*:${BucketName}"
+                      - BucketName:
+                          Fn::If:
+                            - CreateOssConditions
+                            - Fn::GetAtt:
+                                - OSSBucket
+                                - Name
+                            - Ref: BucketName
+                  - Fn::Sub:
+                      - "acs:oss:*:*:${BucketName}/*"
+                      - BucketName:
+                          Fn::If:
+                            - CreateOssConditions
+                            - Fn::GetAtt:
+                                - OSSBucket
+                                - Name
+                            - Ref: BucketName
+                  - "acs:oss:*:*:fc-layers-cn-hangzhou"
+                  - "acs:oss:*:*:fc-layers-cn-hangzhou/*"
+              - Action:
+                  - vpc:DescribeVpcs
+                  - vpc:DescribeVSwitches
+                  - ecs:DescribeSecurityGroups
+                Effect: Allow
+                Resource:
+                  - "*"
+            Version: '1'
+
+  # 创建HTTP API
+  McpHttpApi:
+    Type: ALIYUN::APIG::HttpApi
+    Properties:
+      HttpApiName:
+        Fn::Sub: "mcp-api-${ALIYUN::StackName}"
+      Type: "Http"
+      Protocols:
+        - "HTTP"
+        - "HTTPS"
+      BasePath: "/v1"
+      Description: "MCP HTTP API"
 
   McpFunctions:
     Type: ALIYUN::FC3::Function
     Count:
       Ref: McpConfigCount
+    DependsOn:
+      - ApigGateway
+      - FcRole
     Properties:
       FunctionName:
         Fn::Sub:
-          - "${ServerCode}-${ALIYUN::StackName}"
+          - "${ALIYUN::StackName}-${ServerCode}"
           - ServerCode:
               Fn::Select:
                 - Ref: ALIYUN::Index
@@ -197,6 +825,14 @@ Resources:
       InternetAccess: true
       Cpu: 1
       # 角色：所有函数都使用创建的角色
+      SessionAffinity: MCP_SSE
+      SessionAffinityConfig:
+        SseEndpointPath: sse
+        SessionConcurrencyPerInstance: 20
+      Role:
+        Fn::GetAtt:
+          - FcRole
+          - Arn
       Layers:
         Fn::Select:
           - Ref: ALIYUN::Index
@@ -220,8 +856,8 @@ Resources:
                   else 
                     "fc-layers-cn-hangzhou" 
                   end
-                - BucketName: aab
-
+                - BucketName:
+                    Ref: OssBucketName
             - Fn::Select:
                 - Ref: ALIYUN::Index
                 - Ref: McpConfigJson
@@ -231,12 +867,37 @@ Resources:
             - Ref: ALIYUN::Index
             - Ref: OssObjectNameArray
       # OSS挂载配置：所有函数都挂载OSS到统一路径
+      OssMountConfig:
+        MountPoints:
+          - BucketName:
+              Ref: OssBucketName
+            BucketPath: "/mcp-package"
+            ReadOnly: true
+            MountDir: "/home/app"
+            Endpoint: "https://oss-cn-hangzhou.aliyuncs.com"
       CustomRuntimeConfig:
         Port: 8080
         Command:
           Fn::Select:
             - Ref: ALIYUN::Index
             - Ref: CommandArray
+      # VPC配置 - 直接使用网关的VPC信息
+      VpcConfig:
+        VpcId:
+          Fn::GetJsonValue:
+            - VpcId
+            - Fn::GetAtt:
+                - ApigGateway
+                - Vpc
+        VSwitchIds:
+          Fn::ListMerge:
+            - - Fn::GetJsonValue:
+                  - VSwitchId
+                  - Fn::GetAtt:
+                      - ApigGateway
+                      - VSwitch
+        SecurityGroupId:
+          Ref: SecurityGroup
       # 环境变量配置
       EnvironmentVariables:
         Fn::Jq:
@@ -310,7 +971,276 @@ Resources:
           - "OPTIONS"
         disableURLInternet: false
 
+  # 批量创建APIG服务
+  McpApigServices:
+    Type: ALIYUN::APIG::Service
+    Count:
+      Ref: McpConfigCount
+    DependsOn: McpFunctions
+    Properties:
+      GatewayId:
+        Ref: ActualGatewayId
+      SourceType: "FC3"
+      ServiceName:
+        Fn::Sub:
+          - "${ALIYUN::StackName}-${ServerCode}"
+          - ServerCode:
+              Fn::Select:
+                - Ref: ALIYUN::Index
+                - Ref: ServerCodeArray
+      Qualifier: "LATEST"
 
+  # 批量创建APIG路由
+  McpApigRoutes:
+    Type: ALIYUN::APIG::Route
+    Count:
+      Ref: McpConfigCount
+    DependsOn:
+      - McpApigServices
+      - ApigGateway
+      - McpHttpApi
+    Properties:
+      HttpApiId:
+        Fn::GetAtt:
+          - McpHttpApi
+          - HttpApiId
+      RouteName:
+        Fn::Sub:
+          - "${ServerCode}-route"
+          - ServerCode:
+              Fn::Select:
+                - Ref: ALIYUN::Index
+                - Ref: ServerCodeArray
+      Description:
+        Fn::Sub:
+          - "${ServerCode}"
+          - ServerCode:
+              Fn::Select:
+                - Ref: ALIYUN::Index
+                - Ref: ServerCodeArray
+      DomainIds:
+        - Ref: HigressDomainId
+      EnvironmentInfo:
+        EnvironmentId:
+          Fn::Jq:
+            - First
+            - '.[0].EnvironmentId'
+            - Fn::GetAtt:
+                - ApigGateway
+                - Environments
+        GatewayInfo:
+          GatewayId:
+            Ref: ActualGatewayId
+      Match:
+        Path:
+          Type: "Prefix"
+          Value:
+            Fn::Sub:
+              - "/mcp-servers/${ServerCode}"
+              - ServerCode:
+                  Fn::Select:
+                    - Ref: ALIYUN::Index
+                    - Ref: ServerCodeArray
+        Methods:
+          - "GET"
+          - "POST"
+          - "PUT"
+          - "DELETE"
+        IgnoreUriCase: false
+      Backend:
+        Scene: "SingleService"
+        Services:
+          - ServiceId:
+              Fn::Select:
+                - Ref: ALIYUN::Index
+                - Fn::GetAtt:
+                    - McpApigServices
+                    - ServiceId
+            Name:
+              Fn::Select:
+                - Ref: ALIYUN::Index
+                - Ref: ServerCodeArray
+            Port: 8080
+            Protocol: "HTTP"
+            Weight: 100
+            Version: "LATEST"
+
+Outputs:
+  # MCP管控平台链接
+  mcp_control_plane:
+    Label:
+      en: 'MCP Control Plane'
+      zh-cn: MCP管控平台
+    Value:
+      Fn::Sub:
+        - 'https://apig.console.aliyun.com/#/${RegionId}/ai-gateway/${GatewayId}/mcp-server?region=${RegionId}'
+        - RegionId:
+            Ref: ALIYUN::Region
+          GatewayId:
+            Ref: ActualGatewayId
+
+  mcp_config_count:
+    Description:
+      zh-cn: 创建的MCP服务数量
+      en: Number of MCP services created
+    Value:
+      Ref: McpConfigCount
+
+  deployment_time:
+    Description:
+      zh-cn: 部署完成时间
+      en: Deployment completion time
+    Value:
+      Ref: CurTime
+
+  # HTTP API相关输出
+  http_api_id:
+    Description:
+      zh-cn: 创建的HTTP API ID
+      en: Created HTTP API ID
+    Value:
+      Fn::GetAtt:
+        - McpHttpApi
+        - HttpApiId
+
+  http_api_name:
+    Description:
+      zh-cn: 创建的HTTP API名称
+      en: Created HTTP API name
+    Value:
+      Fn::GetAtt:
+        - McpHttpApi
+        - HttpApiName
+
+  # 网关信息
+  gateway_id:
+    Description:
+      zh-cn: 使用的AI网关ID
+      en: AI Gateway ID used
+    Value:
+      Ref: ActualGatewayId
+
+  gateway_name:
+    Description:
+      zh-cn: AI网关名称
+      en: AI Gateway Name
+    Value:
+      Fn::If:
+        - CreateGatewayConditions
+        - Fn::GetAtt:
+            - NewApigGateway
+            - GatewayName
+        - "Existing Gateway"
+
+  # 可用区信息
+  primary_zone_id:
+    Description:
+      zh-cn: 主可用区ID
+      en: Primary Zone ID
+    Value:
+      Fn::If:
+        - CreateGatewayConditions
+        - Ref: PrimaryZoneId
+        - "N/A"
+
+
+  # OSS存储桶信息
+  oss_bucket_name:
+    Description:
+      zh-cn: OSS存储桶名称
+      en: OSS Bucket Name
+    Value:
+      Ref: OssBucketName
+
+  # FC角色信息
+  fc_role_arn:
+    Description:
+      zh-cn: FC函数角色ARN（所有函数使用）
+      en: FC Function Role ARN (used by all functions)
+    Value:
+      Fn::GetAtt:
+        - FcRole
+        - Arn
+
+  fc_role_name:
+    Description:
+      zh-cn: FC函数角色名称
+      en: FC Function Role Name
+    Value:
+      Fn::GetAtt:
+        - FcRole
+        - RoleName
+
+  function_ids:
+    Description:
+      zh-cn: 所有创建的函数ID列表
+      en: List of all created function IDs
+    Value:
+      Fn::GetAtt:
+        - McpFunctions
+        - FunctionId
+
+  function_names:
+    Description:
+      zh-cn: 所有创建的函数名称列表
+      en: List of all created function names
+    Value:
+      Fn::GetAtt:
+        - McpFunctions
+        - FunctionName
+
+  trigger_urls_internet:
+    Description:
+      zh-cn: 所有HTTP触发器的公网访问地址
+      en: Internet access URLs for all HTTP triggers
+    Value:
+      Fn::GetAtt:
+        - McpTriggers
+        - UrlInternet
+
+  route_ids:
+    Description:
+      zh-cn: 所有创建的路由ID列表
+      en: List of all created route IDs
+    Value:
+      Fn::GetAtt:
+        - McpApigRoutes
+        - RouteId
+
+  route_names:
+    Description:
+      zh-cn: 所有创建的路由名称列表
+      en: List of all created route names
+    Value:
+      Fn::GetAtt:
+        - McpApigRoutes
+        - RouteName
+
+  ai_gateway_summary:
+    Description:
+      zh-cn: AI网关部署摘要
+      en: AI Gateway deployment summary
+    Value:
+      Fn::Sub:
+        - "AI网关ID: ${GatewayId}, HTTP API: ${HttpApiId}, VPC: ${VpcId}, OSS: ${OssBucket}, FC角色: ${FcRole}, 创建了${Count}个MCP服务和路由"
+        - GatewayId:
+            Ref: ActualGatewayId
+          HttpApiId:
+            Fn::GetAtt:
+              - McpHttpApi
+              - HttpApiId
+          VpcId:
+            Fn::GetAtt:
+              - ApigGateway
+              - Vpc
+          OssBucket:
+            Ref: OssBucketName
+          FcRole:
+            Fn::GetAtt:
+              - FcRole
+              - RoleName
+          Count:
+            Ref: McpConfigCount
 
 Metadata:
   ALIYUN::ROS::Interface:
@@ -321,3 +1251,33 @@ Metadata:
           default:
             zh-cn: MCP服务配置
             en: MCP Service Configuration
+      - Parameters:
+          - GatewayOption
+          - HigressAI
+          - HigressDomainId
+          - GatewaySpec
+          - PayType
+          - PayPeriodUnit
+          - PayPeriod
+          - PrimaryZoneId
+        Label:
+          default:
+            zh-cn: AI网关配置
+            en: AI Gateway Configuration
+      - Parameters:
+          - VpcOption
+          - VpcId
+          - PrimaryVSwitchId
+          - VpcCidrBlock
+          - PrimaryVSwitchCidrBlock
+        Label:
+          default:
+            zh-cn: 网络配置
+            en: Network Configuration
+      - Parameters:
+          - OssOption
+          - BucketName
+        Label:
+          default:
+            zh-cn: OSS存储配置
+            en: OSS Storage Configuration
