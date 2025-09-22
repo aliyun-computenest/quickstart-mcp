@@ -21,6 +21,51 @@ Conditions:
           - Ref: VpcOption
 
 Locals:
+  # 构建JSON事件字符串
+  RegistrationEvent:
+    Value:
+      Fn::Sub:
+        - |
+          {
+            "gateway_id": "${GatewayId}",
+            "environment_id": "${EnvironmentId}",
+            "domain_ids": ["${DomainId}"],
+            "fc3_names": ${FunctionNames},
+            "resource_group_id": "${ResourceGroupId}",
+            "region": "${Region}"
+          }
+        - GatewayId:
+            Ref: ActualGatewayId
+          EnvironmentId:
+            Fn::Jq:
+              - First
+              - '.[0].EnvironmentId'
+              - Fn::GetAtt:
+                  - ApigGateway
+                  - Environments
+          DomainId:
+            Ref: HigressDomainId
+          FunctionNames:
+            Fn::Jq:
+              - First
+              - 'tostring'
+              - Ref: FunctionNameArray
+          ResourceGroupId:
+            Fn::GetAtt:
+              - ApigGateway
+              - ResourceGroupId
+          Region:
+            Ref: ALIYUN::Region
+  FunctionNameArray:
+    Value:
+      Fn::Jq:
+        - All
+        - Fn::Sub:
+            - '. | map(. + "-${StackName}")'
+            - StackName:
+                Ref: ALIYUN::StackName
+        - Ref: ServerCodeArray
+
   CurTime:
     Type: Eval
     Value:
@@ -786,19 +831,13 @@ Resources:
                 Effect: Allow
                 Resource:
                   - "*"
+              - Action:
+                  - apig:*
+                Effect: Allow
+                Resource:
+                  - "*"
             Version: '1'
 
-  # 创建HTTP API
-  McpHttpApi:
-    Type: DATASOURCE::APIG::Gateways
-    Properties:
-      GatewayId:
-        Fn::If:
-          - CreateGatewayConditions
-          - Fn::GetAtt:
-              - NewApigGateway
-              - GatewayId
-          - Ref: HigressAI
 
 
   McpFunctions:
@@ -970,99 +1009,95 @@ Resources:
           - "OPTIONS"
         disableURLInternet: false
 
-  # 批量创建APIG服务
-  McpApigServices:
-    Type: ALIYUN::APIG::Service
-    Count:
-      Ref: McpConfigCount
-    DependsOn: McpFunctions
-    Properties:
-      GatewayId:
-        Ref: ActualGatewayId
-      SourceType: "FC3"
-      ServiceName:
-        Fn::Sub:
-          - "${ServerCode}-${ALIYUN::StackName}"
-          - ServerCode:
-              Fn::Select:
-                - Ref: ALIYUN::Index
-                - Ref: ServerCodeArray
-      Qualifier: "LATEST"
-
-  # 批量创建APIG路由
-  McpApigRoutes:
-    Type: ALIYUN::APIG::Route
-    Count:
-      Ref: McpConfigCount
+  # MCP注册函数
+  McpRegistrationFunction:
+    Type: ALIYUN::FC3::Function
     DependsOn:
-      - McpApigServices
       - ApigGateway
-      - McpHttpApis
+      - FcRole
+      - OSSBucket  # 如果创建新OSS
     Properties:
-      HttpApiId:
+      FunctionName:
+        Fn::Sub: "mcp-registration-${ALIYUN::StackName}"
+      Handler: "fc-mcp.handler"
+      Runtime: "python3.12"
+      MemorySize: 512
+      DiskSize: 512
+      Timeout: 300  # 5分钟超时，足够处理批量注册
+      InstanceConcurrency: 1
+      InternetAccess: true
+      Cpu: 0.5
+      Role:
         Fn::GetAtt:
-          - McpHttpApis
-          - HttpApiId
-      RouteName:
-        Fn::Sub:
-          - "${ServerCode}-route"
-          - ServerCode:
-              Fn::Select:
-                - Ref: ALIYUN::Index
-                - Ref: ServerCodeArray
-      Description:
-        Fn::Sub:
-          - "${ServerCode}"
-          - ServerCode:
-              Fn::Select:
-                - Ref: ALIYUN::Index
-                - Ref: ServerCodeArray
-      DomainIds:
-          - Ref: HigressDomainId
-      EnvironmentInfo:
-        EnvironmentId:
-          Fn::Jq:
-            - First
-            - '.[0].EnvironmentId'
+          - FcRole
+          - Arn
+      Layers:
+        - "acs:fc:cn-hangzhou:1563457855438522:layers/alibabacloud_apig20240327/versions/1"
+      Description: "apig registration"
+      Code:
+        # 使用创建的OSS桶
+        OssBucketName: service-info-public
+        OssObjectName: "mcp/fc-mcp.py.zip"  # 需要先上传oss.py到OSS
+      # VPC配置 - 使用网关的VPC信息
+      VpcConfig:
+        VpcId:
+          Fn::GetJsonValue:
+            - VpcId
             - Fn::GetAtt:
                 - ApigGateway
-                - Environments
-        GatewayInfo:
-          GatewayId:
-            Ref: ActualGatewayId
-      Match:
-        Path:
-          Type: "Prefix"
-          Value:
-            Fn::Sub:
-              - "/mcp-servers/${ServerCode}"
-              - ServerCode:
-                  Fn::Select:
-                    - Ref: ALIYUN::Index
-                    - Ref: ServerCodeArray
-        Methods:
+                - Vpc
+        VSwitchIds:
+          Fn::ListMerge:
+            - - Fn::GetJsonValue:
+                  - VSwitchId
+                  - Fn::GetAtt:
+                      - ApigGateway
+                      - VSwitch
+        SecurityGroupId:
+          Ref: SecurityGroup
+      # 环境变量
+      EnvironmentVariables:
+        PYTHONPATH: "/opt/python:/code"
+        LD_LIBRARY_PATH: "/code:/code/lib:/usr/lib:/opt/lib:/usr/local/lib"
+
+  McpRegistrationTrigger:
+    Type: ALIYUN::FC3::Trigger
+    DependsOn: McpRegistrationFunction
+    Properties:
+      FunctionName:
+        Fn::GetAtt:
+          - McpRegistrationFunction
+          - FunctionName
+      TriggerType: "http"
+      TriggerName: "registrationTrigger"
+      Qualifier: "LATEST"
+      Description: "mcp"
+      TriggerConfig:
+        authType: "anonymous"
+        methods:
           - "GET"
           - "POST"
-          - "PUT"
-          - "DELETE"
-        IgnoreUriCase: false
-      Backend:
-        Scene: "SingleService"
-        Services:
-          - ServiceId:
-              Fn::Select:
-                - Ref: ALIYUN::Index
-                - Fn::GetAtt:
-                    - McpApigServices
-                    - ServiceId
-            Name:
-              Fn::Select:
-                - Ref: ALIYUN::Index
-                - Ref: ServerCodeArray
-            Port: 8080
-            Protocol: "HTTP"
-            Weight: 100
-            Version: "LATEST"
+        disableURLInternet: false
+
+  # MCP服务注册调用器
+  McpRegistrationInvoker:
+    Type: ALIYUN::FC3::FunctionInvoker
+    DependsOn:
+      - McpRegistrationFunction
+      - McpFunctions
+    Properties:
+      FunctionName:
+        Fn::GetAtt:
+          - McpRegistrationFunction
+          - FunctionName
+      Async: false
+      CheckError: true
+      ExecuteVersion: 1
+      Event:
+        Ref: RegistrationEvent
+      Qualifier: "LATEST"
+
+
 
 Outputs:
   # MCP管控平台链接
@@ -1092,24 +1127,7 @@ Outputs:
     Value:
       Ref: CurTime
 
-  # HTTP API相关输出
-  http_api_id:
-    Description:
-      zh-cn: 创建的HTTP API ID
-      en: Created HTTP API ID
-    Value:
-      Fn::GetAtt:
-        - McpHttpApi
-        - HttpApiId
 
-  http_api_name:
-    Description:
-      zh-cn: 创建的HTTP API名称
-      en: Created HTTP API name
-    Value:
-      Fn::GetAtt:
-        - McpHttpApi
-        - HttpApiName
 
   # 网关信息
   gateway_id:
@@ -1197,23 +1215,8 @@ Outputs:
         - McpTriggers
         - UrlInternet
 
-  route_ids:
-    Description:
-      zh-cn: 所有创建的路由ID列表
-      en: List of all created route IDs
-    Value:
-      Fn::GetAtt:
-        - McpApigRoutes
-        - RouteId
 
-  route_names:
-    Description:
-      zh-cn: 所有创建的路由名称列表
-      en: List of all created route names
-    Value:
-      Fn::GetAtt:
-        - McpApigRoutes
-        - RouteName
+
 
   ai_gateway_summary:
     Description:
@@ -1221,13 +1224,9 @@ Outputs:
       en: AI Gateway deployment summary
     Value:
       Fn::Sub:
-        - "AI网关ID: ${GatewayId}, HTTP API: ${HttpApiId}, VPC: ${VpcId}, OSS: ${OssBucket}, FC角色: ${FcRole}, 创建了${Count}个MCP服务和路由"
+        - "AI网关ID: ${GatewayId}, HTTP API:, VPC: ${VpcId}, OSS: ${OssBucket}, FC角色: ${FcRole}, 创建了${Count}个MCP服务和路由"
         - GatewayId:
             Ref: ActualGatewayId
-          HttpApiId:
-            Fn::GetAtt:
-              - McpHttpApi
-              - HttpApiId
           VpcId:
             Fn::GetAtt:
               - ApigGateway
