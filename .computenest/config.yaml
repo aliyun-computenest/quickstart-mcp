@@ -8,13 +8,21 @@ Service:
       - Start
       - Stop
       - Restart
-    - TemplateName: 企业版
+    - TemplateName: ECS企业版
       SupportOperations:
       - Start
       - Stop
       - Restart
-    SupportBackup: true
     ModifyParametersConfig:
+    - TemplateName: FC企业版
+      Operation:
+      - Name: Modify-MCP-Servers
+        Description: 修改已部署的MCP工具
+        Type: Custom
+        SupportPredefinedParameters: false
+        EnableLogging: false
+        Parameters:
+        - McpConfigJson
     - TemplateName: ECS单机版
       Operation:
       - Name: 变更ECS实例规格
@@ -29,7 +37,7 @@ Service:
         EnableLogging: false
         Parameters:
         - McpConfigJson
-    - TemplateName: 企业版
+    - TemplateName: ECS企业版
       Operation:
       - Name: 变更ECS实例规格
         Description: 变更ECS实例规格
@@ -46,12 +54,17 @@ Service:
   DeployMetadata:
     SupplierDeployMetadata:
       SupplierTemplateConfigs:
+      - Name: FC企业版
+        Url: 'ros_templates/fc.yaml'
+        ArchitectureDiagramUrl: 'resources/architecture/architecture.jpg'
+        AllowedRegions:
+        - ap-southeast-1
       - Name: ECS单机版
         Url: 'ros_templates/template.yaml'
         ArchitectureDiagramUrl: 'resources/architecture/architecture.jpg'
         AllowedRegions:
         - ap-southeast-1
-      - Name: 企业版
+      - Name: ECS企业版
         Url: 'ros_templates/template-enterprise.yaml'
         ArchitectureDiagramUrl: 'resources/architecture/architecture.jpg'
         AllowedRegions:
@@ -61,6 +74,11 @@ Service:
           ArtifactId: ${Artifact.EcsImage.ArtifactId}
           ArtifactVersion: draft
     TemplateConfigs:
+    - Name: FC企业版
+      Url: 'ros_templates/fc.yaml'
+      ArchitectureDiagramUrl: 'resources/architecture/architecture.jpg'
+      AllowedRegions:
+      - ap-southeast-1
     - Name: ECS单机版
       Url: 'ros_templates/template.yaml'
       ArchitectureDiagramUrl: 'resources/architecture/architecture.jpg'
@@ -71,7 +89,7 @@ Service:
         EnableWebProxy: true
       - OutputKey: openapi_server_inner_address
         EnableWebProxy: true
-    - Name: 企业版
+    - Name: ECS企业版
       Url: 'ros_templates/template-enterprise.yaml'
       ArchitectureDiagramUrl: 'resources/architecture/architecture.jpg'
       AllowedRegions:
@@ -83,17 +101,15 @@ Service:
   ServiceInfo:
     # 英文版可以再配置Locale为en-US的服务信息
   - Locale: zh-CN
-    Name: MCP Server
-    ShortDescription: 阿里云计算巢MCP市场 - 企业级AI工具生态平台。海量MCP工具生态：提供数百个即用型MCP工具，涵盖搜索、开发、自动化等各类场景 灵活部署方案。数据安全保障工具部署在用户云账号下，确保数据主权与合规要求 从单一工具到完整生态，从概念验证到生产就绪 - 这里是您的AI工具超市。
+    Name: MCP Server社区版
+    ShortDescription: 该服务为企业提供了完整的MCP市场解决方案，帮助企业快速构建内部私有化的MCP服务平台，实现AI能力的统一管理和分发
     Image: 
       https://service-info-public.oss-cn-hangzhou.aliyuncs.com/1853370294850618/service-image/ba45d5c8-8654-44a9-a60a-a3090a958c77.png
     Softwares:
     - Name: mcpo
       Version: 0.0.12
-      Locale: zh-CN
     - Name: higress
-      Version: 2.1.4
-      Locale: zh-CN
+      Version: 2.1.2
 Artifact:
   EcsImage:
     ArtifactType: EcsImage
@@ -126,5 +142,3 @@ Artifact:
         sed -i 's/pull_policy: always/pull_policy: if_not_present/g' mcp/docker-compose.yaml
         docker compose -f mcp/docker-compose.yaml build --no-cache 2>&1 | stdbuf -oL grep -viE 'Downloading|sha256|extracting|KiB|Downloaded|%' || true;
         docker compose -f mcp/docker-compose.yaml pull 2>&1 | stdbuf -oL grep -viE 'Downloading|sha256|extracting|KiB|Downloaded|%' || true;
-
-

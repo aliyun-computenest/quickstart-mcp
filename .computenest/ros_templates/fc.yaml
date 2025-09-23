@@ -230,6 +230,8 @@ Parameters:
       ShowLabel: false
       ShowCounts: 9
       ShowTagsCounts: 10
+    Default: '[{"serviceName":"Fetch网页内容抓取","serverCode":"fetch","env":{},"command":"uvx","args":["mcp-server-fetch"]}]'
+
 
   GatewayOption:
     Type: String
