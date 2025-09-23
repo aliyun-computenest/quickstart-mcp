@@ -21,6 +21,25 @@ Conditions:
           - Ref: VpcOption
 
 Locals:
+  # 构建函数名数组
+  FunctionNameArray:
+    Value:
+      Fn::Jq:
+        - All
+        - Fn::Sub:
+            - '. | map("${StackName}-" + .)'
+            - StackName:
+                Ref: ALIYUN::StackName
+        - Ref: ServerCodeArray
+
+  # 构建函数名字符串列表（用于JSON）
+  FunctionNameListString:
+    Value:
+      Fn::Jq:
+        - First
+        - 'map("\"" + . + "\"") | join(",")'
+        - Ref: FunctionNameArray
+
   # 构建JSON事件字符串
   RegistrationEvent:
     Value:
@@ -30,7 +49,7 @@ Locals:
             "gateway_id": "${GatewayId}",
             "environment_id": "${EnvironmentId}",
             "domain_ids": ["${DomainId}"],
-            "fc3_names": ${FunctionNames},
+            "fc3_names": [${FunctionNameList}],
             "resource_group_id": "${ResourceGroupId}",
             "region": "${Region}"
           }
@@ -45,26 +64,14 @@ Locals:
                   - Environments
           DomainId:
             Ref: HigressDomainId
-          FunctionNames:
-            Fn::Jq:
-              - First
-              - 'tostring'
-              - Ref: FunctionNameArray
+          FunctionNameList:
+            Ref: FunctionNameListString
           ResourceGroupId:
             Fn::GetAtt:
               - ApigGateway
               - ResourceGroupId
           Region:
             Ref: ALIYUN::Region
-  FunctionNameArray:
-    Value:
-      Fn::Jq:
-        - All
-        - Fn::Sub:
-            - '. | map( "${StackName}-" + .)'
-            - StackName:
-                Ref: ALIYUN::StackName
-        - Ref: ServerCodeArray
 
   CurTime:
     Type: Eval
@@ -468,7 +475,6 @@ Parameters:
       zh-cn: 选择已有的VPC
       en: Select existing VPC
 
-
   PrimaryVSwitchId:
     Type: String
     Required:
@@ -499,7 +505,6 @@ Parameters:
     Description:
       zh-cn: 选择主可用区的交换机
       en: Select VSwitch in primary zone
-
 
   VpcCidrBlock:
     Type: String
@@ -560,7 +565,6 @@ Parameters:
     Description:
       zh-cn: 新建主交换机的网段
       en: CIDR block for new primary VSwitch
-
 
   OssOption:
     Type: String
@@ -623,8 +627,6 @@ Resources:
         Ref: PrimaryZoneId
       CidrBlock:
         Ref: PrimaryVSwitchCidrBlock
-
-
 
   # 新建AI网关
   NewApigGateway:
@@ -832,8 +834,6 @@ Resources:
                   - "*"
             Version: '1'
 
-
-
   McpFunctions:
     Type: ALIYUN::FC3::Function
     Count:
@@ -843,12 +843,9 @@ Resources:
       - FcRole
     Properties:
       FunctionName:
-        Fn::Sub:
-          - "${ALIYUN::StackName}-${ServerCode}"
-          - ServerCode:
-              Fn::Select:
-                - Ref: ALIYUN::Index
-                - Ref: ServerCodeArray
+        Fn::Select:
+          - Ref: ALIYUN::Index
+          - Ref: FunctionNameArray
       Handler: "index.handler"
       Runtime: "custom.debian12"
       MemorySize: 1024
@@ -860,7 +857,7 @@ Resources:
       # 角色：所有函数都使用创建的角色
       SessionAffinity: MCP_SSE
       SessionAffinityConfig:
-        SseEndpointPath: /sse
+        SseEndpointPath: sse
         SessionConcurrencyPerInstance: 20
       Role:
         Fn::GetAtt:
@@ -972,37 +969,7 @@ Resources:
               - Ref: ALIYUN::Index
               - Ref: McpConfigJson
 
-  McpTriggers:
-    Type: ALIYUN::FC3::Trigger
-    Count:
-      Ref: McpConfigCount
-    DependsOn: McpFunctions
-    Properties:
-      FunctionName:
-        Fn::Select:
-          - Ref: ALIYUN::Index
-          - Fn::GetAtt:
-              - McpFunctions
-              - FunctionName
-      TriggerType: "http"
-      TriggerName: "defaultTrigger"
-      Qualifier: "LATEST"
-      Description:
-        Fn::Sub:
-          - "${ServerCode}"
-          - ServerCode:
-              Fn::Select:
-                - Ref: ALIYUN::Index
-                - Ref: ServerCodeArray
-      TriggerConfig:
-        authType: "anonymous"
-        methods:
-          - "GET"
-          - "POST"
-          - "PUT"
-          - "DELETE"
-          - "OPTIONS"
-        disableURLInternet: false
+
 
   # MCP注册函数
   McpRegistrationFunction:
@@ -1098,8 +1065,6 @@ Resources:
         Ref: RegistrationEvent
       Qualifier: "LATEST"
 
-
-
 Outputs:
   # MCP管控平台链接
   mcp_control_plane:
@@ -1113,6 +1078,28 @@ Outputs:
             Ref: ALIYUN::Region
           GatewayId:
             Ref: ActualGatewayId
+
+  # 调试输出
+  function_name_array_debug:
+    Description:
+      zh-cn: 函数名数组（调试用）
+      en: Function name array (for debugging)
+    Value:
+      Ref: FunctionNameArray
+
+  function_name_list_string_debug:
+    Description:
+      zh-cn: 函数名列表字符串（调试用）
+      en: Function name list string (for debugging)
+    Value:
+      Ref: FunctionNameListString
+
+  registration_event_debug:
+    Description:
+      zh-cn: 注册事件参数（调试用）
+      en: Registration event parameters (for debugging)
+    Value:
+      Ref: RegistrationEvent
 
 Metadata:
   ALIYUN::ROS::Interface:
