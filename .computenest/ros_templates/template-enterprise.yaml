@@ -1,29 +1,315 @@
 ROSTemplateFormatVersion: '2015-09-01'
+
 Conditions:
   CreateOssConditions:
     Fn::Equals:
       - NewOSS
       - Ref: OssOption
+
+  CreateGatewayConditions:
+    Fn::Equals:
+      - NewGateway
+      - Ref: GatewayOption
+
+  CreateVpcConditions:
+    Fn::Equals:
+      - NewVPC
+      - Ref: VpcOption
+  PostPaidConditions:
+    Fn::Equals:
+      - PostPaid
+      - Ref: PayType
+Mappings:
+  PaymentTypeMapping:
+    PayTypeMap:
+      PostPaid: PayAsYouGo
+      PrePaid: Subscription
+
+
+
+Locals:
+  # 获取实际使用的网关ID
+  ActualGatewayId:
+    Value:
+      Fn::If:
+        - CreateGatewayConditions
+        - Fn::GetAtt:
+            - NewApigGateway
+            - GatewayId
+        - Ref: HigressAI
+
+  # 获取实际使用的域名ID
+  ActualDomainId:
+    Value:
+      Fn::If:
+        - CreateGatewayConditions
+        - Fn::Jq:
+            - First
+            - '.[0].DomainId'
+            - Fn::GetAtt:
+                - NewApigGateway
+                - Domains
+        - Ref: HigressDomainId
+
+  # 映射网关付费类型
+  GatewayPaymentType:
+    Value:
+      Fn::FindInMap:
+        - PaymentTypeMapping
+        - PayTypeMap
+        - Ref: PayType
+
 Parameters:
+  GatewayOption:
+    Type: String
+    AllowedValues:
+      - ExistingGateway
+      - NewGateway
+    AssociationPropertyMetadata:
+      ValueLabelMapping:
+        ExistingGateway:
+          zh-cn: 使用已有AI网关
+          en: Use Existing AI Gateway
+        NewGateway:
+          zh-cn: 新建AI网关
+          en: Create New AI Gateway
+    Label:
+      en: AI Gateway Option
+      zh-cn: AI网关选项
+    Required: true
+    Default: ExistingGateway
+
   HigressAI:
     Type: String
+    Required:
+      Fn::Equals:
+        - ExistingGateway
+        - ${GatewayOption}
     AssociationProperty: ALIYUN::APIG::Gateway::GatewayId
     AssociationPropertyMetadata:
       GatewayType: AI
       RegionId:
         Ref: ALIYUN::Region
+      Visible:
+        Condition:
+          Fn::Equals:
+            - ExistingGateway
+            - ${GatewayOption}
+    Default: ""
     Label:
-      zh-cn: AI网关
-      en: AI Gateway
+      zh-cn: 已有AI网关
+      en: Existing AI Gateway
+    Description:
+      zh-cn: 选择已有的AI网关实例ID
+      en: Select existing AI Gateway instance ID
+
   HigressDomainId:
     Type: String
-    AssociationProperty: ALIYUN::APIG::Gateway::ListDomains
     Required: true
+    AssociationProperty: ALIYUN::APIG::Gateway::ListDomains
     AssociationPropertyMetadata:
       GatewayType: AI
     Label:
       zh-cn: AI域名
       en: AI DomainId
+    Description:
+      zh-cn: AI网关域名ID，用于路由配置
+      en: AI Gateway domain ID for route configuration
+
+  GatewaySpec:
+    Type: String
+    Required:
+      Fn::Equals:
+        - NewGateway
+        - ${GatewayOption}
+    Default: "aigw.small.x1"
+    AllowedValues:
+      - "aigw.small.x1"
+      - "aigw.medium.x1"
+      - "aigw.large.x1"
+    AssociationPropertyMetadata:
+      Visible:
+        Condition:
+          Fn::Equals:
+            - NewGateway
+            - ${GatewayOption}
+    Label:
+      zh-cn: 网关规格
+      en: Gateway Specification
+    Description:
+      zh-cn: AI网关实例规格
+      en: AI Gateway instance specification
+
+  # 主可用区ID
+  PrimaryZoneId:
+    Type: String
+    Label:
+      en: Primary Zone ID
+      zh-cn: 主可用区ID
+    Description:
+      zh-cn: AI网关主可用区，用于创建主交换机
+      en: Primary zone for AI Gateway, used to create primary VSwitch
+    AssociationProperty: ALIYUN::ECS::Instance::ZoneId
+    AssociationPropertyMetadata:
+      DefaultValueStrategy: random
+      Visible:
+        Condition:
+          Fn::Equals:
+            - NewGateway
+            - ${GatewayOption}
+    Required:
+      Fn::Equals:
+        - NewGateway
+        - ${GatewayOption}
+    Default: ""
+
+  VpcOption:
+    Type: String
+    Required:
+      Fn::Equals:
+        - NewGateway
+        - ${GatewayOption}
+    AllowedValues:
+      - ExistingVPC
+      - NewVPC
+    AssociationPropertyMetadata:
+      ValueLabelMapping:
+        ExistingVPC:
+          zh-cn: 使用已有VPC
+          en: Use Existing VPC
+        NewVPC:
+          zh-cn: 新建VPC
+          en: Create New VPC
+      Visible:
+        Condition:
+          Fn::Equals:
+            - NewGateway
+            - ${GatewayOption}
+    Label:
+      en: VPC Option
+      zh-cn: VPC选项
+    Default: NewVPC
+
+  VpcId:
+    Type: String
+    Required:
+      Fn::And:
+        - Fn::Equals:
+            - NewGateway
+            - ${GatewayOption}
+        - Fn::Equals:
+            - ExistingVPC
+            - ${VpcOption}
+    AssociationProperty: ALIYUN::ECS::VPC::VPCId
+    Default: ''
+    AssociationPropertyMetadata:
+      Visible:
+        Condition:
+          Fn::And:
+            - Fn::Equals:
+                - NewGateway
+                - ${GatewayOption}
+            - Fn::Equals:
+                - ExistingVPC
+                - ${VpcOption}
+    Label:
+      zh-cn: VPC ID
+      en: VPC ID
+    Description:
+      zh-cn: 选择已有的VPC
+      en: Select existing VPC
+
+  PrimaryVSwitchId:
+    Type: String
+    Required:
+      Fn::And:
+        - Fn::Equals:
+            - NewGateway
+            - ${GatewayOption}
+        - Fn::Equals:
+            - ExistingVPC
+            - ${VpcOption}
+    AssociationProperty: ALIYUN::VPC::VSwitch::VSwitchId
+    Default: ''
+    AssociationPropertyMetadata:
+      VpcId: ${VpcId}
+      ZoneId: ${PrimaryZoneId}
+      Visible:
+        Condition:
+          Fn::And:
+            - Fn::Equals:
+                - NewGateway
+                - ${GatewayOption}
+            - Fn::Equals:
+                - ExistingVPC
+                - ${VpcOption}
+    Label:
+      zh-cn: 主交换机ID
+      en: Primary VSwitch ID
+    Description:
+      zh-cn: 选择主可用区的交换机
+      en: Select VSwitch in primary zone
+
+  VpcCidrBlock:
+    Type: String
+    Required:
+      Fn::And:
+        - Fn::Equals:
+            - NewGateway
+            - ${GatewayOption}
+        - Fn::Equals:
+            - NewVPC
+            - ${VpcOption}
+    Default: "192.168.0.0/16"
+    AllowedValues:
+      - "192.168.0.0/16"
+      - "172.16.0.0/12"
+      - "10.0.0.0/8"
+    AssociationPropertyMetadata:
+      Visible:
+        Condition:
+          Fn::And:
+            - Fn::Equals:
+                - NewGateway
+                - ${GatewayOption}
+            - Fn::Equals:
+                - NewVPC
+                - ${VpcOption}
+    Label:
+      zh-cn: VPC网段
+      en: VPC CIDR Block
+    Description:
+      zh-cn: 新建VPC的网段
+      en: CIDR block for new VPC
+
+  PrimaryVSwitchCidrBlock:
+    Type: String
+    Required:
+      Fn::And:
+        - Fn::Equals:
+            - NewGateway
+            - ${GatewayOption}
+        - Fn::Equals:
+            - NewVPC
+            - ${VpcOption}
+    Default: "192.168.1.0/24"
+    AssociationPropertyMetadata:
+      Visible:
+        Condition:
+          Fn::And:
+            - Fn::Equals:
+                - NewGateway
+                - ${GatewayOption}
+            - Fn::Equals:
+                - NewVPC
+                - ${VpcOption}
+    Label:
+      zh-cn: 主交换机网段
+      en: Primary VSwitch CIDR Block
+    Description:
+      zh-cn: 新建主交换机的网段
+      en: CIDR block for new primary VSwitch
+
   OssOption:
     Type: String
     AllowedValues:
@@ -42,6 +328,7 @@ Parameters:
       zh-cn: 选择已有/新建的OSS存储桶
     Required: true
     Default: NewOSS
+
   BucketName:
     Type: String
     Label:
@@ -59,6 +346,7 @@ Parameters:
           Fn::Equals:
             - ExistingOSS
             - ${OssOption}
+
   InternetMaxBandwidthOut:
     Type: Number
     Label:
@@ -67,6 +355,7 @@ Parameters:
     MinValue: 1
     MaxValue: 100
     Default: 8
+
   InternetChargeType:
     Type: String
     Label:
@@ -80,6 +369,7 @@ Parameters:
       - PayByBandwidth
       - PayByTraffic
     Default: PayByTraffic
+
   McpConfigJson:
     Type: Json
     Label:
@@ -89,10 +379,12 @@ Parameters:
     AssociationPropertyMetadata:
       ShowLabel: false
       ShowCount: 6
+
+  # 统一的付费类型参数
   PayType:
     Type: String
     Label:
-      en: ECS Instance Charge Type
+      en: Charge Type
       zh-cn: 付费类型
     Default: PostPaid
     AllowedValues:
@@ -101,6 +393,7 @@ Parameters:
     AssociationProperty: ChargeType
     AssociationPropertyMetadata:
       LocaleKey: InstanceChargeType
+
   PayPeriodUnit:
     Type: String
     Label:
@@ -118,6 +411,7 @@ Parameters:
             Fn::Equals:
               - ${PayType}
               - PostPaid
+
   PayPeriod:
     Type: Number
     Label:
@@ -142,6 +436,7 @@ Parameters:
             Fn::Equals:
               - ${PayType}
               - PostPaid
+
   EcsInstanceType:
     Type: String
     Label:
@@ -161,6 +456,7 @@ Parameters:
       - ecs.e-c1m2.xlarge
       - ecs.e-c1m4.large
     Default: ecs.u1-c1m1.xlarge
+
 Resources:
   RandomPassword:
     Type: ALIYUN::RandomString
@@ -175,6 +471,71 @@ Resources:
           min: 2
       character_sequences:
         - sequence: "!@#$^*-+="
+
+  # 新建VPC（当选择新建VPC时）
+  EcsVpc:
+    Type: ALIYUN::ECS::VPC
+    Condition: CreateVpcConditions
+    Properties:
+      VpcName:
+        Fn::Sub: "${ALIYUN::StackName}-vpc"
+      CidrBlock:
+        Ref: VpcCidrBlock
+
+  # 新建主VSwitch（当选择新建VPC时）
+  PrimaryEcsVSwitch:
+    Type: ALIYUN::ECS::VSwitch
+    Condition: CreateVpcConditions
+    Properties:
+      VSwitchName:
+        Fn::Sub: "${ALIYUN::StackName}-primary-vswitch"
+      VpcId:
+        Ref: EcsVpc
+      ZoneId:
+        Ref: PrimaryZoneId
+      CidrBlock:
+        Ref: PrimaryVSwitchCidrBlock
+
+  # 新建AI网关
+  NewApigGateway:
+    Type: ALIYUN::APIG::Gateway
+    Condition: CreateGatewayConditions
+    Properties:
+      GatewayName:
+        Ref: ALIYUN::StackName
+      GatewayType: "AI"
+      PaymentType:
+        Ref: GatewayPaymentType
+      Period:
+        Ref: PayPeriod
+      PeriodUnit:
+        Ref: PayPeriodUnit
+      Spec:
+        Ref: GatewaySpec
+      ZoneConfig:
+        SelectOption: "Auto"
+      NetworkAccessConfig:
+        Type: "InternetAndIntranet"
+      Vpc:
+        VpcId:
+          Fn::If:
+            - CreateVpcConditions
+            - Ref: EcsVpc
+            - Ref: VpcId
+      VSwitch:
+        VSwitchId:
+          Fn::If:
+            - CreateVpcConditions
+            - Ref: PrimaryEcsVSwitch
+            - Ref: PrimaryVSwitchId
+
+  # 查询网关详情，获取VPC、VSwitch、SecurityGroup等信息
+  ExtensionDataSource:
+    Type: DATASOURCE::APIG::Gateway
+    Properties:
+      GatewayId:
+        Ref: ActualGatewayId
+
   ExistVsw:
     Type: DATASOURCE::VPC::VSwitch
     Properties:
@@ -184,11 +545,7 @@ Resources:
           - Fn::GetAtt:
               - ExtensionDataSource
               - VSwitch
-  ExtensionDataSource:
-    Type: DATASOURCE::APIG::Gateway
-    Properties:
-      GatewayId:
-        Ref: HigressAI
+
   OSSBucket:
     Type: 'ALIYUN::OSS::Bucket'
     Condition: CreateOssConditions
@@ -214,7 +571,7 @@ Resources:
               - "oss:GetObjectVersionAcl"
               - "oss:RestoreObjectVersion"
             Principal:
-              - Ref: ALIYUN::AccountId  # 执行者账号ID（可能是子账号）
+              - Ref: ALIYUN::AccountId
             Resource:
               - Fn::Sub:
                   - "acs:oss:*:${TenantId}:${BucketName}/*"
@@ -229,7 +586,7 @@ Resources:
             Action:
               - "oss:ListObjects"
             Principal:
-              - Ref: ALIYUN::AccountId  # 执行者账号ID（可能是子账号）
+              - Ref: ALIYUN::AccountId
             Resource:
               - Fn::Sub:
                   - "acs:oss:*:${TenantId}:${BucketName}"
@@ -244,9 +601,9 @@ Resources:
               StringLike:
                 "oss:Prefix":
                   - "*"
-
       BucketName:
         Ref: ALIYUN::StackName
+
   EcsRole:
     Type: ALIYUN::RAM::Role
     Properties:
@@ -336,6 +693,7 @@ Resources:
           SourceCidrIp: 0.0.0.0/0
           IpProtocol: tcp
           NicType: internet
+
   InstanceGroup:
     Type: ALIYUN::ECS::InstanceGroup
     Properties:
@@ -382,6 +740,7 @@ Resources:
         Ref: InternetChargeType
       IoOptimized: optimized
       MaxAmount: 1
+
   RunInstallCommand:
     Type: ALIYUN::ECS::RunCommandOfLifespan
     Properties:
@@ -511,7 +870,7 @@ Resources:
                 - '{mcpServers: map({ key: .serverCode, value: { command, args, env,type,url,packageOssPath,icon } }) | from_entries }'
                 - Ref: McpConfigJson
             GatewayID:
-              Ref: HigressAI
+              Ref: ActualGatewayId
             RamRoleName:
               Fn::GetAtt:
                 - EcsRole
@@ -526,7 +885,7 @@ Resources:
                           - InstanceGroup
                           - PrivateIps
             DomainId:
-              Ref: HigressDomainId
+              Ref: ActualDomainId
             BucketName:
               Fn::If:
                 - CreateOssConditions
@@ -541,7 +900,8 @@ Resources:
           - RegionId:
               Ref: ALIYUN::Region
             GatewayID:
-              Ref: HigressAI
+              Ref: ActualGatewayId
+
 Outputs:
   openapi_server_address:
     Label:
@@ -553,7 +913,8 @@ Outputs:
         - RegionId:
             Ref: ALIYUN::Region
           GatewayId:
-            Ref: HigressAI
+            Ref: ActualGatewayId
+
   InstancePassword:
     NoEcho: 'True'
     Label:
@@ -567,7 +928,6 @@ Outputs:
         - RandomPassword
         - value
 
-
 Metadata:
   ALIYUN::ROS::Interface:
     ParameterGroups:
@@ -577,17 +937,32 @@ Metadata:
           zh-cn: Mcp配置(可多选)
           en: Mcp Config
       - Parameters:
+          - GatewayOption
+          - HigressAI
+          - HigressDomainId
+          - GatewaySpec
+          - GatewayPayType
+          - GatewayPayPeriodUnit
+          - GatewayPayPeriod
+          - PrimaryZoneId
+        Label:
+          zh-cn: AI网关配置
+          en: AI Gateway Configuration
+      - Parameters:
+          - VpcOption
+          - VpcId
+          - PrimaryVSwitchId
+          - VpcCidrBlock
+          - PrimaryVSwitchCidrBlock
+        Label:
+          zh-cn: 网络配置
+          en: Network Configuration
+      - Parameters:
           - OssOption
           - BucketName
         Label:
           zh-cn: OSS存储配置
           en: OSS Storage Configuration
-      - Parameters:
-          - HigressAI
-          - HigressDomainId
-        Label:
-          zh-cn:  Higress配置
-          en: Higress Config
       - Parameters:
           - PayType
           - PayPeriodUnit
