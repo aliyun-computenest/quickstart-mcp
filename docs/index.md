@@ -107,7 +107,10 @@
 
 ## 三、私有MCP服务部署
 注意：如果无可用的OSS Bucket建议先通过任意公开MCP包创建出计算巢服务实例，该服务实例会自动创建出符合规范的OSS仓库。
-
+如需要使用已有的OSS Bucket，可参考以下步骤进行授权：
+1. 访问[OSS控制台](https://oss.console.aliyun.com/bucket)
+2. 找到Bucket授权策略。![img_8.png](img_8.png)
+3. ![img_9.png](img_9.png)
 ### 3.1 支持的MCP格式
 计算巢MCP市场支持标准的包管理格式：
 

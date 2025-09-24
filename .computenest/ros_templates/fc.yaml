@@ -824,6 +824,7 @@ Resources:
                   - vpc:DescribeVpcs
                   - vpc:DescribeVSwitches
                   - ecs:DescribeSecurityGroups
+                  - vpc:DescribeVSwitchAttributes
                 Effect: Allow
                 Resource:
                   - "*"
@@ -1012,17 +1013,12 @@ Resources:
     DependsOn:
       - ApigGateway
       - FcRole
-      - OSSBucket  # 如果创建新OSS
+      - OSSBucket
+      - McpTriggers
     Properties:
       FunctionName:
         Fn::Sub: "mcp-registration-${ALIYUN::StackName}"
       Handler: "fc-mcp.handler"
-      LogConfig:
-        Logstore: default-logs
-        Project: serverless-cn-hangzhou-4631c296-3cd7-53fb-a3c3-d39cf985a3d3
-        EnableRequestMetrics: true
-        EnableInstanceMetrics: true
-        LogBeginRule: DefaultRegex
       Runtime: "python3.12"
       MemorySize: 512
       DiskSize: 512
