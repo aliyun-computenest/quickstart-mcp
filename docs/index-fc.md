@@ -296,6 +296,12 @@ your-mcp-command --config /path/to/config
 
 ## 五、企业接入指南
 
+### 基于HiMarket
+可通过计算巢部署一键拉起HiMarket
+![img_10.png](img_10.png)
+
+使用可参考官网文档https://github.com/higress-group/himarket
+
 ### 5.1 企业级权限管理架构
 **权限控制模块包含以下核心组件：**
 

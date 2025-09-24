@@ -1,5 +1,11 @@
 ROSTemplateFormatVersion: '2015-09-01'
 
+Mappings:
+  PaymentTypeMapping:
+    PayTypeMap:
+      PostPaid: PayAsYouGo
+      PrePaid: Subscription
+
 Conditions:
   CreateOssConditions:
     Fn::Equals:
@@ -19,6 +25,11 @@ Conditions:
       - Fn::Equals:
           - NewVPC
           - Ref: VpcOption
+
+  CreateHiMarketConditions:
+    Fn::Equals:
+      - true
+      - Ref: EnableHiMarket
 
 Locals:
   # 构建JSON事件字符串
@@ -219,7 +230,49 @@ Locals:
             - GatewayId
         - Ref: HigressAI
 
+  # 映射网关付费类型
+  GatewayPaymentType:
+    Value:
+      Fn::FindInMap:
+        - PaymentTypeMapping
+        - PayTypeMap
+        - Ref: PayType
+
+  # 获取实际使用的VPC ID
+  ActualVpcId:
+    Value:
+      Fn::If:
+        - CreateVpcConditions
+        - Ref: EcsVpc
+        - Fn::GetJsonValue:
+            - VpcId
+            - Fn::GetAtt:
+                - ApigGateway
+                - Vpc
+
+  # 获取实际使用的VSwitch ID
+  ActualVSwitchId:
+    Value:
+      Fn::If:
+        - CreateVpcConditions
+        - Ref: PrimaryEcsVSwitch
+        - Fn::GetJsonValue:
+            - VSwitchId
+            - Fn::GetAtt:
+                - ApigGateway
+                - VSwitch
+
 Parameters:
+  EnableHiMarket:
+    Type: Boolean
+    Label:
+      en: Enable HiMarket
+      zh-cn: 启用HiMarket
+    Description:
+      zh-cn: <font color='green'>可帮助快速构建企业级的 MCP 能力市场，包含以下两部分。<br>1. MCP 开放平台管理后台 (for 管理员/运营)<br>2. MCP 开放平台门户 (for 开发者/企业内部用户)<br>可访问<a href='https://github.com/higress-group/himarket' target='_blank'>GitHub</a>查看具体信息</font>
+      en: <font color='green'>Helps quickly build enterprise-level MCP capability marketplace.<br>1. MCP Open Platform Management Backend (for administrators/operators)<br>2. MCP Open Platform Portal (for developers/internal enterprise users)<br>Visit <a href='https://github.com/higress-group/himarket' target='_blank'>GitHub</a> for more information</font>
+    Default: false
+
   McpConfigJson:
     Type: Json
     Label:
@@ -231,7 +284,6 @@ Parameters:
       ShowCounts: 9
       ShowTagsCounts: 10
     Default: '[{"serviceName":"Fetch网页内容抓取","serverCode":"fetch","env":{},"command":"uvx","args":["mcp-server-fetch"]}]'
-
 
   GatewayOption:
     Type: String
@@ -249,6 +301,9 @@ Parameters:
     Label:
       en: AI Gateway Option
       zh-cn: AI网关选项
+    Description:
+      zh-cn: <font color='green'>统一的MCP流量，鉴权入口<br>AI网关作为MCP服务的统一接入点，提供流量管理和身份验证功能</font>
+      en: <font color='green'>Unified MCP traffic and authentication entry<br>AI Gateway serves as a unified access point for MCP services, providing traffic management and authentication functions</font>
     Required: true
     Default: ExistingGateway
 
@@ -278,10 +333,7 @@ Parameters:
 
   HigressDomainId:
     Type: String
-    Required:
-      Fn::Equals:
-        - ExistingGateway
-        - ${GatewayOption}
+    Required: true
     AssociationProperty: ALIYUN::APIG::Gateway::ListDomains
     AssociationPropertyMetadata:
       GatewayType: AI
@@ -316,29 +368,28 @@ Parameters:
       zh-cn: AI网关实例规格
       en: AI Gateway instance specification
 
-  # 网关付费类型
+  # 统一付费类型参数 - 只在新建网关或启用HiMarket时显示
   PayType:
     Type: String
     Label:
-      en: Gateway Charge Type
-      zh-cn: 网关付费类型
-    Default: PayAsYouGo
+      en: Charge Type
+      zh-cn: 付费类型
+    Default: PostPaid
     AllowedValues:
-      - PayAsYouGo
-      - Subscription
+      - PostPaid
+      - PrePaid
+    AssociationProperty: ChargeType
     AssociationPropertyMetadata:
-      ValueLabelMapping:
-        PayAsYouGo:
-          zh-cn: 按量付费
-          en: Pay as you go
-        Subscription:
-          zh-cn: 包年包月
-          en: subscription
+      LocaleKey: InstanceChargeType
       Visible:
         Condition:
-          Fn::Equals:
-            - NewGateway
-            - ${GatewayOption}
+          Fn::Or:
+            - Fn::Equals:
+                - NewGateway
+                - ${GatewayOption}
+            - Fn::Equals:
+                - true
+                - ${EnableHiMarket}
 
   PayPeriodUnit:
     Type: String
@@ -354,13 +405,17 @@ Parameters:
       Visible:
         Condition:
           Fn::And:
-            - Fn::Equals:
-                - NewGateway
-                - ${GatewayOption}
+            - Fn::Or:
+                - Fn::Equals:
+                    - NewGateway
+                    - ${GatewayOption}
+                - Fn::Equals:
+                    - true
+                    - ${EnableHiMarket}
             - Fn::Not:
                 Fn::Equals:
                   - ${PayType}
-                  - PayAsYouGo
+                  - PostPaid
 
   PayPeriod:
     Type: Number
@@ -383,36 +438,31 @@ Parameters:
       Visible:
         Condition:
           Fn::And:
-            - Fn::Equals:
-                - NewGateway
-                - ${GatewayOption}
+            - Fn::Or:
+                - Fn::Equals:
+                    - NewGateway
+                    - ${GatewayOption}
+                - Fn::Equals:
+                    - true
+                    - ${EnableHiMarket}
             - Fn::Not:
                 Fn::Equals:
                   - ${PayType}
-                  - PayAsYouGo
+                  - PostPaid
 
   # 主可用区ID
   PrimaryZoneId:
     Type: String
     Label:
       en: Primary Zone ID
-      zh-cn: 主可用区ID
+      zh-cn: 可用区ID
     Description:
-      zh-cn: AI网关主可用区，用于创建主交换机
-      en: Primary zone for AI Gateway, used to create primary VSwitch
+      zh-cn: 主可用区，用于创建主交换机
+      en: Primary zone, used to create primary VSwitch
     AssociationProperty: ALIYUN::ECS::Instance::ZoneId
     AssociationPropertyMetadata:
       DefaultValueStrategy: random
-      Visible:
-        Condition:
-          Fn::Equals:
-            - NewGateway
-            - ${GatewayOption}
-    Required:
-      Fn::Equals:
-        - NewGateway
-        - ${GatewayOption}
-    Default: ""
+    Required: true
 
   VpcOption:
     Type: String
@@ -444,25 +494,17 @@ Parameters:
   VpcId:
     Type: String
     Required:
-      Fn::And:
-        - Fn::Equals:
-            - NewGateway
-            - ${GatewayOption}
-        - Fn::Equals:
-            - ExistingVPC
-            - ${VpcOption}
+      Fn::Equals:
+        - ExistingVPC
+        - ${VpcOption}
     AssociationProperty: ALIYUN::ECS::VPC::VPCId
     Default: ''
     AssociationPropertyMetadata:
       Visible:
         Condition:
-          Fn::And:
-            - Fn::Equals:
-                - NewGateway
-                - ${GatewayOption}
-            - Fn::Equals:
-                - ExistingVPC
-                - ${VpcOption}
+          Fn::Equals:
+            - ExistingVPC
+            - ${VpcOption}
     Label:
       zh-cn: VPC ID
       en: VPC ID
@@ -470,17 +512,12 @@ Parameters:
       zh-cn: 选择已有的VPC
       en: Select existing VPC
 
-
   PrimaryVSwitchId:
     Type: String
     Required:
-      Fn::And:
-        - Fn::Equals:
-            - NewGateway
-            - ${GatewayOption}
-        - Fn::Equals:
-            - ExistingVPC
-            - ${VpcOption}
+      Fn::Equals:
+        - ExistingVPC
+        - ${VpcOption}
     AssociationProperty: ALIYUN::VPC::VSwitch::VSwitchId
     Default: ''
     AssociationPropertyMetadata:
@@ -488,13 +525,9 @@ Parameters:
       ZoneId: ${PrimaryZoneId}
       Visible:
         Condition:
-          Fn::And:
-            - Fn::Equals:
-                - NewGateway
-                - ${GatewayOption}
-            - Fn::Equals:
-                - ExistingVPC
-                - ${VpcOption}
+          Fn::Equals:
+            - ExistingVPC
+            - ${VpcOption}
     Label:
       zh-cn: 主交换机ID
       en: Primary VSwitch ID
@@ -502,17 +535,12 @@ Parameters:
       zh-cn: 选择主可用区的交换机
       en: Select VSwitch in primary zone
 
-
   VpcCidrBlock:
     Type: String
     Required:
-      Fn::And:
-        - Fn::Equals:
-            - NewGateway
-            - ${GatewayOption}
-        - Fn::Equals:
-            - NewVPC
-            - ${VpcOption}
+      Fn::Equals:
+        - NewVPC
+        - ${VpcOption}
     Default: "192.168.0.0/16"
     AllowedValues:
       - "192.168.0.0/16"
@@ -521,13 +549,9 @@ Parameters:
     AssociationPropertyMetadata:
       Visible:
         Condition:
-          Fn::And:
-            - Fn::Equals:
-                - NewGateway
-                - ${GatewayOption}
-            - Fn::Equals:
-                - NewVPC
-                - ${VpcOption}
+          Fn::Equals:
+            - NewVPC
+            - ${VpcOption}
     Label:
       zh-cn: VPC网段
       en: VPC CIDR Block
@@ -538,31 +562,22 @@ Parameters:
   PrimaryVSwitchCidrBlock:
     Type: String
     Required:
-      Fn::And:
-        - Fn::Equals:
-            - NewGateway
-            - ${GatewayOption}
-        - Fn::Equals:
-            - NewVPC
-            - ${VpcOption}
+      Fn::Equals:
+        - NewVPC
+        - ${VpcOption}
     Default: "192.168.1.0/24"
     AssociationPropertyMetadata:
       Visible:
         Condition:
-          Fn::And:
-            - Fn::Equals:
-                - NewGateway
-                - ${GatewayOption}
-            - Fn::Equals:
-                - NewVPC
-                - ${VpcOption}
+          Fn::Equals:
+            - NewVPC
+            - ${VpcOption}
     Label:
       zh-cn: 主交换机网段
       en: Primary VSwitch CIDR Block
     Description:
       zh-cn: 新建主交换机的网段
       en: CIDR block for new primary VSwitch
-
 
   OssOption:
     Type: String
@@ -580,6 +595,9 @@ Parameters:
     Label:
       en: Select Existing or New OSS Bucket
       zh-cn: 选择已有/新建的OSS存储桶
+    Description:
+      zh-cn: <font color='green'>用于存储企业内部MCP Package。<br>如使用已有的OSS，请在部署后参考服务实例文档为相关账号授予权限。</font>
+      en: <font color='green'>Used to store enterprise internal MCP Packages.<br>If using an existing OSS, please refer to the service instance documentation after deployment.</font>
     Required: true
     Default: NewOSS
 
@@ -601,7 +619,83 @@ Parameters:
             - ExistingOSS
             - ${OssOption}
 
+  # ECS相关参数 - 只在启用HiMarket时显示
+  EcsInstanceType:
+    Type: String
+    Label:
+      en: Instance Type
+      zh-cn: 实例类型
+    AssociationProperty: ALIYUN::ECS::Instance::InstanceType
+    AssociationPropertyMetadata:
+      InstanceChargeType: ${PayType}
+      Visible:
+        Condition:
+          Fn::Equals:
+            - true
+            - ${EnableHiMarket}
+    AllowedValues:
+      - ecs.u1-c1m4.large
+      - ecs.u1-c1m1.xlarge
+      - ecs.u1-c1m2.xlarge
+      - ecs.u1-c1m4.xlarge
+      - ecs.u1-c1m1.2xlarge
+      - ecs.u1-c1m2.3xlarge
+      - ecs.u1-c1m1.4xlarge
+      - ecs.e-c1m2.xlarge
+      - ecs.e-c1m4.large
+      - ecs.u1-c1m2.large
+    Default: ecs.u1-c1m1.xlarge
+
+  InternetMaxBandwidthOut:
+    Type: Number
+    Label:
+      zh-cn: 公网带宽 (Mbps)
+      en: Internet Max Bandwidth Out (Mbps)
+    MinValue: 1
+    MaxValue: 100
+    Default: 8
+    AssociationPropertyMetadata:
+      Visible:
+        Condition:
+          Fn::Equals:
+            - true
+            - ${EnableHiMarket}
+
+  InternetChargeType:
+    Type: String
+    Label:
+      zh-cn: 带宽付费类型
+      en: Internet Charge Type
+    AssociationPropertyMetadata:
+      ValueLabelMapping:
+        PayByTraffic: 按流量计费
+        PayByBandwidth: 按固定带宽计费
+      Visible:
+        Condition:
+          Fn::Equals:
+            - true
+            - ${EnableHiMarket}
+    AllowedValues:
+      - PayByBandwidth
+      - PayByTraffic
+    Default: PayByTraffic
+
 Resources:
+  RandomPassword:
+    Type: ALIYUN::RandomString
+    Condition: CreateHiMarketConditions
+    Properties:
+      length: 11
+      character_classes:
+        - class: "lowercase"
+          min: 4
+        - class: "uppercase"
+          min: 4
+        - class: "digits"
+          min: 2
+      character_sequences:
+        - sequence: "!@#$^*-+="
+
   # 新建VPC（当选择新建网关且新建VPC时）
   EcsVpc:
     Type: ALIYUN::ECS::VPC
@@ -626,8 +720,6 @@ Resources:
       CidrBlock:
         Ref: PrimaryVSwitchCidrBlock
 
-
-
   # 新建AI网关
   NewApigGateway:
     Type: ALIYUN::APIG::Gateway
@@ -637,7 +729,7 @@ Resources:
         Ref: ALIYUN::StackName
       GatewayType: "AI"
       PaymentType:
-        Ref: PayType
+        Ref: GatewayPaymentType
       Period:
         Ref: PayPeriod
       PeriodUnit:
@@ -711,6 +803,27 @@ Resources:
           IpProtocol: tcp
           NicType: internet
         - PortRange: 3000/3000
+          Priority: 1
+          SourceCidrIp: 0.0.0.0/0
+          IpProtocol: tcp
+          NicType: internet
+
+  # HiMarket安全组
+  HiMarketSecurityGroup:
+    Type: ALIYUN::ECS::SecurityGroup
+    Condition: CreateHiMarketConditions
+    Properties:
+      SecurityGroupName:
+        Fn::Sub: "${ALIYUN::StackName}-himarket"
+      VpcId:
+        Ref: ActualVpcId
+      SecurityGroupIngress:
+        - PortRange: 5174/5174
+          Priority: 1
+          SourceCidrIp: 0.0.0.0/0
+          IpProtocol: tcp
+          NicType: internet
+        - PortRange: 80/80
           Priority: 1
           SourceCidrIp: 0.0.0.0/0
           IpProtocol: tcp
@@ -834,8 +947,6 @@ Resources:
                 Resource:
                   - "*"
             Version: '1'
-
-
 
   McpFunctions:
     Type: ALIYUN::FC3::Function
@@ -1096,7 +1207,225 @@ Resources:
         Ref: RegistrationEvent
       Qualifier: "LATEST"
 
+  # HiMarket实例组
+  HiMarketInstanceGroup:
+    Type: ALIYUN::ECS::InstanceGroup
+    Condition: CreateHiMarketConditions
+    Properties:
+      InstanceChargeType:
+        Ref: PayType
+      PeriodUnit:
+        Ref: PayPeriodUnit
+      Period:
+        Ref: PayPeriod
+      VpcId:
+        Ref: ActualVpcId
+      VSwitchId:
+        Ref: ActualVSwitchId
+      ZoneId:
+        Fn::If:
+          - CreateVpcConditions
+          - Ref: PrimaryZoneId
+          - Fn::GetAtt:
+              - ExistVsw
+              - ZoneId
+      SecurityGroupId:
+        Ref: HiMarketSecurityGroup
+      ImageId: ecs_image_himarket
+      Password:
+        Fn::GetAtt:
+          - RandomPassword
+          - value
+      InstanceType:
+        Ref: EcsInstanceType
+      SystemDiskCategory: cloud_essd
+      SystemDiskSize: 40
+      InternetMaxBandwidthOut:
+        Ref: InternetMaxBandwidthOut
+      InternetChargeType:
+        Ref: InternetChargeType
+      IoOptimized: optimized
+      MaxAmount: 1
+      DiskMappings:
+        - Category: cloud_essd
+          Size: 200
+      # 数据盘初始化和挂载
+      UserData: |
+        #cloud-config
+        bootcmd:
+          - |
+            #!/bin/bash
+            function init_and_mount_data_disk() {
+                disk_device="/dev/vdb"
+                parted_disk_device="/dev/vdb1"
+                mount_point="/data"
+                # 已初始化的磁盘，跳过初始化，直接挂载
+                if blkid -o value -s TYPE $disk_device &>/dev/null; then
+                  echo "Disk is already initialized."
+                else
+                  echo "Disk is not initialized, initializing..."
+                  cat >> /root/InitDataDisk.sh << "EOF"
+            #!/bin/bash
+            echo "p
+            n
+            p
 
+
+
+            w
+            " |  fdisk -u /dev/vdb
+            EOF
+                  /bin/bash /root/InitDataDisk.sh
+                  rm -f /root/InitDataDisk.sh
+                  mkfs -t ext4 $parted_disk_device
+                fi
+
+                cp /etc/fstab /etc/fstab.bak
+                mkdir $mount_point
+                echo `blkid $parted_disk_device | awk '{print $2}' | sed 's/\\\"//g'` $mount_point ext4 defaults 0 0 >> /etc/fstab
+                mount -a
+            }
+            init_and_mount_data_disk
+
+  # HiMarket安装命令
+  HiMarketRunInstallCommand:
+    Type: ALIYUN::ECS::RunCommand
+    Condition: CreateHiMarketConditions
+    Properties:
+      InstanceIds:
+        Fn::GetAtt:
+          - HiMarketInstanceGroup
+          - InstanceIds
+      Type: RunShellScript
+      Sync: true
+      Timeout: 3600
+      CommandContent:
+        Fn::Sub:
+          - |
+            # 创建开机自启动配置和状态检查脚本
+            function create_systemd_config() {
+                file_path="/etc/systemd/system/himarket.service"
+                if [ -f "$file_path" ]; then
+                    echo "Systemd配置已存在: $file_path"
+                    return 1
+                fi
+                cat > $file_path <<EOF
+            [Unit]
+            Description=Docker Compose Application Service
+            Requires=docker.service
+            After=docker.service
+
+            [Service]
+            Type=oneshot
+            RemainAfterExit=yes
+            WorkingDirectory=/root/application
+            ExecStart=/bin/bash -c '/usr/bin/docker compose -f docker-compose.yaml up -d && /usr/local/bin/check-container-status'
+            ExecStop=/usr/bin/docker compose down
+            TimeoutStartSec=0
+
+            [Install]
+            WantedBy=multi-user.target
+            EOF
+
+                # 创建状态检查脚本
+                cat > /usr/local/bin/check-container-status <<'EOF'
+            #!/bin/bash
+            COMPOSE_FILE="docker-compose.yaml"
+            MAX_WAIT_TIME=3600
+            CHECK_INTERVAL=10
+
+            if ! command -v docker compose &> /dev/null; then
+                echo "Error: docker compose is not installed"
+                exit 1
+            fi
+
+            SERVICES=$(docker compose -f "$COMPOSE_FILE" config --services 2>/dev/null)
+            if [ -z "$SERVICES" ]; then
+                echo "Error: No services found"
+                exit 1
+            fi
+
+            WAIT_TIME=0
+            TIMEOUT_REACHED=false
+
+            while [ $WAIT_TIME -le $MAX_WAIT_TIME ]; do
+                ALL_HEALTHY=true
+                for SERVICE in $SERVICES; do
+                    CONTAINER_ID=$(docker compose -f "$COMPOSE_FILE" ps -q "$SERVICE")
+
+                    if [ -z "$CONTAINER_ID" ]; then
+                        echo "[$SERVICE] Not running"
+                        ALL_HEALTHY=false
+                        continue
+                    fi
+
+                    INSPECT_OUTPUT=$(docker inspect --format \
+                        '{{.State.Status}} {{if .State.Health}}{{.State.Health.Status}}{{else}}no-healthcheck{{end}}' \
+                        "$CONTAINER_ID" 2>/dev/null)
+
+                    STATUS=$(echo "$INSPECT_OUTPUT" | awk '{print $1}')
+                    HEALTH_STATUS=$(echo "$INSPECT_OUTPUT" | awk '{print $2}')
+
+                    case "$HEALTH_STATUS" in
+                        "healthy") ;;
+                        "unhealthy"|"starting")
+                            echo "[$SERVICE] Unhealthy: $HEALTH_STATUS"
+                            ALL_HEALTHY=false
+                            ;;
+                        "no-healthcheck")
+                            [ "$STATUS" != "running" ] && ALL_HEALTHY=false
+                            ;;
+                        *)
+                            echo "[$SERVICE] Unknown status: $HEALTH_STATUS"
+                            ALL_HEALTHY=false
+                            ;;
+                    esac
+                done
+
+                $ALL_HEALTHY && exit 0
+                [ $WAIT_TIME -ge $MAX_WAIT_TIME ] && break
+
+                sleep $CHECK_INTERVAL
+                WAIT_TIME=$((WAIT_TIME + CHECK_INTERVAL))
+            done
+
+            echo "Timeout reached! Abnormal services:" >&2
+            docker compose -f "$COMPOSE_FILE" ps --all
+            exit 1
+            EOF
+
+                chmod +x /usr/local/bin/check-container-status
+                systemctl enable himarket
+            
+            }
+
+            function create_custom_parameter_file() {
+                echo "The custom parameter does not exist. Skip the processing"
+            }
+
+            function mount_data_disk_dir() {
+                # 先计算出docker-compose.yaml的父目录
+                docker_compose_parent_dir=$(dirname "/root/application/docker-compose.yaml")
+                # 复制软件目录下目录和文件到数据盘挂载目录，加-n参数已存在则不进行复制
+                cp -rn $docker_compose_parent_dir/* /data
+                # sed替换挂载目录路径为数据盘目录
+                cp $docker_compose_parent_dir/docker-compose.yaml $docker_compose_parent_dir/docker-compose.yaml.bak
+                sed -i 's|\./|/data/|g' $docker_compose_parent_dir/docker-compose.yaml
+                chmod -R 777 /data
+            }
+
+            #用于版本升级
+            echo "当前时间：${CurTime}"
+            create_systemd_config
+            systemctl daemon-reload
+            systemctl stop himarket
+            create_custom_parameter_file
+            mount_data_disk_dir
+            systemctl start himarket
+          - RegionId:
+              Ref: ALIYUN::Region
+            CurTime:
+              Ref: CurTime
 
 Outputs:
   # MCP管控平台链接
@@ -1112,6 +1441,51 @@ Outputs:
           GatewayId:
             Ref: ActualGatewayId
 
+  # HiMarket相关输出
+  himarket_admin_address:
+    Condition: CreateHiMarketConditions
+    Label:
+      en: 'HiMarket Admin Portal'
+      zh-cn: HiMarket管理员页面
+    Value:
+      Fn::Sub:
+        - http://${ServerAddress}:5174
+        - ServerAddress:
+            Fn::Select:
+              - 0
+              - Fn::GetAtt:
+                  - HiMarketInstanceGroup
+                  - PublicIps
+
+  himarket_frontend_address:
+    Condition: CreateHiMarketConditions
+    Label:
+      en: 'HiMarket Frontend Portal'
+      zh-cn: HiMarket用户页面
+    Value:
+      Fn::Sub:
+        - http://${ServerAddress}:80
+        - ServerAddress:
+            Fn::Select:
+              - 0
+              - Fn::GetAtt:
+                  - HiMarketInstanceGroup
+                  - PublicIps
+
+  himarket_instance_password:
+    Condition: CreateHiMarketConditions
+    NoEcho: 'True'
+    Label:
+      en: HiMarket Instance password
+      zh-cn: HiMarket实例密码
+    Description:
+      en: HiMarket instance password
+      zh-cn: HiMarket实例密码
+    Value:
+      Fn::GetAtt:
+        - RandomPassword
+        - value
+
 Metadata:
   ALIYUN::ROS::Interface:
     ParameterGroups:
@@ -1126,15 +1500,12 @@ Metadata:
           - HigressAI
           - HigressDomainId
           - GatewaySpec
-          - PayType
-          - PayPeriodUnit
-          - PayPeriod
-          - PrimaryZoneId
         Label:
           default:
             zh-cn: AI网关配置
             en: AI Gateway Configuration
       - Parameters:
+          - PrimaryZoneId
           - VpcOption
           - VpcId
           - PrimaryVSwitchId
@@ -1151,3 +1522,21 @@ Metadata:
           default:
             zh-cn: OSS存储配置
             en: OSS Storage Configuration
+      - Parameters:
+          - EnableHiMarket
+        Label:
+          default:
+            zh-cn: HiMarket配置
+            en: HiMarket Configuration
+      - Parameters:
+          - PayType
+          - PayPeriodUnit
+          - PayPeriod
+        Label:
+          default: 付费类型配置
+      - Parameters:
+          - EcsInstanceType
+          - InternetChargeType
+          - InternetMaxBandwidthOut
+        Label:
+          default: 资源配置
