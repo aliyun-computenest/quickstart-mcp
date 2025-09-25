@@ -1,4 +1,3 @@
-I have learned this detailed document on the MCP market within the enterprise. Now I will provide you with a functional calculation (FC) based version of the document:
 
 # Quickly build the MCP market within the enterprise-Function Compute Edition
 
