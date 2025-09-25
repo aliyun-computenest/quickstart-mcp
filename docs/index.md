@@ -305,8 +305,33 @@ your-mcp-command --config /path/to/config
 可通过计算巢部署一键拉起HiMarket
 ![img_10.png](img_10.png)
 可参考官网文档https://github.com/higress-group/himarket
+### 5.1.1 示例
+可参考部署架构如下所示：
+![img_7.png](img_7.png)
 
-### 5.1 企业级MCP市场展示
+角色分为：
+1. MCP管理方：只维护网关和MCP包的配置。不实际去部署MCP实例。
+2. 企业用户：使用MCP时需要配置上该MCP需要的环境变量。比如高德APIkey。
+   搭建流程：
+1. MCP管理方自己维护完整的MCP配置，包含（公开+私有MCP配置）
+   a. 公开：可定时拉取计算巢侧的MCP配置文件
+   b. 私有：可自行开发API收集内部的MCP配置，保存好诸如ServerCode，OssPath等私有MCP配置。
+2. 通过解析第一步的完整配置文件，渲染出企业内部的MCP市场。此处开源给出前端简单的Demo
+3. 通过配置结合计算巢[CreateServiceInstance](https://help.aliyun.com/zh/compute-nest/developer-reference/api-computenestsupplier-2021-05-21-createserviceinstance?spm=a2c4g.11174283.help-menu-search-268599.d_1)接口实现用户的MCP实例创建
+   使用流程：
+1. 用户选择要使用的MCP类型，填写参数。
+2. （后台动作）调用计算巢 创建服务实例Or更新服务实例 创建出新的MCP。
+   a. 在该过程中，OSS Path，APIG为固定配置。计算巢实例创建过程中会自动将新的MCP注册到APIG。
+   b. （后台动作）平台将用户和该计算巢实例对应。单个用户对应-单个服务实例
+3. （后台动作）通过实例ID查询拥有的MCP
+4. 返回到MCP列表页面
+5. 用户使用MCP
+
+优势：
+1. 灵活度更高。架构一的方式也支持
+2. 实现上更优雅：数据（MCP配置）和代码分离（MCP运行时）
+
+### 5.1.2 企业级MCP市场展示
 在企业版计算巢服务实例中，展示了可用的MCP：![](https://intranetproxy.alipay.com/skylark/lark/0/2025/png/63156287/1755672011180-544f2a66-e7ee-4497-9b74-6c8283e7eee3.png)
 
 此处需要调用AI网关的API：[ListHttpApiRoutes](https://api.aliyun.com/api/APIG/2024-03-27/ListHttpApiRoutes)和[**ListHttpApis**](https://api.aliyun.com/document/APIG/2024-03-27/ListHttpApis)**查询可用的MCP：包含API转MCP和私有公开包拉起的MCP。**
