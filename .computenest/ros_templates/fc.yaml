@@ -450,19 +450,291 @@ Parameters:
                   - ${PayType}
                   - PostPaid
 
-  # 主可用区ID
   PrimaryZoneId:
     Type: String
     Label:
       en: Primary Zone ID
       zh-cn: 可用区ID
-    Description:
-      zh-cn: 主可用区，用于创建主交换机
-      en: Primary zone, used to create primary VSwitch
     AssociationProperty: ALIYUN::ECS::Instance::ZoneId
+    AllowedValues:
+      # 华东1（杭州）
+      - cn-hangzhou-h
+      - cn-hangzhou-i
+      - cn-hangzhou-j
+      - cn-hangzhou-k
+      - cn-hangzhou-f
+      - cn-hangzhou-g
+
+      # 华东2（上海）
+      - cn-shanghai-m
+      - cn-shanghai-l
+      - cn-shanghai-n
+      - cn-shanghai-b
+      - cn-shanghai-e
+      - cn-shanghai-g
+      - cn-shanghai-f
+
+      # 华北1（青岛）
+      - cn-qingdao-c
+
+      # 华北2（北京）
+      - cn-beijing-i
+      - cn-beijing-h
+      - cn-beijing-k
+      - cn-beijing-j
+      - cn-beijing-l
+      - cn-beijing-c
+      - cn-beijing-e
+      - cn-beijing-g
+      - cn-beijing-f
+
+      # 华北3（张家口）
+      - cn-zhangjiakou-b
+      - cn-zhangjiakou-c
+      - cn-zhangjiakou-a
+
+      # 华北5（呼和浩特）
+      - cn-huhehaote-a
+      - cn-huhehaote-b
+
+      # 华南1（深圳）
+      - cn-shenzhen-e
+      - cn-shenzhen-d
+      - cn-shenzhen-f
+
+      # 西南1（成都）
+      - cn-chengdu-a
+      - cn-chengdu-b
+
+      # 中国香港
+      - cn-hongkong-d
+      - cn-hongkong-c
+      - cn-hongkong-b
+
+      # 新加坡
+      - ap-southeast-1a
+      - ap-southeast-1c
+      - ap-southeast-1b
+
+      # 马来西亚（吉隆坡）
+      - ap-southeast-3a
+
+      # 印度尼西亚（雅加达）
+      - ap-southeast-5a
+      - ap-southeast-5b
+
+      # 日本（东京）
+      - ap-northeast-1c
+      - ap-northeast-1b
+      - ap-northeast-1a
+
+      # 英国（伦敦）
+      - eu-west-1a
+
+      # 德国（法兰克福）
+      - eu-central-a
+      - eu-central-1a
+      - eu-central-1b
+
+      # 美国（硅谷）
+      - us-west-1a
+      - us-west-1b
+
+      # 美国（弗吉尼亚）
+      - us-east-1b
+      - us-east-1a
+
     AssociationPropertyMetadata:
-      DefaultValueStrategy: random
-    Required: true
+      Visible:
+        Condition:
+          Fn::Or:
+            - Fn::Equals:
+                - NewGateway
+                - ${GatewayOption}
+            - Fn::Equals:
+                - true
+                - ${EnableHiMarket}
+
+      AllowedValues:
+        # 华东1（杭州）
+        - Condition:
+            Fn::Equals:
+              - cn-hangzhou
+              - Ref: ALIYUN::Region
+          Value:
+            - cn-hangzhou-h
+            - cn-hangzhou-i
+            - cn-hangzhou-j
+            - cn-hangzhou-k
+            - cn-hangzhou-f
+            - cn-hangzhou-g
+
+        # 华东2（上海）
+        - Condition:
+            Fn::Equals:
+              - cn-shanghai
+              - Ref: ALIYUN::Region
+          Value:
+            - cn-shanghai-m
+            - cn-shanghai-l
+            - cn-shanghai-n
+            - cn-shanghai-b
+            - cn-shanghai-e
+            - cn-shanghai-g
+            - cn-shanghai-f
+
+        # 华北1（青岛）
+        - Condition:
+            Fn::Equals:
+              - cn-qingdao
+              - Ref: ALIYUN::Region
+          Value:
+            - cn-qingdao-c
+
+        # 华北2（北京）
+        - Condition:
+            Fn::Equals:
+              - cn-beijing
+              - Ref: ALIYUN::Region
+          Value:
+            - cn-beijing-i
+            - cn-beijing-h
+            - cn-beijing-k
+            - cn-beijing-j
+            - cn-beijing-l
+            - cn-beijing-c
+            - cn-beijing-e
+            - cn-beijing-g
+            - cn-beijing-f
+
+        # 华北3（张家口）
+        - Condition:
+            Fn::Equals:
+              - cn-zhangjiakou
+              - Ref: ALIYUN::Region
+          Value:
+            - cn-zhangjiakou-b
+            - cn-zhangjiakou-c
+            - cn-zhangjiakou-a
+
+        # 华北5（呼和浩特）
+        - Condition:
+            Fn::Equals:
+              - cn-huhehaote
+              - Ref: ALIYUN::Region
+          Value:
+            - cn-huhehaote-a
+            - cn-huhehaote-b
+
+        # 华南1（深圳）
+        - Condition:
+            Fn::Equals:
+              - cn-shenzhen
+              - Ref: ALIYUN::Region
+          Value:
+            - cn-shenzhen-e
+            - cn-shenzhen-d
+            - cn-shenzhen-f
+
+        # 西南1（成都）
+        - Condition:
+            Fn::Equals:
+              - cn-chengdu
+              - Ref: ALIYUN::Region
+          Value:
+            - cn-chengdu-a
+            - cn-chengdu-b
+
+        # 中国香港
+        - Condition:
+            Fn::Equals:
+              - cn-hongkong
+              - Ref: ALIYUN::Region
+          Value:
+            - cn-hongkong-d
+            - cn-hongkong-c
+            - cn-hongkong-b
+
+        # 新加坡
+        - Condition:
+            Fn::Equals:
+              - ap-southeast-1
+              - Ref: ALIYUN::Region
+          Value:
+            - ap-southeast-1a
+            - ap-southeast-1c
+            - ap-southeast-1b
+
+        # 马来西亚（吉隆坡）
+        - Condition:
+            Fn::Equals:
+              - ap-southeast-3
+              - Ref: ALIYUN::Region
+          Value:
+            - ap-southeast-3a
+
+        # 印度尼西亚（雅加达）
+        - Condition:
+            Fn::Equals:
+              - ap-southeast-5
+              - Ref: ALIYUN::Region
+          Value:
+            - ap-southeast-5a
+            - ap-southeast-5b
+
+        # 日本（东京）
+        - Condition:
+            Fn::Equals:
+              - ap-northeast-1
+              - Ref: ALIYUN::Region
+          Value:
+            - ap-northeast-1c
+            - ap-northeast-1b
+            - ap-northeast-1a
+
+        # 英国（伦敦）
+        - Condition:
+            Fn::Equals:
+              - eu-west-1
+              - Ref: ALIYUN::Region
+          Value:
+            - eu-west-1a
+
+        # 德国（法兰克福）
+        - Condition:
+            Fn::Equals:
+              - eu-central-1
+              - Ref: ALIYUN::Region
+          Value:
+            - eu-central-a
+            - eu-central-1a
+            - eu-central-1b
+
+        # 美国（硅谷）
+        - Condition:
+            Fn::Equals:
+              - us-west-1
+              - Ref: ALIYUN::Region
+          Value:
+            - us-west-1a
+            - us-west-1b
+
+        # 美国（弗吉尼亚）
+        - Condition:
+            Fn::Equals:
+              - us-east-1
+              - Ref: ALIYUN::Region
+          Value:
+            - us-east-1b
+            - us-east-1a
+
+        # 默认值（如果没有匹配的地域）
+        - Condition: true
+          Value:
+            - cn-hangzhou-h
+
+
+
 
   VpcOption:
     Type: String
@@ -483,9 +755,13 @@ Parameters:
           en: Create New VPC
       Visible:
         Condition:
-          Fn::Equals:
-            - NewGateway
-            - ${GatewayOption}
+          Fn::Or:
+            - Fn::Equals:
+                - NewGateway
+                - ${GatewayOption}
+            - Fn::Equals:
+                - true
+                - ${EnableHiMarket}
     Label:
       en: VPC Option
       zh-cn: VPC选项
@@ -1505,6 +1781,12 @@ Metadata:
             zh-cn: AI网关配置
             en: AI Gateway Configuration
       - Parameters:
+          - PayType
+          - PayPeriodUnit
+          - PayPeriod
+        Label:
+          default: 付费类型配置
+      - Parameters:
           - PrimaryZoneId
           - VpcOption
           - VpcId
@@ -1528,12 +1810,6 @@ Metadata:
           default:
             zh-cn: HiMarket配置
             en: HiMarket Configuration
-      - Parameters:
-          - PayType
-          - PayPeriodUnit
-          - PayPeriod
-        Label:
-          default: 付费类型配置
       - Parameters:
           - EcsInstanceType
           - InternetChargeType
