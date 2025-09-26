@@ -529,18 +529,25 @@ class MCPGatewayRegistrar:
 
     def ensure_route(self, http_api_id: str, gateway_id: str, environment_id: str,
                      tool_name: str, domain_id: str, service_id: str, force_update: bool = True,
-                     tools_config_path: str = None, pre_config_path: str = "/root/pre-mcp-tools.json") -> Tuple[str, bool]:
+                     tools_config_path: str = None, pre_config_path: str = "/root/pre-mcp-tools.json",
+                     service_instance_name: str = None) -> Tuple[str, bool]:
         """确保路由存在，返回(route_id, need_update_config)（默认强制更新）"""
+
+        # 生成路由名称：如果提供了serviceInstanceName，则使用 serviceInstanceName-serverCode 格式
+        if service_instance_name:
+            route_name = f"{service_instance_name}-{tool_name}"
+        else:
+            route_name = tool_name
 
         # 生成描述信息
         description = self._generate_route_description(tool_name, tools_config_path, pre_config_path) if tools_config_path else tool_name
 
-        # 检查现有路由
+        # 检查现有路由（使用新的路由名称）
         existing_routes = self._find_items_by_name(gateway_id, f"/v1/http-apis/{http_api_id}/routes",
-                                                   tool_name, environmentId=environment_id)
+                                                   route_name, environmentId=environment_id)
         if existing_routes:
             route_id = existing_routes[0].get("routeId")
-            self.logger.info(f"路由 {tool_name} 已存在，ID: {route_id}")
+            self.logger.info(f"路由 {route_name} 已存在，ID: {route_id}")
 
             # 检查路由是否使用了正确的域名和描述
             try:
@@ -554,7 +561,7 @@ class MCPGatewayRegistrar:
                                current_description != description)
 
                 if need_update:
-                    self.logger.info(f"路由 {tool_name} 需要更新配置")
+                    self.logger.info(f"路由 {route_name} 需要更新配置")
                     # 更新路由配置
                     update_body = {
                         "domainIds": [domain_id],
@@ -562,11 +569,11 @@ class MCPGatewayRegistrar:
                         "match": route_data.get("match"),
                         "backendConfig": route_data.get("backendConfig"),
                         "mcpRouteConfig": route_data.get("mcpRouteConfig"),
-                        "name": tool_name,
+                        "name": route_name,  # 使用新的路由名称
                         "description": description  # 使用新生成的描述
                     }
                     self._execute_aliyun_cli("PUT", f"/v1/http-apis/{http_api_id}/routes/{route_id}", update_body)
-                    self.logger.info(f"路由 {tool_name} 配置已更新")
+                    self.logger.info(f"路由 {route_name} 配置已更新")
             except Exception as e:
                 self.logger.warning(f"检查或更新路由配置失败: {e}")
 
@@ -575,14 +582,14 @@ class MCPGatewayRegistrar:
             return route_id, conflict_resolved
 
         # 创建新路由
-        self.logger.info(f"创建路由: {tool_name}")
+        self.logger.info(f"创建路由: {route_name}")
         body = {
             "domainIds": [domain_id],
             "environmentId": environment_id,
-            "match": {"path": {"type": "Prefix", "value": f"/mcp-servers/{tool_name}"}},
+            "match": {"path": {"type": "Prefix", "value": f"/mcp-servers/{tool_name}"}},  # 路径仍使用tool_name
             "backendConfig": {"scene": "SingleService", "services": [{"serviceId": service_id}]},
             "mcpRouteConfig": {"protocol": "HTTP"},
-            "name": tool_name,
+            "name": route_name,  # 使用新的路由名称
             "description": description  # 使用新生成的描述
         }
         response = self._execute_aliyun_cli("POST", f"/v1/http-apis/{http_api_id}/routes", body)
@@ -592,7 +599,7 @@ class MCPGatewayRegistrar:
         if not route_id:
             raise RuntimeError("创建路由成功但未返回路由ID")
 
-        self.logger.info(f"路由创建成功，ID: {route_id}")
+        self.logger.info(f"路由创建成功，名称: {route_name}, ID: {route_id}")
         return route_id, True
 
     def _validate_mcp_service_tools(self, openapi_base_url: str, tool_name: str) -> bool:
@@ -1367,9 +1374,13 @@ class MCPGatewayRegistrar:
                                   skip_auth: bool = False, force_update: bool = True,
                                   domain_id: str = None,
                                   mode: str = "create",
-                                  pre_config_path: str = "/root/pre-mcp-tools.json") -> Tuple[int, int, List[str], List[str]]:
+                                  pre_config_path: str = "/root/pre-mcp-tools.json",
+                                  service_instance_name: str = None) -> Tuple[int, int, List[str], List[str]]:
         """带状态管理的工具注册（支持变配模式和跳过已存在工具模式）"""
         self.logger.info(f"开始{mode}模式的MCP工具操作，共享服务名称: {shared_service_name}")
+
+        if service_instance_name:
+            self.logger.info(f"使用服务实例名称: {service_instance_name}")
 
         if mode == "update":
             # update模式：只清理现有工具，不创建新工具
@@ -1398,14 +1409,16 @@ class MCPGatewayRegistrar:
 
             for tool_name in current_tools_list:
                 try:
-                    self.logger.info(f"📝 处理工具: {tool_name}")
+                    # 生成路由名称
+                    route_name = f"{service_instance_name}-{tool_name}" if service_instance_name else tool_name
+                    self.logger.info(f"📝 处理工具: {tool_name}，路由名称: {route_name}")
 
-                    # create-skip 模式：检查工具是否已存在
+                    # create-skip 模式：检查工具是否已存在（使用新的路由名称）
                     if mode == "create-skip":
                         existing_routes = self._find_items_by_name(gateway_id, f"/v1/http-apis/{http_api_id}/routes",
-                                                                   tool_name, environmentId=environment_id)
+                                                                   route_name, environmentId=environment_id)
                         if existing_routes:
-                            self.logger.info(f"⏭️  工具 {tool_name} 已存在，跳过创建")
+                            self.logger.info(f"⏭️  路由 {route_name} 已存在，跳过创建")
                             skipped_tools.append(tool_name)
                             continue
 
@@ -1418,12 +1431,13 @@ class MCPGatewayRegistrar:
                             failed_tools.append(tool_name)
                         continue
 
-                    # 创建路由（传递配置文件路径）
+                    # 创建路由（传递服务实例名称）
                     route_id, need_update = self.ensure_route(
                         http_api_id, gateway_id, environment_id,
                         tool_name, domain_id, shared_service_id,
-                        force_update if mode == "create" else False,  # create-skip 模式不强制更新
-                        tools_config, pre_config_path
+                        force_update if mode == "create" else False,
+                        tools_config, pre_config_path,
+                        service_instance_name  # 新增参数
                     )
 
                     if route_id and need_update:
@@ -1473,8 +1487,8 @@ class MCPGatewayRegistrar:
     def register_tools(self, gateway_id: str, plugin_id: str, private_ip: str,
                        tools_config: str, api_key: str, shared_service_name: str,
                        openapi_base_url: str = "http://127.0.0.1:8000",
-                       skip_auth: bool = False, force_update: bool = True, domain_id: str = None) -> Tuple[
-        int, int, List[ str ], List[ str ] ]:
+                       skip_auth: bool = False, force_update: bool = True,
+                       domain_id: str = None, service_instance_name: str = None) -> Tuple[int, int, List[str], List[str]]:
         """注册所有工具到AI网关（兼容原有接口，默认使用create模式）"""
         return self.register_tools_with_state(
             gateway_id=gateway_id,
@@ -1487,7 +1501,8 @@ class MCPGatewayRegistrar:
             skip_auth=skip_auth,
             force_update=force_update,
             domain_id=domain_id,
-            mode="create"
+            mode="create",
+            service_instance_name=service_instance_name  # 新增参数
         )
 
     # ==================== 清理功能 ====================
@@ -1865,6 +1880,7 @@ def main():
     register_parser.add_argument("--mode", choices=["create", "create-skip", "update"], default="create",
                                  help="模式：create(新建/创建工具) 或 create-skip(创建工具但跳过已存在的) 或 update(变配/清理现有工具)")
     register_parser.add_argument("--si", required=True, help="共享服务名称（必须传入，格式如：si-xxxx）")
+    register_parser.add_argument("--service-instance-name", help="服务实例名称，路由名称将使用 serviceInstanceName-serverCode 格式")
 
     # 清理命令
     cleanup_parser = subparsers.add_parser("cleanup", help="清理AI网关侧所有MCP资源（包括指定的共享服务）")
@@ -1919,7 +1935,8 @@ def main():
                 force_update=True,
                 domain_id=args.domain_id,
                 mode=args.mode,
-                pre_config_path=args.pre_config  # 传递预定义配置文件路径
+                pre_config_path=args.pre_config,
+                service_instance_name=args.service_instance_name  # 新增参数
             )
 
             # 输出结果
@@ -1929,6 +1946,8 @@ def main():
                 print(f"{'=' * 50}")
                 print(f"🔧 插件ID: {plugin_id}")
                 print(f"🏷️  共享服务名称: {args.si}")
+                if args.service_instance_name:
+                    print(f"🏷️  服务实例名称: {args.service_instance_name}")
                 print(f"📁 状态文件: {registrar.state.state_file}")
                 print(f"✅ 成功清理: {success_count} 个工具")
                 if success_tools:
@@ -1958,6 +1977,9 @@ def main():
                 print(f"{'=' * 50}")
                 print(f"🔧 插件ID: {plugin_id}")
                 print(f"🏷️  共享服务名称: {args.si}")
+                if args.service_instance_name:
+                    print(f"🏷️  服务实例名称: {args.service_instance_name}")
+                    print(f"📝 路由命名格式: {args.service_instance_name}-<serverCode>")
                 print(f"📁 状态文件: {registrar.state.state_file}")
                 print(f"✅ 成功: {success_count} 个工具")
                 if success_tools:

@@ -83,6 +83,12 @@ Locals:
       Fn::FormatTime:
         - '%Y%m%d-%H%M%S'
         - Asia/Shanghai
+  CurTimeNumber:
+    Type: Eval
+    Value:
+      Fn::FormatTime:
+        - '%Y%m%d%H%M%S'
+        - Asia/Shanghai
 
   # 计算MCP配置数量
   McpConfigCount:
@@ -132,7 +138,6 @@ Locals:
           ]
         - Ref: McpConfigJson
 
-  # 构建Command数组
   CommandArray:
     Value:
       Fn::Jq:
@@ -152,7 +157,7 @@ Locals:
             [
               "supergateway", 
               "--stdio", 
-              ("\"npx " + (.args | join(" ")) + "\""), 
+              ("\"npx " + (.args | map(if startswith("/mcp-package/") then "/home/app/" + (. | ltrimstr("/mcp-package/") | rtrimstr(".zip")) else . end) | join(" ")) + "\""), 
               "--port", "8080", 
               "--ssePath", "/sse", 
               "--messagePath", "/message"
@@ -170,7 +175,7 @@ Locals:
             [
               "supergateway", 
               "--stdio", 
-              ("\"uvx " + (.args | join(" ")) + "\""), 
+              ("\"uvx " + (.args | map(if startswith("/mcp-package/") then "/home/app/" + (. | ltrimstr("/mcp-package/") | rtrimstr(".zip")) else . end) | join(" ")) + "\""), 
               "--port", "8080", 
               "--ssePath", "/sse", 
               "--messagePath", "/message"
@@ -196,7 +201,9 @@ Locals:
           end
         - Ref: McpConfigJson
 
-  # 构建OSS对象名数组
+
+
+
   OssObjectNameArray:
     Value:
       Fn::Jq:
@@ -204,11 +211,12 @@ Locals:
         - |
           .[] | 
           if (.command == "npx" and .pkgType == "private") or (.command == "uvx" and .pkgType == "private") then 
-            (.packageOssPath | ltrimstr("/")) 
+            (.packageOssPath | ltrimstr("/") | rtrimstr(".zip"))  # 去除.zip后缀
           else 
             "flask-web-code.zip" 
           end
         - Ref: McpConfigJson
+
 
   # 获取OSS桶名（用于后续替换）
   OssBucketName:
@@ -456,6 +464,7 @@ Parameters:
       en: Primary Zone ID
       zh-cn: 可用区ID
     AssociationProperty: ALIYUN::ECS::Instance::ZoneId
+    Default: 'cn-hangzhou-h'
     AllowedValues:
       # 华东1（杭州）
       - cn-hangzhou-h
@@ -1297,7 +1306,12 @@ Resources:
             BucketPath: "/mcp-package"
             ReadOnly: true
             MountDir: "/home/app"
-            Endpoint: "https://oss-cn-hangzhou.aliyuncs.com"
+            Endpoint:
+              Fn::Sub:
+                - "https://oss-${region}.aliyuncs.com"
+                - region:
+                    Ref: ALIYUN::Region
+
       CustomRuntimeConfig:
         Port: 8080
         Command:
@@ -1478,7 +1492,8 @@ Resources:
           - FunctionName
       Async: false
       CheckError: true
-      ExecuteVersion: 0
+      ExecuteVersion:
+        Ref: CurTimeNumber
       Event:
         Ref: RegistrationEvent
       Qualifier: "LATEST"
