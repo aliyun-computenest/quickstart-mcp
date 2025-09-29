@@ -54,16 +54,16 @@ Service:
   DeployMetadata:
     SupplierDeployMetadata:
       SupplierTemplateConfigs:
-      - Name: FC企业版
-        Url: 'ros_templates/fc.yaml'
-        ArchitectureDiagramUrl: 'resources/architecture/architecture.jpg'
-        AllowedRegions:
-        - ap-southeast-1
       - Name: ECS单机版
         Url: 'ros_templates/template.yaml'
         ArchitectureDiagramUrl: 'resources/architecture/architecture.jpg'
         AllowedRegions:
         - ap-southeast-1
+      - Name: FC企业版
+        Url: 'ros_templates/fc.yaml'
+        ArchitectureDiagramUrl: 'resources/architecture/architecture.jpg'
+        AllowedRegions:
+          - ap-southeast-1
       - Name: ECS企业版
         Url: 'ros_templates/template-enterprise.yaml'
         ArchitectureDiagramUrl: 'resources/architecture/architecture.jpg'
@@ -74,11 +74,7 @@ Service:
           ArtifactId: ${Artifact.EcsImage.ArtifactId}
           ArtifactVersion: draft
     TemplateConfigs:
-    - Name: FC企业版
-      Url: 'ros_templates/fc.yaml'
-      ArchitectureDiagramUrl: 'resources/architecture/architecture.jpg'
-      AllowedRegions:
-      - ap-southeast-1
+
     - Name: ECS单机版
       Url: 'ros_templates/template.yaml'
       ArchitectureDiagramUrl: 'resources/architecture/architecture.jpg'
@@ -89,6 +85,11 @@ Service:
         EnableWebProxy: true
       - OutputKey: openapi_server_inner_address
         EnableWebProxy: true
+    - Name: FC企业版
+      Url: 'ros_templates/fc.yaml'
+      ArchitectureDiagramUrl: 'resources/architecture/architecture.jpg'
+      AllowedRegions:
+        - ap-southeast-1
     - Name: ECS企业版
       Url: 'ros_templates/template-enterprise.yaml'
       ArchitectureDiagramUrl: 'resources/architecture/architecture.jpg'
