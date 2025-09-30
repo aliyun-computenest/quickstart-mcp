@@ -8,10 +8,6 @@ APIG MCP服务注册脚本
 import json
 import logging
 import base64
-import os
-import requests
-import tempfile
-import re
 
 from typing import List, Dict, Optional
 
@@ -24,9 +20,6 @@ from alibabacloud_tea_util import models as util_models
 # 配置日志
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
-
-# 固定的配置文件URL
-TOOLS_CONFIG_URL = "https://service-info-public.oss-cn-hangzhou.aliyuncs.com/mcp/mcp-tools.json"
 
 
 class APIMCPManager:
@@ -42,54 +35,6 @@ class APIMCPManager:
         config = open_api_models.Config(credential=credential)
         config.endpoint = f'apig.{region}.aliyuncs.com'
         return APIG20240327Client(config)
-
-    def _download_config_file(self, url: str, timeout: int = 30) -> Dict:
-        """从URL下载配置文件"""
-        try:
-            logger.info(f"正在从URL下载配置文件: {url}")
-            response = requests.get(url, timeout=timeout)
-            response.raise_for_status()
-
-            config_data = response.json()
-            logger.info(f"✓ 配置文件下载成功，包含 {len(config_data)} 个配置项")
-            return config_data
-
-        except requests.exceptions.Timeout:
-            logger.error(f"❌ 下载配置文件超时: {url}")
-            return {}
-        except requests.exceptions.RequestException as e:
-            logger.error(f"❌ 下载配置文件失败: {url}, 错误: {e}")
-            return {}
-        except json.JSONDecodeError as e:
-            logger.error(f"❌ 解析配置文件JSON失败: {e}")
-            return {}
-        except Exception as e:
-            logger.error(f"❌ 下载配置文件时发生未知错误: {e}")
-            return {}
-
-    def _load_mcp_tools_config(self) -> Dict[str, Dict]:
-        """加载MCP工具配置"""
-        try:
-            # 从固定URL下载配置
-            config_data = self._download_config_file(TOOLS_CONFIG_URL)
-
-            if not config_data:
-                logger.warning("MCP工具配置为空或下载失败")
-                return {}
-
-            # 转换为以ServerCode为key的字典
-            tools_dict = {}
-            for tool in config_data:
-                server_code = tool.get("ServerCode")
-                if server_code:
-                    tools_dict[server_code] = tool
-
-            logger.info(f"✓ 加载MCP工具配置成功: {len(tools_dict)} 个工具")
-            return tools_dict
-
-        except Exception as e:
-            logger.warning(f"加载MCP工具配置失败: {e}")
-            return {}
 
     def get_http_api_id(self, gateway_id: str) -> Optional[str]:
         """获取MCP类型的HttpApiId"""
@@ -192,72 +137,6 @@ class APIMCPManager:
         logger.info(f"APIG服务处理完成，共获得 {len(service_mapping)} 个服务映射: {service_mapping}")
         return service_mapping
 
-    def _generate_mcp_server_description(self, fc3_name: str) -> str:
-        """生成MCP服务器描述信息"""
-        try:
-            # 加载MCP工具配置
-            tools_config = self._load_mcp_tools_config()
-            if not tools_config:
-                logger.warning(f"无法加载工具配置，使用默认描述: {fc3_name}")
-                return fc3_name
-
-            # 从FC3函数名中提取工具code
-            # 函数名格式: mcp-xxxx-toolcode，需要提取最后的toolcode部分
-            match = re.match(r'^mcp-[^-]+-(.+)$', fc3_name)
-            if match:
-                tool_code = match.group(1)
-                logger.info(f"从函数名 {fc3_name} 中提取工具code: {tool_code}")
-            else:
-                # 如果不匹配预期格式，直接使用原名称
-                tool_code = fc3_name
-                logger.warning(f"函数名 {fc3_name} 不符合 mcp-xxxx-toolcode 格式，直接使用原名称")
-
-            # 查找当前工具的配置
-            tool_config = tools_config.get(tool_code, {})
-            if not tool_config:
-                logger.warning(f"未找到工具code {tool_code} 的配置，使用默认描述")
-                return fc3_name
-
-            # 构建描述JSON
-            description_json = {}
-
-            # 添加 name 字段
-            name_info = tool_config.get("ServiceName", {})
-            if isinstance(name_info, dict):
-                description_json["Name"] = name_info.get("zh-cn", name_info.get("en", tool_code))
-            elif name_info:
-                description_json["Name"] = str(name_info)
-            else:
-                # 如果配置中没有ServiceName，使用工具code
-                description_json["Name"] = tool_code
-
-            # 获取描述信息（优先中文）
-            description_info = tool_config.get("Description", {})
-            if isinstance(description_info, dict):
-                full_description = description_info.get("zh-cn", description_info.get("en", tool_code))
-            else:
-                full_description = str(description_info) if description_info else tool_code
-
-            # 截取前60个字符并添加省略号
-            if len(full_description) > 60:
-                description_json["Description"] = full_description[:60] + "..."
-            else:
-                description_json["Description"] = full_description
-
-            # 获取图标
-            icon = tool_config.get("Icon")
-            if icon:
-                description_json["Icon"] = icon
-
-            # 转换为JSON字符串
-            result_description = json.dumps(description_json, ensure_ascii=False, separators=(',', ':'))
-            logger.info(f"✓ 为工具 {fc3_name} (code: {tool_code}) 生成描述成功: {result_description}")
-            return result_description
-
-        except Exception as e:
-            logger.warning(f"生成工具 {fc3_name} 描述失败: {e}")
-            return fc3_name
-
     def create_mcp_servers(self, gateway_id: str, domain_ids: List[str],
                            service_mapping: Dict[str, str]) -> Dict[str, str]:
         """批量创建MCP服务器，返回需要部署的函数名到MCP服务器ID的映射"""
@@ -293,11 +172,7 @@ class APIMCPManager:
                 )
                 logger.info("✓ 后端配置创建成功")
 
-                # 5. 生成描述信息
-                description = self._generate_mcp_server_description(fc3_name)
-                logger.info(f"✓ 生成MCP服务器描述: {description}")
-
-                # 6. 创建MCP服务器请求
+                # 5. 创建MCP服务器请求
                 create_mcp_server_request = apig20240327_models.CreateMcpServerRequest(
                     gateway_id=gateway_id,
                     name=fc3_name,
@@ -306,12 +181,11 @@ class APIMCPManager:
                     backend_config=backend_config,
                     match=http_route_match,
                     protocol='SSE',
-                    exposed_uri_path='/sse',
-                    description=description  # 添加描述字段
+                    exposed_uri_path='/sse'
                 )
                 logger.info("✓ MCP服务器请求创建成功")
 
-                # 7. 发送请求
+                # 6. 发送请求
                 response = self.client.create_mcp_server_with_options(
                     create_mcp_server_request, self.headers, self.runtime
                 )
@@ -388,7 +262,6 @@ class APIMCPManager:
         logger.info(f"   环境ID: {environment_id}")
         logger.info(f"   域名IDs: {domain_ids}")
         logger.info(f"   FC3函数: {fc3_names}")
-        logger.info(f"   工具配置URL: {TOOLS_CONFIG_URL}")
 
         result = {
             'success': False,
