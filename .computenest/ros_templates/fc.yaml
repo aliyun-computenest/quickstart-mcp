@@ -1343,6 +1343,7 @@ Resources:
               - |
                 . as $config | {
                   "LD_LIBRARY_PATH": "/code:/code/lib:/usr/lib:/opt/lib:/usr/local/lib",
+                  "UV_INDEX_URL": "https://mirrors.aliyun.com/pypi/simple",
                   "PATH": (
                     if $config.command == "npx" then 
                       "/var/fc/lang/nodejs22/bin:/var/fc/lang/python3.13/bin:/usr/local/bin/apache-maven/bin:/usr/local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/local/ruby/bin:/opt/bin:/code:/code/bin" 
