@@ -1108,6 +1108,11 @@ Resources:
           SourceCidrIp: 0.0.0.0/0
           IpProtocol: tcp
           NicType: internet
+        - PortRange: 5173/5173
+          Priority: 1
+          SourceCidrIp: 0.0.0.0/0
+          IpProtocol: tcp
+          NicType: internet
         - PortRange: 80/80
           Priority: 1
           SourceCidrIp: 0.0.0.0/0
@@ -1756,7 +1761,7 @@ Outputs:
       zh-cn: HiMarket用户页面
     Value:
       Fn::Sub:
-        - http://${ServerAddress}:80
+        - http://${ServerAddress}:5173
         - ServerAddress:
             Fn::Select:
               - 0

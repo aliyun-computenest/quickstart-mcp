@@ -237,9 +237,9 @@ Parameters:
     AssociationPropertyMetadata:
       Visible:
         Condition:
-            Fn::Equals:
-              - ExistingVPC
-              - ${VpcOption}
+          Fn::Equals:
+            - ExistingVPC
+            - ${VpcOption}
     Label:
       zh-cn: VPC ID
       en: VPC ID
@@ -713,6 +713,11 @@ Resources:
         Ref: ActualVpcId
       SecurityGroupIngress:
         - PortRange: 5174/5174
+          Priority: 1
+          SourceCidrIp: 0.0.0.0/0
+          IpProtocol: tcp
+          NicType: internet
+        - PortRange: 5173/5173
           Priority: 1
           SourceCidrIp: 0.0.0.0/0
           IpProtocol: tcp
@@ -1200,7 +1205,7 @@ Outputs:
       zh-cn: HiMarket用户页面
     Value:
       Fn::Sub:
-        - http://${ServerAddress}:80
+        - http://${ServerAddress}:5173
         - ServerAddress:
             Fn::Select:
               - 0
