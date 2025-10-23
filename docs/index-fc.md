@@ -295,13 +295,135 @@ your-mcp-command --config /path/to/config
 
 ## 五、企业接入指南
 
-### 基于HiMarket
-可通过计算巢部署一键拉起HiMarket
-![img_10.png](img_10.png)
+### 示例一
+![](https://intranetproxy.alipay.com/skylark/lark/0/2025/png/63156287/1761185330590-325c4ebc-ccb8-4447-a37f-28b028f19328.png)
 
-使用可参考官网文档https://github.com/higress-group/himarket
 
-### 5.1.2 企业级权限管理架构
+
+以上是一个经典的企业MCP市场架构。百炼和魔搭的MCP市场大致和上述架构图类似。我们来解读下这个图：
+
+**角色职责分工：MCP管理方**
+
++ **职责边界**：只负责网关和MCP包的配置管理，**不实际部署MCP实例**
++ **配置维护**：统一管理公开和私有MCP的配置信息
++ **平台运营**：提供MCP市场的基础设施和管理界面
+
+**角色职责分工：企业用户**
+
++ **按需配置**：根据业务需求选择MCP并配置必要参数
++ **环境变量管理**：自行配置如高德APIkey等敏感信息
++ **实例拥有**：每个用户拥有独立的MCP服务实例
+
+#### 首次部署基础环境搭建
+**第一步：首次部署，选择MCP服务搭建基础环境**
+
+![](https://intranetproxy.alipay.com/skylark/lark/0/2025/png/63156287/1761186669082-09cbab1c-50ca-4066-8b7b-540cdd307649.png)
+
+点击创建服务实例
+
+**第二步：选择参数并部署**
+
+1. 推荐选择FC企业版，性能更好更便宜。![](https://intranetproxy.alipay.com/skylark/lark/0/2025/png/63156287/1761186815591-dbffe0eb-6b0f-407a-99fd-6e40012b94d9.png)
+2. 选择已有或新建的AI网关，如果没有域名证书可点击此处按钮”新建“![](https://intranetproxy.alipay.com/skylark/lark/0/2025/png/63156287/1761186850687-782414dc-f74d-4f76-bb5f-6f9b6f8fee2d.png)
+3. 如果还没有配置域名，可输入”*“，创建POC环境域名。![](https://intranetproxy.alipay.com/skylark/lark/0/2025/png/63156287/1761186900486-9fd0a5c6-ad3b-4d14-980f-3d803f85df4a.png)
+4. 返回到刚刚的计算巢部署界面，选择好AI域名![](https://intranetproxy.alipay.com/skylark/lark/0/2025/png/63156287/1761186952229-97d240c8-6612-4b6e-81b3-017195f02bda.png)
+5. 选择AI网关的付费配置和网络配置，可直接选择默认新建选项![](https://intranetproxy.alipay.com/skylark/lark/0/2025/png/63156287/1761187167305-6c44733d-0cc1-4c7f-b87d-08d211a8f536.png)
+6. 新建OSS配置，首次创建推荐选择默认参数。
+
+![](https://intranetproxy.alipay.com/skylark/lark/0/2025/png/63156287/1761187195923-76a0350f-f784-4d05-92f9-7880a37167a8.png)
+
+7. 首次部署选择启用HiMarket![](https://intranetproxy.alipay.com/skylark/lark/0/2025/png/63156287/1761187239259-f2503aeb-9e7e-41d6-a04a-3c540f3d6e35.png)
+
+可直接使用默认参数部署。HiMarket作为MCP市场管理界面，解决企业使用私有MCP市场最后一公里问题。
+
+8. 点击下一步创建订单并点击立即创建![](https://intranetproxy.alipay.com/skylark/lark/0/2025/png/63156287/1761187357156-add8d5a1-22b7-4447-963a-0c913070ec0d.png)
+9. 等待服务实例状态变为已部署。![](https://intranetproxy.alipay.com/skylark/lark/0/2025/png/63156287/1761187655547-25272f89-c893-4fbc-8a01-e7c71205f0b7.png)
+
+#### MCP调试，限流和日志查询
+1. 点击MCP管控平台链接。可看到当前计算巢实例已经部署的所有MCP![](https://intranetproxy.alipay.com/skylark/lark/0/2025/png/63156287/1761187918636-2854bd1a-1bd9-43bd-8442-816f81d768e5.png)
+2. 选择某个工具可进行调试![](https://intranetproxy.alipay.com/skylark/lark/0/2025/png/63156287/1761188142185-5cc25c2d-6127-4911-8f5b-74452325f7c7.png)
+3. 可查看网关请求日志和MCP服务日志![](https://intranetproxy.alipay.com/skylark/lark/0/2025/png/63156287/1761188199897-54f42ca2-218c-454b-8e9e-d787ac48b3d7.png)
+
+#### HiMarket发布和管理MCP
+管理员侧：
+
+1. 点击HiMarket管理员界面，并注册Admin账号![](https://intranetproxy.alipay.com/skylark/lark/0/2025/png/63156287/1761188491640-7014993f-1fdb-41ac-9ea3-1bcf44f62d83.png)
+2. 导入网关实例
+
+![](https://intranetproxy.alipay.com/skylark/lark/0/2025/png/63156287/1761188606733-37e2a33a-b110-48a9-9ff8-2f40007ad15b.png)
+
+3. 输入region，ak和sk。比如cn-hangzhou。如果没有新建ak和sk，请参考此文档：[https://help.aliyun.com/zh/ram/user-guide/create-an-accesskey-pair?spm=a2c4g.11174283.help-menu-search-28625.d_1](https://help.aliyun.com/zh/ram/user-guide/create-an-accesskey-pair?spm=a2c4g.11174283.help-menu-search-28625.d_1)![](https://intranetproxy.alipay.com/skylark/lark/0/2025/png/63156287/1761188696554-924504a9-29e8-4ed5-acca-88085433c1b2.png)
+4. 选择API Products并创建API Product。![](https://intranetproxy.alipay.com/skylark/lark/0/2025/png/63156287/1761189073137-f94f5c0a-f1ff-4eb7-bade-2365d02e22db.png)
+5. 关联上当前网关已经部署的MCP实例。![](https://intranetproxy.alipay.com/skylark/lark/0/2025/png/63156287/1761189108547-39bfb31a-b552-498c-934c-71e91f67e133.png)
+6. 可继续配置使用指南
+7. 选择Portal并创建一个名为MCP市场的Portal![](https://intranetproxy.alipay.com/skylark/lark/0/2025/png/63156287/1761188791198-a44dab00-2bba-477b-8555-38eeb2091f41.png)
+8. 在Products处，点击发布新API![](https://intranetproxy.alipay.com/skylark/lark/0/2025/png/63156287/1761188926688-be24948e-8557-4178-a245-8c2a5125bb41.png)
+9. 点击发布
+10. ![](https://intranetproxy.alipay.com/skylark/lark/0/2025/png/63156287/1761189175197-2d4824f6-7e3b-4eed-9254-407012a71648.png)
+11. 将域名管理的默认域名在本地配置hosts。![](https://intranetproxy.alipay.com/skylark/lark/0/2025/png/63156287/1761189866153-98d13483-77de-41ba-93a0-55d5d24cf388.png)
+
+修改host可参考以下命令
+
+```yaml
+# 修改 hosts 文件 - 一键命令
+
+## macOS
+
+```bash
+echo "192.168.1.100    example.local" | sudo tee -a /etc/hosts && sudo dscacheutil -flushcache && sudo killall -HUP mDNSResponder && echo "已添加成功"
+```
+
+---
+
+## Linux
+
+```bash
+echo "192.168.1.100    example.local" | sudo tee -a /etc/hosts && sudo systemctl restart systemd-resolved 2>/dev/null && echo "已添加成功"
+```
+
+---
+
+## Windows (PowerShell)
+
+以管理员身份打开 PowerShell，复制粘贴：
+
+```powershell
+Add-Content -Path "C:\Windows\System32\drivers\etc\hosts" -Value "192.168.1.100    example.local"; ipconfig /flushdns; Write-Host "已添加成功"
+```
+
+---
+
+## Windows (CMD)
+
+以管理员身份打开命令提示符，复制粘贴：
+
+```cmd
+echo 192.168.1.100    example.local >> C:\Windows\System32\drivers\etc\hosts && ipconfig /flushdns && echo 已添加成功
+```
+
+---
+
+**注意：** 将 `192.168.1.100` 和 `example.local` 替换为你实际需要的 IP 和域名。
+
+
+12. 注册 Developer 开发者
+
+### ![](https://intranetproxy.alipay.com/skylark/lark/0/2025/png/63156287/1761190692448-ecbb006c-1c79-4db8-96ef-9f295082f274.png)
+13. 访问 MCP 门户可以看到刚刚发布的 MCP Server![](https://intranetproxy.alipay.com/skylark/lark/0/2025/png/63156287/1761190709654-984f1162-161d-4bcc-8cf4-2736dbbad7d0.png)
+14. ![](https://intranetproxy.alipay.com/skylark/lark/0/2025/png/63156287/1761190715941-58158474-956b-4632-a1ba-74269ed51035.png)
+
+#### d. HiMarket消费者管理
+1. 在 AI 开放平台的设计中，消费者 Developer 代表一般的用户身份，而用户需要持有对应的凭证才可以申请订阅 API Product，而凭证这一概念，在 AI 开放平台中称之为 Consumer 消费者，Developer 与 Consumer 是一对多的关联。![](https://intranetproxy.alipay.com/skylark/lark/0/2025/png/63156287/1761190758040-ac1a2376-c605-488f-9012-7a0f614e14e8.png)
+2. 创建消费者之后，即可申请 API Product 的订阅![](https://intranetproxy.alipay.com/skylark/lark/0/2025/png/63156287/1761190764797-763989f8-987c-44c1-9710-3a34a440ef90.png)
+3. 门户的默认配置中，订阅的审批是默认关闭的，即开发者申请后会自动审批通过。
+4. 发起调用：携带消费者的凭证，配置门户中 MCP Server 的连接地址，即可发起对 MCP Server 的调用。 
+
+#### e. 变配：扩充使用的MCP
+1. 返回到计算巢MCP市场，选择要使用的MCP，选择之前部署的实例![](https://intranetproxy.alipay.com/skylark/lark/0/2025/png/63156287/1761190894053-35f2326f-d6e9-47f6-8557-a2b7b4040a59.png)
+2. 等待变配完成即可使用新发布的MCP![](https://intranetproxy.alipay.com/skylark/lark/0/2025/png/63156287/1761190947987-fc2ed19f-666d-4eef-bee8-cd71cd96812a.png)
+
+
+### 示例二
 **权限控制模块包含以下核心组件：**
 
 + **消费者管理（Consumer Management）**：管理不同业务团队的身份标识
@@ -335,51 +457,7 @@ your-mcp-command --config /path/to/config
 1. 灵活度更高。架构一的方式也支持
 2. 实现上更优雅：数据（MCP配置）和代码分离（MCP运行时）
 
-### 5.2 消费者与API Key管理
 
-#### 5.2.1 消费者创建流程
-平台管理员通过调用`CreateConsumer` API为业务团队创建消费者身份：
-
-**API调用示例：**
-
-```json
-{
-  "apiKeyIdentityConfig": {
-    "apikeySource": {
-      "source": "QueryString",
-      "value": "apikey"
-    },
-    "type": "Apikey",
-    "credentials": [
-      {
-        "generateMode": "Custom",
-        "apikey": "bmw-team-a-001"
-      }
-    ]
-  },
-  "name": "会计团队",
-  "enable": true,
-  "gatewayType": "AI"
-}
-```
-
-### 5.3 MCP服务授权机制
-
-#### 5.3.1 启用MCP服务认证
-为每个MCP服务启用认证机制，调用`CreateAndAttachPolicy` API：
-
-```json
-{
-  "attachResourceType": "GatewayRoute",
-  "gatewayId": "gw-d1qbbium1hko66pmepf0",
-  "environmentId": "env-d1qbc7em1hkluu4lgagg",
-  "config": "{\"authenticationType\":\"Apikey\",\"enable\":true}",
-  "className": "Authentication",
-  "attachResourceIds": [
-    "hr-d1sqdqem1hkrte7kn3t0"
-  ]
-}
-```
 
 ## 六、MCP服务使用与集成
 
