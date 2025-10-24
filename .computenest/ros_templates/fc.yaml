@@ -1257,7 +1257,7 @@ Resources:
       Runtime: "custom.debian12"
       MemorySize: 1024
       DiskSize: 512
-      Timeout: 60
+      Timeout: 600
       InstanceConcurrency: 20
       InternetAccess: true
       Cpu: 1
