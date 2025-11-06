@@ -1118,6 +1118,13 @@ Resources:
           SourceCidrIp: 0.0.0.0/0
           IpProtocol: tcp
           NicType: internet
+  Sleep:
+    Condition: CreateGatewayConditions
+    DependsOn:
+      - NewApigGateway
+    Type: ALIYUN::ROS::Sleep
+    Properties:
+      CreateDuration: 180
 
   # 创建OSS存储桶
   OSSBucket:
@@ -1422,6 +1429,7 @@ Resources:
       - FcRole
       - OSSBucket
       - McpTriggers
+      - Sleep
     Properties:
       FunctionName:
         Fn::Sub: "mcp-registration-${ALIYUN::StackName}"
@@ -1491,6 +1499,9 @@ Resources:
     DependsOn:
       - McpRegistrationFunction
       - McpFunctions
+      - Sleep
+      - NewApigGateway
+      - McpRegistrationTrigger
     Properties:
       FunctionName:
         Fn::GetAtt:
