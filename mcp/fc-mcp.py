@@ -8,6 +8,7 @@ APIG MCP服务注册脚本
 import json
 import logging
 import base64
+import time
 
 from typing import List, Dict, Optional
 
@@ -234,6 +235,22 @@ class APIMCPManager:
                 if response.body.code == 'Ok':
                     deployed_mapping[fc3_name] = mcp_server_id
                     logger.info(f"✓ 部署MCP服务器成功: {fc3_name} -> {mcp_server_id}")
+
+                    # 第一次部署成功后，等待10秒再部署一次
+                    logger.info(f"⏰ 等待10秒后进行第二次部署...")
+                    time.sleep(10)
+
+                    logger.info(f"🔄 开始第二次部署: {fc3_name} -> {mcp_server_id}")
+                    response2 = self.client.deploy_mcp_server_with_options(
+                        mcp_server_id, self.headers, self.runtime
+                    )
+                    logger.info(f"第二次部署响应: {response2.body}")
+
+                    if response2.body.code == 'Ok':
+                        logger.info(f"✓ 第二次部署成功: {fc3_name} -> {mcp_server_id}")
+                    else:
+                        logger.warning(f"⚠️ 第二次部署返回非Ok状态: {getattr(response2.body, 'message', '未知错误')}")
+
                 else:
                     logger.error(f"❌ 部署MCP服务器失败: {fc3_name} -> {mcp_server_id}, 错误: {getattr(response.body, 'message', '未知错误')}")
 
