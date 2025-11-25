@@ -43,7 +43,9 @@ Locals:
             "domain_ids": ["${DomainId}"],
             "fc3_names": ${FunctionNames},
             "resource_group_id": "${ResourceGroupId}",
-            "region": "${Region}"
+            "region": "${Region}",
+            "enable_authentication": "${EnableAuth}"
+
           }
         - GatewayId:
             Ref: ActualGatewayId
@@ -67,6 +69,8 @@ Locals:
               - ResourceGroupId
           Region:
             Ref: ALIYUN::Region
+          EnableAuth:
+            Ref: EnableAuthentication
   FunctionNameArray:
     Value:
       Fn::Jq:
@@ -271,6 +275,15 @@ Locals:
                 - VSwitch
 
 Parameters:
+  EnableAuthentication:
+    Type: Boolean
+    Label:
+      en: Enable Authentication
+      zh-cn: 启用认证
+    Description:
+      zh-cn: <font color='green'>为MCP服务启用Apikey认证，提高安全性。注意：使用时需要通过消费者凭证访问</font>
+      en: <font color='green'>Enable Apikey authentication for MCP services to enhance security</font>
+    Default: false
   EnableHiMarket:
     Type: Boolean
     Label:
@@ -1843,6 +1856,7 @@ Metadata:
             zh-cn: HiMarket配置
             en: HiMarket Configuration
       - Parameters:
+          - EnableAuthentication
           - EcsInstanceType
           - InternetChargeType
           - InternetMaxBandwidthOut

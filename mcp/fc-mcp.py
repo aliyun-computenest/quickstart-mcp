@@ -218,9 +218,84 @@ class APIMCPManager:
         logger.info(f"MCP服务器处理完成，共获得 {len(mcp_server_mapping)} 个需要部署的服务器: {mcp_server_mapping}")
         return mcp_server_mapping
 
-    def deploy_mcp_servers(self, mcp_server_mapping: Dict[str, str]) -> Dict[str, str]:
+    def create_and_attach_authentication(self, gateway_id: str, environment_id: str,
+                                         mcp_server_id: str, server_name: str) -> bool:
+        """为MCP服务器创建并附加认证策略"""
+        try:
+            logger.info(f"为MCP服务器创建认证策略: {mcp_server_id}")
+
+            # 先获取MCP服务器信息，获取routeId
+            logger.info(f"获取MCP服务器信息: {mcp_server_id}")
+
+            try:
+                # 直接传入 mcp_server_id 字符串，不需要 Request 对象
+                get_response = self.client.get_mcp_server_with_options(
+                    mcp_server_id, self.headers, self.runtime
+                )
+
+                if not get_response or not get_response.body or not get_response.body.data:
+                    logger.error(f"❌ 获取MCP服务器信息失败: {mcp_server_id}")
+                    return False
+
+                mcp_data = get_response.body.data
+                route_id = mcp_data.route_id
+
+                if not route_id:
+                    logger.error(f"❌ MCP服务器没有routeId: {mcp_server_id}")
+                    return False
+
+                logger.info(f"✓ 获取到routeId: {route_id}")
+
+            except Exception as e:
+                logger.error(f"❌ 获取MCP服务器信息异常: {mcp_server_id}, 错误: {e}")
+                import traceback
+                logger.error(f"详细错误: {traceback.format_exc()}")
+                return False
+
+            # 创建认证策略配置（使用JSON字符串）
+            auth_config = '{"enable":true,"authenticationType":"Apikey"}'
+
+            # 创建请求
+            request = apig20240327_models.CreateAndAttachPolicyRequest(
+                gateway_id=gateway_id,
+                environment_id=environment_id,
+                attach_resource_type='GatewayRoute',
+                attach_resource_ids=[route_id],
+                class_name='Authentication',
+                config=auth_config
+            )
+
+            # 发送请求
+            response = self.client.create_and_attach_policy_with_options(
+                request, self.headers, self.runtime
+            )
+
+            logger.info(f"认证策略创建响应: {response.body}")
+
+            if response and response.body and response.body.code == 'Ok':
+                policy_id = getattr(response.body.data, 'policy_id', 'N/A')
+                request_id = getattr(response.body, 'request_id', 'N/A')
+                logger.info(f"✓ 认证策略创建成功: {server_name}, PolicyId: {policy_id}, RequestId: {request_id}")
+                return True
+            else:
+                logger.error(f"❌ 认证策略创建失败: {server_name}")
+                if response and response.body:
+                    logger.error(f"错误信息: {getattr(response.body, 'message', '未知错误')}")
+                return False
+
+        except Exception as e:
+            logger.error(f"❌ 创建认证策略异常: {mcp_server_id}, 错误: {e}")
+            import traceback
+            logger.error(f"详细错误: {traceback.format_exc()}")
+            return False
+
+
+    def deploy_mcp_servers(self, gateway_id: str, environment_id: str,
+                           mcp_server_mapping: Dict[str, str],
+                           enable_authentication: bool = False) -> Dict[str, str]:
         """批量部署MCP服务器，返回成功部署的映射"""
         deployed_mapping = {}  # 函数名 -> MCP服务器ID的映射
+        auth_policy_mapping = {}  # 记录认证策略ID
 
         for fc3_name, mcp_server_id in mcp_server_mapping.items():
             try:
@@ -251,6 +326,22 @@ class APIMCPManager:
                     else:
                         logger.warning(f"⚠️ 第二次部署返回非Ok状态: {getattr(response2.body, 'message', '未知错误')}")
 
+                    # 部署成功后，如果启用认证，则创建认证策略
+                    if enable_authentication:
+                        logger.info(f"🔐 为 {fc3_name} 启用认证...")
+                        auth_result = self.create_and_attach_authentication(
+                            gateway_id=gateway_id,
+                            environment_id=environment_id,
+                            mcp_server_id=mcp_server_id,
+                            server_name=fc3_name
+                        )
+
+                        if auth_result:
+                            auth_policy_mapping[fc3_name] = True
+                            logger.info(f"✓ 认证策略附加成功: {fc3_name}")
+                        else:
+                            logger.warning(f"⚠️ 认证策略创建失败: {fc3_name}，但服务器已部署")
+
                 else:
                     logger.error(f"❌ 部署MCP服务器失败: {fc3_name} -> {mcp_server_id}, 错误: {getattr(response.body, 'message', '未知错误')}")
 
@@ -268,17 +359,22 @@ class APIMCPManager:
                     logger.error(f"详细错误: {traceback.format_exc()}")
 
         logger.info(f"MCP服务器部署完成，共部署 {len(deployed_mapping)} 个服务器: {deployed_mapping}")
+        if enable_authentication:
+            logger.info(f"认证策略映射: {auth_policy_mapping}")
+
         return deployed_mapping
 
     def register_mcp_services(self, gateway_id: str, environment_id: str,
                               domain_ids: List[str], fc3_names: List[str],
-                              resource_group_id: str = None) -> Dict[str, any]:
+                              resource_group_id: str = None,
+                              enable_authentication: bool = False) -> Dict[str, any]:
         """完整的MCP服务注册流程"""
         logger.info(f"🚀 开始注册MCP服务...")
         logger.info(f"   网关ID: {gateway_id}")
         logger.info(f"   环境ID: {environment_id}")
         logger.info(f"   域名IDs: {domain_ids}")
         logger.info(f"   FC3函数: {fc3_names}")
+        logger.info(f"   启用认证: {enable_authentication}")
 
         result = {
             'success': False,
@@ -325,7 +421,9 @@ class APIMCPManager:
         # 4. 部署MCP服务器（只部署新创建的）
         if mcp_server_mapping:
             logger.info("🚀 步骤4: 部署MCP服务器...")
-            deployed_mapping = self.deploy_mcp_servers(mcp_server_mapping)
+            deployed_mapping = self.deploy_mcp_servers(
+                gateway_id, environment_id, mcp_server_mapping, enable_authentication
+            )
             result['deployed_mapping'] = deployed_mapping
         else:
             logger.info("⚠️ 没有需要部署的MCP服务器，跳过部署步骤")
@@ -338,6 +436,8 @@ class APIMCPManager:
             logger.info("✅ 所有MCP服务处理成功!")
             logger.info(f"   新部署: {len(result['deployed_mapping'])} 个")
             logger.info(f"   已存在: {len(result['skipped_existing'])} 个")
+            if enable_authentication:
+                logger.info(f"   认证已启用: Apikey")
         else:
             result['errors'].append(f"部分MCP服务处理失败: {total_processed}/{len(fc3_names)}")
             logger.warning(f"⚠️  部分MCP服务处理成功: {total_processed}/{len(fc3_names)}")
@@ -356,6 +456,19 @@ def handler(event, context):
             # bytes类型，先解码为字符串
             logger.info("🔧 检测到bytes类型事件，进行解码")
             event_str = event.decode('utf-8')
+
+            # 替换 Python 布尔值为 JSON 布尔值
+            event_str = event_str.replace(': True', ': true')
+            event_str = event_str.replace(': False', ': false')
+            event_str = event_str.replace(':True', ':true')
+            event_str = event_str.replace(':False', ':false')
+
+            # 替换 Python None 为 JSON null
+            event_str = event_str.replace(': None', ': null')
+            event_str = event_str.replace(':None', ':null')
+
+            logger.info(f"🔧 修复后的事件字符串: {event_str}")
+
             event_data = json.loads(event_str)
 
         elif isinstance(event, str):
@@ -437,6 +550,7 @@ def execute_registration(event_data: dict) -> dict:
     fc3_names_raw = event_data.get('fc3_names', [])
     resource_group_id = event_data.get('resource_group_id')
     region = event_data.get('region', 'cn-hangzhou')
+    enable_authentication = event_data.get('enable_authentication', False)
 
     # 处理可能的嵌套数组问题
     def flatten_array(arr):
@@ -460,6 +574,7 @@ def execute_registration(event_data: dict) -> dict:
     logger.info(f"   fc3_names (扁平化后): {fc3_names}")
     logger.info(f"   resource_group_id: {resource_group_id}")
     logger.info(f"   region: {region}")
+    logger.info(f"   enable_authentication: {enable_authentication}")
 
     # 参数验证
     if not all([gateway_id, domain_ids, fc3_names]):
@@ -476,8 +591,9 @@ def execute_registration(event_data: dict) -> dict:
         gateway_id=gateway_id,
         environment_id=environment_id,
         domain_ids=domain_ids,
-        fc3_names=fc3_names,  # 使用扁平化后的数组
-        resource_group_id=resource_group_id
+        fc3_names=fc3_names,
+        resource_group_id=resource_group_id,
+        enable_authentication=enable_authentication
     )
 
     logger.info(f"🎯 最终结果: {result}")
