@@ -151,10 +151,22 @@ class MCPGatewayRegistrar:
             raise RuntimeError(error_msg)
 
     def _check_response(self, response, operation):
-        """检查响应状态"""
-        if response.get('code') not in ['Ok', '200']:
+        """检查响应状态（CLI返回双层嵌套：response.data.data）"""
+        # 外层检查
+        outer_code = response.get('code')
+        if outer_code not in ['Ok', '200']:
             raise RuntimeError(f'{operation}失败: {response}')
-        return response.get('data', {})
+
+        inner = response.get('data', {})
+
+        # 如果内层也是 {code, data} 结构（CLI双层嵌套），再解一层
+        if isinstance(inner, dict) and 'code' in inner and 'data' in inner:
+            inner_code = inner.get('code')
+            if inner_code not in ['Ok', '200']:
+                raise RuntimeError(f'{operation}失败: {inner}')
+            return inner.get('data', {})
+
+        return inner
 
     # ===== 保留的辅助方法 =====
 
@@ -556,8 +568,8 @@ class MCPGatewayRegistrar:
             # 2. 逐个注册工具
             for tool_name in current_tools_list:
                 try:
-                    # 生成MCP Server名称
-                    mcp_name = f"{service_instance_name}-{tool_name}" if service_instance_name else tool_name
+                    # MCP Server名称直接用serverCode（与控制台匹配逻辑一致）
+                    mcp_name = tool_name
                     logger.info(f"📝 处理工具: {tool_name}，MCP名称: {mcp_name}")
 
                     # create-skip模式：检查是否已存在
