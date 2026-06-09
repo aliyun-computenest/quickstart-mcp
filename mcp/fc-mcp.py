@@ -9,8 +9,12 @@ import json
 import logging
 import base64
 import time
+import urllib.request
 
 from typing import List, Dict, Optional
+
+# 公开的MCP工具元数据URL
+MCP_TOOLS_METADATA_URL = "https://service-info-public.oss-cn-hangzhou.aliyuncs.com/mcp/mcp-tools.json"
 
 from alibabacloud_apig20240327.client import Client as APIG20240327Client
 from alibabacloud_credentials.client import Client as CredentialClient
@@ -139,18 +143,21 @@ class APIMCPManager:
         return service_mapping
 
     def create_mcp_servers(self, gateway_id: str, domain_ids: List[str],
-                           service_mapping: Dict[str, str]) -> Dict[str, str]:
+                           service_mapping: Dict[str, str],
+                           descriptions: Dict[str, str] = None) -> Dict[str, str]:
         """批量创建MCP服务器，返回需要部署的函数名到MCP服务器ID的映射"""
         mcp_server_mapping = {}  # 函数名 -> MCP服务器ID的映射（只包含需要部署的）
 
         for fc3_name, service_id in service_mapping.items():
             try:
-                logger.info(f"创建MCP服务器: {fc3_name} -> {service_id}")
+                # AI网关MCP Server的name要求全小写，但FC3函数名保持原始大小写
+                mcp_server_name = fc3_name.lower()
+                logger.info(f"创建MCP服务器: {fc3_name} -> {service_id} (MCP名称: {mcp_server_name})")
 
-                # 1. 创建路径匹配配置
+                # 1. 创建路径匹配配置（路径也用小写）
                 http_route_match_path = apig20240327_models.HttpRouteMatchPath(
                     type='Prefix',
-                    value=f'/mcp-servers/{fc3_name}'
+                    value=f'/mcp-servers/{mcp_server_name}'
                 )
                 logger.info(f"✓ 路径匹配配置创建成功")
 
@@ -173,10 +180,12 @@ class APIMCPManager:
                 )
                 logger.info("✓ 后端配置创建成功")
 
-                # 5. 创建MCP服务器请求
+                # 5. 创建MCP服务器请求（name用小写，description用小写key匹配）
+                server_description = (descriptions or {}).get(mcp_server_name, mcp_server_name)
                 create_mcp_server_request = apig20240327_models.CreateMcpServerRequest(
                     gateway_id=gateway_id,
-                    name=fc3_name,
+                    name=mcp_server_name,
+                    description=server_description,
                     type='RealMCP',
                     domain_ids=domain_ids,
                     backend_config=backend_config,
@@ -367,8 +376,13 @@ class APIMCPManager:
     def register_mcp_services(self, gateway_id: str, environment_id: str,
                               domain_ids: List[str], fc3_names: List[str],
                               resource_group_id: str = None,
-                              enable_authentication: bool = False) -> Dict[str, any]:
+                              enable_authentication: bool = False,
+                              descriptions: Dict[str, str] = None) -> Dict[str, any]:
         """完整的MCP服务注册流程"""
+        # descriptions 的 key 统一转小写，方便后续匹配
+        if descriptions:
+            descriptions = {k.lower(): v for k, v in descriptions.items()}
+
         logger.info(f"🚀 开始注册MCP服务...")
         logger.info(f"   网关ID: {gateway_id}")
         logger.info(f"   环境ID: {environment_id}")
@@ -405,7 +419,7 @@ class APIMCPManager:
 
         # 3. 创建MCP服务器
         logger.info("🖥️  步骤3: 创建MCP服务器...")
-        mcp_server_mapping = self.create_mcp_servers(gateway_id, domain_ids, service_mapping)
+        mcp_server_mapping = self.create_mcp_servers(gateway_id, domain_ids, service_mapping, descriptions)
         result['mcp_server_mapping'] = mcp_server_mapping
 
         # 计算跳过的已存在服务器
@@ -539,6 +553,62 @@ def handler(event, context):
         }
 
 
+def _fetch_mcp_tools_metadata() -> Dict[str, Dict]:
+    """从公开OSS拉取mcp-tools.json，返回 {ServerCode小写: 工具元数据} 的映射"""
+    try:
+        logger.info(f"📡 拉取MCP工具元数据: {MCP_TOOLS_METADATA_URL}")
+        req = urllib.request.Request(MCP_TOOLS_METADATA_URL, headers={"User-Agent": "fc-mcp/1.0"})
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            tools_list = json.loads(resp.read().decode('utf-8'))
+        metadata = {}
+        for tool in tools_list:
+            server_code = tool.get("ServerCode", "")
+            if server_code:
+                metadata[server_code.lower()] = tool
+        logger.info(f"✓ 获取到 {len(metadata)} 个工具元数据")
+        return metadata
+    except Exception as e:
+        logger.warning(f"⚠️ 拉取MCP工具元数据失败，跳过Icon补充: {e}")
+        return {}
+
+
+def _enrich_descriptions_with_icons(descriptions: Dict[str, str],
+                                     fc3_names_raw) -> Dict[str, str]:
+    """用公开mcp-tools.json中的Icon补充descriptions"""
+    metadata = _fetch_mcp_tools_metadata()
+    if not metadata:
+        return descriptions
+
+    enriched = dict(descriptions)
+    # 遍历descriptions，尝试从元数据中补充Icon
+    for func_name, desc_str in enriched.items():
+        try:
+            desc_obj = json.loads(desc_str) if isinstance(desc_str, str) and desc_str.startswith('{') else {}
+        except (json.JSONDecodeError, TypeError):
+            desc_obj = {}
+
+        if desc_obj.get("Icon"):
+            continue  # 已有Icon，跳过
+
+        # 从函数名中提取serverCode（去掉前缀如 mcp-xxxx-）
+        # 函数名格式: stackName-serverCode，取最后一个 - 分隔后的部分不够准确
+        # 尝试用各种方式匹配
+        matched_meta = None
+        func_lower = func_name.lower()
+        for server_code, meta in metadata.items():
+            if func_lower.endswith("-" + server_code) or func_lower == server_code:
+                matched_meta = meta
+                break
+
+        if matched_meta and matched_meta.get("Icon"):
+            desc_obj.setdefault("Name", desc_obj.get("Name", func_name))
+            desc_obj["Icon"] = matched_meta["Icon"]
+            enriched[func_name] = json.dumps(desc_obj, ensure_ascii=False)
+            logger.info(f"✓ 补充Icon: {func_name} -> {matched_meta['Icon'][:50]}...")
+
+    return enriched
+
+
 def execute_registration(event_data: dict) -> dict:
     """执行MCP服务注册"""
     logger.info(f"📥 解析后的事件数据: {event_data}")
@@ -550,7 +620,16 @@ def execute_registration(event_data: dict) -> dict:
     fc3_names_raw = event_data.get('fc3_names', [])
     resource_group_id = event_data.get('resource_group_id')
     region = event_data.get('region', 'cn-hangzhou')
-    enable_authentication = event_data.get('enable_authentication', False)
+    enable_authentication_raw = event_data.get('enable_authentication', False)
+    # 兼容字符串 'True'/'False' 和布尔值
+    if isinstance(enable_authentication_raw, str):
+        enable_authentication = enable_authentication_raw.lower() == 'true'
+    else:
+        enable_authentication = bool(enable_authentication_raw)
+    descriptions = event_data.get('descriptions', {})
+
+    # 从公开OSS拉取mcp-tools.json，补充Icon到descriptions中
+    descriptions = _enrich_descriptions_with_icons(descriptions, fc3_names_raw)
 
     # 处理可能的嵌套数组问题
     def flatten_array(arr):
@@ -575,6 +654,7 @@ def execute_registration(event_data: dict) -> dict:
     logger.info(f"   resource_group_id: {resource_group_id}")
     logger.info(f"   region: {region}")
     logger.info(f"   enable_authentication: {enable_authentication}")
+    logger.info(f"   descriptions: {descriptions}")
 
     # 参数验证
     if not all([gateway_id, domain_ids, fc3_names]):
@@ -593,7 +673,8 @@ def execute_registration(event_data: dict) -> dict:
         domain_ids=domain_ids,
         fc3_names=fc3_names,
         resource_group_id=resource_group_id,
-        enable_authentication=enable_authentication
+        enable_authentication=enable_authentication,
+        descriptions=descriptions
     )
 
     logger.info(f"🎯 最终结果: {result}")

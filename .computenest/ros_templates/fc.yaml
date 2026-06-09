@@ -44,8 +44,8 @@ Locals:
             "fc3_names": ${FunctionNames},
             "resource_group_id": "${ResourceGroupId}",
             "region": "${Region}",
-            "enable_authentication": "${EnableAuth}"
-
+            "enable_authentication": "${EnableAuth}",
+            "descriptions": ${Descriptions}
           }
         - GatewayId:
             Ref: ActualGatewayId
@@ -71,6 +71,11 @@ Locals:
             Ref: ALIYUN::Region
           EnableAuth:
             Ref: EnableAuthentication
+          Descriptions:
+            Fn::Jq:
+              - First
+              - 'tostring'
+              - Ref: DescriptionsMap
   FunctionNameArray:
     Value:
       Fn::Jq:
@@ -80,6 +85,17 @@ Locals:
             - StackName:
                 Ref: ALIYUN::StackName
         - Ref: ServerCodeArray
+
+  # 构建 descriptions 映射：{函数名: JSON字符串}，包含Name、Description、Icon
+  DescriptionsMap:
+    Value:
+      Fn::Jq:
+        - First
+        - Fn::Sub:
+            - '[.[] | {key: ("${StackName}-" + .serverCode), value: ({Name: (.serviceName // .serverCode), Description: ((.description // .serviceName // .serverCode) | .[:60]), Icon: (.icon // null)} | with_entries(select(.value != null)) | tojson)}] | from_entries'
+            - StackName:
+                Ref: ALIYUN::StackName
+        - Ref: McpConfigJson
 
   CurTime:
     Type: Eval
@@ -129,17 +145,20 @@ Locals:
     Value:
       Fn::Jq:
         - All
-        - |
-          .[] | [
-            if .command == "npx" then 
-              "acs:fc:cn-hangzhou:official:layers/Nodejs-MCP/versions/2"
-            elif .command == "uvx" and (.pkgType == "private") then 
-              "acs:fc:cn-hangzhou:official:layers/Python312/versions/1"
-            else 
-              "acs:fc:cn-hangzhou:official:layers/Python3x-MCP/versions/4"
-            end, 
-            "acs:fc:cn-hangzhou:1730431480417716:layers/MCP-Runtime-V2/versions/1"
-          ]
+        - Fn::Sub:
+            - |
+              .[] | [
+                if .command == "npx" then 
+                  "acs:fc:${Region}:official:layers/Nodejs-MCP/versions/2"
+                elif .command == "uvx" and (.pkgType == "private") then 
+                  "acs:fc:${Region}:official:layers/Python312/versions/1"
+                else 
+                  "acs:fc:${Region}:official:layers/Python3x-MCP/versions/4"
+                end, 
+                "acs:fc:${Region}:1730431480417716:layers/MCP-Runtime-V2/versions/1"
+              ]
+            - Region:
+                Ref: ALIYUN::Region
         - Ref: McpConfigJson
 
   CommandArray:
@@ -1241,8 +1260,8 @@ Resources:
                                 - OSSBucket
                                 - Name
                             - Ref: BucketName
-                  - "acs:oss:*:*:fc-layers-cn-hangzhou"
-                  - "acs:oss:*:*:fc-layers-cn-hangzhou/*"
+                  - Fn::Sub: "acs:oss:*:*:fc-layers-${ALIYUN::Region}"
+                  - Fn::Sub: "acs:oss:*:*:fc-layers-${ALIYUN::Region}/*"
               - Action:
                   - vpc:DescribeVpcs
                   - vpc:DescribeVSwitches
@@ -1311,10 +1330,12 @@ Resources:
                   if (.command == "npx" and .pkgType == "private") or (.command == "uvx" and .pkgType == "private") then 
                     "${BucketName}" 
                   else 
-                    "fc-layers-cn-hangzhou" 
+                    "fc-layers-${Region}" 
                   end
                 - BucketName:
                     Ref: OssBucketName
+                  Region:
+                    Ref: ALIYUN::Region
             - Fn::Select:
                 - Ref: ALIYUN::Index
                 - Ref: McpConfigJson
@@ -1459,12 +1480,12 @@ Resources:
           - FcRole
           - Arn
       Layers:
-        - "acs:fc:cn-hangzhou:1563457855438522:layers/alibabacloud_apig20240327/versions/9"
+        - Fn::Sub: "acs:fc:${ALIYUN::Region}:1563457855438522:layers/alibabacloud_apig20240327/versions/9"
       Description: "apig registration"
       Code:
         # 使用创建的OSS桶
         OssBucketName: service-info-public
-        OssObjectName: "mcp/fc-mcp.py.zip"  # 需要先上传oss.py到OSS
+        OssObjectName: "mcp/fc-mcp1.py.zip"  # 需要先上传oss.py到OSS
       # VPC配置 - 使用网关的VPC信息
       VpcConfig:
         VpcId:
