@@ -1235,7 +1235,7 @@ Metadata:
           - McpConfigJson
           - AuthenticationOption
         Label:
-          Default: Mcp配置(可多选，10个以内)
+          Default: Mcp配置
       - Parameters:
           - OssOption
           - BucketName
