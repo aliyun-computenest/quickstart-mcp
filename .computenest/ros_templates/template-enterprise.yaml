@@ -22,10 +22,6 @@ Conditions:
       - NewVPC
       - Ref: VpcOption
 
-  CreateHiMarketConditions:
-    Fn::Equals:
-      - true
-      - Ref: EnableHiMarket
 
 Locals:
   # 当前时间戳
@@ -98,15 +94,6 @@ Locals:
             - Ref: PrimaryVSwitchId
 
 Parameters:
-  EnableHiMarket:
-    Type: Boolean
-    Label:
-      en: Enable HiMarket
-      zh-cn: 启用HiMarket
-    Description:
-      zh-cn: <font color='green'>可帮助快速构建企业级的 MCP 能力市场，包含一下两部分。<br>1. MCP 开放平台管理后台 (for 管理员/运营)<br>2. MCP 开放平台门户 (for 开发者/企业内部用户)<br>可访问<a href='https://github.com/higress-group/himarket' target='_blank'>GitHub</a>查看具体信息</font>
-      en: <font color='green'>Helps quickly build enterprise-level AI capability marketplace.<br>1. AI Open Platform Management Backend (for administrators/operators)<br>2. AI Open Platform Portal (for developers/internal enterprise users)<br>Visit <a href='https://github.com/higress-group/himarket' target='_blank'>GitHub</a> for more information</font>
-    Default: false
   GatewayOption:
     Type: String
     AllowedValues:
@@ -702,31 +689,6 @@ Resources:
           IpProtocol: tcp
           NicType: internet
 
-  # HiMarket安全组
-  HiMarketSecurityGroup:
-    Type: ALIYUN::ECS::SecurityGroup
-    Condition: CreateHiMarketConditions
-    Properties:
-      SecurityGroupName:
-        Fn::Sub: "${ALIYUN::StackName}-himarket"
-      VpcId:
-        Ref: ActualVpcId
-      SecurityGroupIngress:
-        - PortRange: 5174/5174
-          Priority: 1
-          SourceCidrIp: 0.0.0.0/0
-          IpProtocol: tcp
-          NicType: internet
-        - PortRange: 5173/5173
-          Priority: 1
-          SourceCidrIp: 0.0.0.0/0
-          IpProtocol: tcp
-          NicType: internet
-        - PortRange: 80/80
-          Priority: 1
-          SourceCidrIp: 0.0.0.0/0
-          IpProtocol: tcp
-          NicType: internet
 
   InstanceGroup:
     Type: ALIYUN::ECS::InstanceGroup
@@ -775,85 +737,6 @@ Resources:
       IoOptimized: optimized
       MaxAmount: 1
 
-  # HiMarket实例组
-  HiMarketInstanceGroup:
-    Type: ALIYUN::ECS::InstanceGroup
-    Condition: CreateHiMarketConditions
-    Properties:
-      InstanceChargeType:
-        Ref: PayType
-      PeriodUnit:
-        Ref: PayPeriodUnit
-      Period:
-        Ref: PayPeriod
-      VpcId:
-        Ref: ActualVpcId
-      VSwitchId:
-        Ref: ActualVSwitchId
-      ZoneId:
-        Fn::If:
-          - CreateVpcConditions
-          - Ref: PrimaryZoneId
-          - Fn::GetAtt:
-              - ExistVsw
-              - ZoneId
-      SecurityGroupId:
-        Ref: HiMarketSecurityGroup
-      ImageId: ecs_image_himarket
-      Password:
-        Fn::GetAtt:
-          - RandomPassword
-          - value
-      InstanceType:
-        Ref: EcsInstanceType
-      SystemDiskCategory: cloud_essd
-      SystemDiskSize: 40
-      InternetMaxBandwidthOut:
-        Ref: InternetMaxBandwidthOut
-      InternetChargeType:
-        Ref: InternetChargeType
-      IoOptimized: optimized
-      MaxAmount: 1
-      DiskMappings:
-        - Category: cloud_essd
-          Size: 200
-      # 数据盘初始化和挂载
-      UserData: |
-        #cloud-config
-        bootcmd:
-          - |
-            #!/bin/bash
-            function init_and_mount_data_disk() {
-                disk_device="/dev/vdb"
-                parted_disk_device="/dev/vdb1"
-                mount_point="/data"
-                # 已初始化的磁盘，跳过初始化，直接挂载
-                if blkid -o value -s TYPE $disk_device &>/dev/null; then
-                  echo "Disk is already initialized."
-                else
-                  echo "Disk is not initialized, initializing..."
-                  cat >> /root/InitDataDisk.sh << "EOF"
-            #!/bin/bash
-            echo "p
-            n
-            p
-
-
-
-            w
-            " |  fdisk -u /dev/vdb
-            EOF
-                  /bin/bash /root/InitDataDisk.sh
-                  rm -f /root/InitDataDisk.sh
-                  mkfs -t ext4 $parted_disk_device
-                fi
-
-                cp /etc/fstab /etc/fstab.bak
-                mkdir $mount_point
-                echo `blkid $parted_disk_device | awk '{print $2}' | sed 's/\\\"//g'` $mount_point ext4 defaults 0 0 >> /etc/fstab
-                mount -a
-            }
-            init_and_mount_data_disk
 
   RunInstallCommand:
     Type: ALIYUN::ECS::RunCommandOfLifespan
@@ -1016,145 +899,6 @@ Resources:
             GatewayID:
               Ref: ActualGatewayId
 
-  # HiMarket安装命令
-  HiMarketRunInstallCommand:
-    Type: ALIYUN::ECS::RunCommand
-    Condition: CreateHiMarketConditions
-    Properties:
-      InstanceIds:
-        Fn::GetAtt:
-          - HiMarketInstanceGroup
-          - InstanceIds
-      Type: RunShellScript
-      Sync: true
-      Timeout: 3600
-      CommandContent:
-        Fn::Sub:
-          - |
-            # 创建开机自启动配置和状态检查脚本
-            function create_systemd_config() {
-                file_path="/etc/systemd/system/himarket.service"
-                if [ -f "$file_path" ]; then
-                    echo "Systemd配置已存在: $file_path"
-                    return 1
-                fi
-                cat > $file_path <<EOF
-            [Unit]
-            Description=Docker Compose Application Service
-            Requires=docker.service
-            After=docker.service
-
-            [Service]
-            Type=oneshot
-            RemainAfterExit=yes
-            WorkingDirectory=/root/application
-            ExecStart=/bin/bash -c '/usr/bin/docker compose -f docker-compose.yaml up -d && /usr/local/bin/check-container-status'
-            ExecStop=/usr/bin/docker compose down
-            TimeoutStartSec=0
-
-            [Install]
-            WantedBy=multi-user.target
-            EOF
-
-                # 创建状态检查脚本
-                cat > /usr/local/bin/check-container-status <<'EOF'
-            #!/bin/bash
-            COMPOSE_FILE="docker-compose.yaml"
-            MAX_WAIT_TIME=3600
-            CHECK_INTERVAL=10
-
-            if ! command -v docker compose &> /dev/null; then
-                echo "Error: docker compose is not installed"
-                exit 1
-            fi
-
-            SERVICES=$(docker compose -f "$COMPOSE_FILE" config --services 2>/dev/null)
-            if [ -z "$SERVICES" ]; then
-                echo "Error: No services found"
-                exit 1
-            fi
-
-            WAIT_TIME=0
-            TIMEOUT_REACHED=false
-
-            while [ $WAIT_TIME -le $MAX_WAIT_TIME ]; do
-                ALL_HEALTHY=true
-                for SERVICE in $SERVICES; do
-                    CONTAINER_ID=$(docker compose -f "$COMPOSE_FILE" ps -q "$SERVICE")
-
-                    if [ -z "$CONTAINER_ID" ]; then
-                        echo "[$SERVICE] Not running"
-                        ALL_HEALTHY=false
-                        continue
-                    fi
-
-                    INSPECT_OUTPUT=$(docker inspect --format \
-                        '{{.State.Status}} {{if .State.Health}}{{.State.Health.Status}}{{else}}no-healthcheck{{end}}' \
-                        "$CONTAINER_ID" 2>/dev/null)
-
-                    STATUS=$(echo "$INSPECT_OUTPUT" | awk '{print $1}')
-                    HEALTH_STATUS=$(echo "$INSPECT_OUTPUT" | awk '{print $2}')
-
-                    case "$HEALTH_STATUS" in
-                        "healthy") ;;
-                        "unhealthy"|"starting")
-                            echo "[$SERVICE] Unhealthy: $HEALTH_STATUS"
-                            ALL_HEALTHY=false
-                            ;;
-                        "no-healthcheck")
-                            [ "$STATUS" != "running" ] && ALL_HEALTHY=false
-                            ;;
-                        *)
-                            echo "[$SERVICE] Unknown status: $HEALTH_STATUS"
-                            ALL_HEALTHY=false
-                            ;;
-                    esac
-                done
-
-                $ALL_HEALTHY && exit 0
-                [ $WAIT_TIME -ge $MAX_WAIT_TIME ] && break
-
-                sleep $CHECK_INTERVAL
-                WAIT_TIME=$((WAIT_TIME + CHECK_INTERVAL))
-            done
-
-            echo "Timeout reached! Abnormal services:" >&2
-            docker compose -f "$COMPOSE_FILE" ps --all
-            exit 1
-            EOF
-
-                chmod +x /usr/local/bin/check-container-status
-                systemctl enable himarket
-            
-            }
-
-            function create_custom_parameter_file() {
-                echo "The custom parameter does not exist. Skip the processing"
-            }
-
-            function mount_data_disk_dir() {
-                # 先计算出docker-compose.yaml的父目录
-                docker_compose_parent_dir=$(dirname "/root/application/docker-compose.yaml")
-                # 复制软件目录下目录和文件到数据盘挂载目录，加-n参数已存在则不进行复制
-                cp -rn $docker_compose_parent_dir/* /data
-                # sed替换挂载目录路径为数据盘目录
-                cp $docker_compose_parent_dir/docker-compose.yaml $docker_compose_parent_dir/docker-compose.yaml.bak
-                sed -i 's|\./|/data/|g' $docker_compose_parent_dir/docker-compose.yaml
-                chmod -R 777 /data
-            }
-
-            #用于版本升级
-            echo "当前时间：${CurTime}"
-            create_systemd_config
-            systemctl daemon-reload
-            systemctl stop himarket
-            create_custom_parameter_file
-            mount_data_disk_dir
-            systemctl start himarket
-          - RegionId:
-              Ref: ALIYUN::Region
-            CurTime:
-              Ref: CurTime
 
 Outputs:
   openapi_server_address:
@@ -1181,37 +925,6 @@ Outputs:
       Fn::GetAtt:
         - RandomPassword
         - value
-
-  # HiMarket相关输出
-  himarket_admin_address:
-    Condition: CreateHiMarketConditions
-    Label:
-      en: 'HiMarket Admin Portal'
-      zh-cn: HiMarket管理员页面
-    Value:
-      Fn::Sub:
-        - http://${ServerAddress}:5174
-        - ServerAddress:
-            Fn::Select:
-              - 0
-              - Fn::GetAtt:
-                  - HiMarketInstanceGroup
-                  - PublicIps
-
-  himarket_frontend_address:
-    Condition: CreateHiMarketConditions
-    Label:
-      en: 'HiMarket Frontend Portal'
-      zh-cn: HiMarket用户页面
-    Value:
-      Fn::Sub:
-        - http://${ServerAddress}:5173
-        - ServerAddress:
-            Fn::Select:
-              - 0
-              - Fn::GetAtt:
-                  - HiMarketInstanceGroup
-                  - PublicIps
 
 
 Metadata:
@@ -1246,11 +959,6 @@ Metadata:
         Label:
           zh-cn: OSS存储配置
           en: OSS Storage Configuration
-      - Parameters:
-          - EnableHiMarket
-        Label:
-          zh-cn: HiMarket配置
-          en: HiMarket Configuration
       - Parameters:
           - PayType
           - PayPeriodUnit
