@@ -301,10 +301,6 @@ your-mcp-command --config /path/to/config
 
 具体可参考：[https://help.aliyun.com/zh/api-gateway/ai-gateway/user-guide/create-a-gateway-instance?spm=a2c4g.11186623.help-menu-29462.d_2_0_0.4b7844eerOks7g&scm=20140722.H_2881527._.OR_help-T_cn~zh-V_1](https://help.aliyun.com/zh/api-gateway/ai-gateway/user-guide/create-a-gateway-instance?spm=a2c4g.11186623.help-menu-29462.d_2_0_0.4b7844eerOks7g&scm=20140722.H_2881527._.OR_help-T_cn~zh-V_1)
 
-### 基于HiMarket
-可通过计算巢部署一键拉起HiMarket
-![img_10.png](img_10.png)
-可参考官网文档https://github.com/higress-group/himarket
 ### 5.1.1 示例
 可参考部署架构如下所示：
 ![img_7.png](img_7.png)

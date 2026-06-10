@@ -295,12 +295,6 @@ Keep the functionality and performance of the original API
 
 ##5. Enterprise Access Guide
 
-### Based on HiMarket
-One-click pull-up HiMarket can be deployed through computing nest
-![img_10.png](images-en/img_10.png)
-
-Use can refer to the official website document https://github.com/higress-group/himarket
-
 ### 5.1 Enterprise Permission Management Architecture
 **The Permission Control module contains the following core components:**
 

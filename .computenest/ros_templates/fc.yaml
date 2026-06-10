@@ -1345,7 +1345,7 @@ Resources:
           - FcRole
           - Arn
       Layers:
-        - Fn::Sub: "acs:fc:${ALIYUN::Region}:1853370294850618:layers/alibabacloud_apig20240327/versions/1"
+        - Fn::Sub: "acs:fc:${ALIYUN::Region}:1853370294850618:layers/alibabacloud-apig-sdk/versions/1"
       Description: "apig registration"
       Code:
         # 使用创建的OSS桶
