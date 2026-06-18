@@ -62,6 +62,7 @@ def test_acs_template_is_registered_in_computenest_config():
         "RepoName": "aliyun-computenest/quickstart-mcp",
         "Branch": "main",
     }
+    assert config["Artifact"]["AcsMcpImage"]["ArtifactBuildProperty"]["RegionId"] == "cn-hangzhou"
     assert config["Artifact"]["AcsMcpImage"]["ArtifactBuildProperty"]["DockerFilePath"] == "mcp/Dockerfile.acs"
 
 

@@ -198,5 +198,5 @@ Artifact:
         Owner: aliyun-computenest
         RepoName: aliyun-computenest/quickstart-mcp
         Branch: main
-      RegionId: ap-southeast-1
+      RegionId: cn-hangzhou
       DockerFilePath: mcp/Dockerfile.acs
