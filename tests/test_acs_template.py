@@ -170,6 +170,8 @@ def test_acs_runtime_image_installs_supergateway_without_changing_ecs_dockerfile
     dockerfile = ACS_DOCKERFILE_PATH.read_text(encoding="utf-8")
 
     assert "npm install -g supergateway" in dockerfile
+    assert "mcpo==0.0.15" in dockerfile
+    assert "git clone https://github.com/LYH-RAIN/mcpo.git" not in dockerfile
     assert "COPY mcp/ /app/" in dockerfile
     assert "ENTRYPOINT" not in dockerfile
     assert ROOT_DOCKERFILE_PATH.read_text(encoding="utf-8") == dockerfile

@@ -32,16 +32,14 @@ ENV VIRTUAL_ENV=/app/.venv
 RUN uv venv "$VIRTUAL_ENV"
 ENV PATH="$VIRTUAL_ENV/bin:$PATH"
 
-RUN git clone https://github.com/LYH-RAIN/mcpo.git /app/mcpo
-WORKDIR /app/mcpo
-RUN uv add --default-index https://mirrors.aliyun.com/pypi/simple requests && \
-    uv pip install . && \
+RUN uv pip install --default-index https://mirrors.aliyun.com/pypi/simple \
+        mcpo==0.0.15 \
+        requests && \
     rm -rf ~/.cache
 
 RUN if [ -f "/app/prepare.sh" ]; then \
-        mv /app/prepare.sh /app/mcpo && \
-        chmod +x prepare.sh && \
-        ./prepare.sh; \
+        chmod +x /app/prepare.sh && \
+        /app/prepare.sh; \
     fi
 
 RUN which mcpo && which supergateway
