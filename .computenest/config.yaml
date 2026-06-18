@@ -191,12 +191,11 @@ Artifact:
     - cn-hangzhou
     - cn-shanghai
     - ap-southeast-1
-    ArtifactBuildType: Dockerfile
+    ArtifactBuildType: ContainerImage
+    ArtifactProperty:
+      RepoName: lzq/quickstart-mcp-acs
+      Tag: '202606190051-amd64'
+      RepoType: Public
     ArtifactBuildProperty:
-      CodeRepo:
-        Platform: github
-        Owner: aliyun-computenest
-        RepoName: aliyun-computenest/quickstart-mcp
-        Branch: main
       RegionId: cn-hangzhou
-      DockerFilePath: mcp/Dockerfile.acs
+      SourceContainerImage: second-registry.cn-hangzhou.cr.aliyuncs.com/lzq/quickstart-mcp-acs:202606190051-amd64
