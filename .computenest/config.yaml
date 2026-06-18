@@ -102,10 +102,6 @@ Service:
         ecs_image_quickstart-mcp:
           ArtifactId: ${Artifact.EcsImage.ArtifactId}
           ArtifactVersion: draft
-      FileArtifactRelation:
-        '{{ computenest::file::FcMcpCode }}':
-          ArtifactId: ${Artifact.FcMcpCode.ArtifactId}
-          ArtifactVersion: draft
       AcrImageArtifactRelation:
         '{{ computenest::acrimage::quickstart-mcp-acs }}':
           ArtifactId: ${Artifact.AcsMcpImage.ArtifactId}
@@ -155,36 +151,12 @@ Service:
     - Name: higress
       Version: 2.1.2
 Artifact:
-  FcMcpCode:
-    ArtifactType: File
-    ArtifactName: fc-mcp-code
-    Description: FC MCP注册函数代码包
-    SupportRegionIds:
-    - cn-hangzhou
-    - cn-shanghai
-    - cn-beijing
-    - cn-shenzhen
-    - cn-chengdu
-    - cn-hongkong
-    - cn-qingdao
-    - cn-zhangjiakou
-    - cn-huhehaote
-    - cn-wulanchabu
-    - ap-southeast-1
-    - ap-southeast-3
-    - ap-southeast-5
-    - ap-southeast-7
-    - ap-northeast-1
-    - eu-central-1
-    - eu-west-1
-    - us-west-1
-    - us-east-1
-    - me-east-1
   EcsImage:
     ArtifactType: EcsImage
     ArtifactName: ecs_image_quickstart-mcp
     Description: quickstart-mcp EcsImage
     SupportRegionIds:
+    - cn-hangzhou
     - ap-southeast-1
     ArtifactBuildProperty:
       CodeRepo:

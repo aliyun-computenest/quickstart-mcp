@@ -7,6 +7,8 @@ ROOT = Path(__file__).resolve().parents[1]
 CONFIG_PATH = ROOT / ".computenest" / "config.yaml"
 ACS_TEMPLATE_PATH = ROOT / ".computenest" / "ros_templates" / "acs.yaml"
 FC_TEMPLATE_PATH = ROOT / ".computenest" / "ros_templates" / "fc.yaml"
+ECS_TEMPLATE_PATH = ROOT / ".computenest" / "ros_templates" / "template.yaml"
+ECS_ENTERPRISE_TEMPLATE_PATH = ROOT / ".computenest" / "ros_templates" / "template-enterprise.yaml"
 ACS_DOCKERFILE_PATH = ROOT / "mcp" / "Dockerfile.acs"
 
 
@@ -43,8 +45,9 @@ def test_acs_template_is_registered_in_computenest_config():
 
     supplier_metadata = service["DeployMetadata"]["SupplierDeployMetadata"]
     assert supplier_metadata["ArtifactRelation"]["ecs_image_quickstart-mcp"]["ArtifactVersion"] == "draft"
-    assert supplier_metadata["FileArtifactRelation"]["{{ computenest::file::FcMcpCode }}"]["ArtifactVersion"] == "draft"
     assert supplier_metadata["AcrImageArtifactRelation"]["{{ computenest::acrimage::quickstart-mcp-acs }}"]["ArtifactVersion"] == "draft"
+    assert "FileArtifactRelation" not in supplier_metadata
+    assert "FcMcpCode" not in config["Artifact"]
     assert config["Artifact"]["AcsMcpImage"]["ArtifactType"] == "AcrImage"
     assert config["Artifact"]["AcsMcpImage"]["ArtifactBuildProperty"]["CodeRepo"]["DockerfilePath"] == "mcp/Dockerfile.acs"
 
@@ -93,6 +96,34 @@ def test_gateway_templates_define_hidden_managed_mcp_config_parameter():
                 "Fn::Equals": [True, False],
             },
         }
+
+
+def test_artifact_relations_match_ecs_image_ids_and_fc_uses_inline_registration_code():
+    config = load_yaml(CONFIG_PATH)
+    supplier_metadata = config["Service"]["DeployMetadata"]["SupplierDeployMetadata"]
+    config_image_ids = set(supplier_metadata["ArtifactRelation"])
+    template_configs = config["Service"]["DeployMetadata"]["TemplateConfigs"]
+    ecs_image_support_regions = set(config["Artifact"]["EcsImage"]["SupportRegionIds"])
+
+    for template_path in (ECS_TEMPLATE_PATH, ECS_ENTERPRISE_TEMPLATE_PATH):
+        template = load_yaml(template_path)
+        template_text = yaml.safe_dump(template)
+        template_image_ids = {
+            line.split(":", 1)[1].strip()
+            for line in template_text.splitlines()
+            if line.strip().startswith("ImageId:")
+        }
+        assert template_image_ids == config_image_ids
+
+    for template_config in template_configs:
+        assert set(template_config["AllowedRegions"]).issubset(ecs_image_support_regions)
+
+    fc_template_text = FC_TEMPLATE_PATH.read_text(encoding="utf-8")
+    fc_template = load_yaml(FC_TEMPLATE_PATH)
+    registration_function = fc_template["Resources"]["McpRegistrationFunction"]
+    assert registration_function["Properties"]["Handler"] == "index.handler"
+    assert "SourceCode" in registration_function["Properties"]["Code"]
+    assert "computenest::file::FcMcpCode" not in fc_template_text
 
 
 def test_acs_template_contains_runtime_gateway_and_registration_resources():
