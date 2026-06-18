@@ -10,8 +10,9 @@ import logging
 import base64
 import time
 import urllib.request
+import re
 
-from typing import List, Dict, Optional
+from typing import Any, List, Dict, Optional
 
 # 公开的MCP工具元数据URL
 MCP_TOOLS_METADATA_URL = "https://service-info-public.oss-cn-hangzhou.aliyuncs.com/mcp/mcp-tools.json"
@@ -19,12 +20,56 @@ MCP_TOOLS_METADATA_URL = "https://service-info-public.oss-cn-hangzhou.aliyuncs.c
 from alibabacloud_apig20240327.client import Client as APIG20240327Client
 from alibabacloud_credentials.client import Client as CredentialClient
 from alibabacloud_tea_openapi import models as open_api_models
+from alibabacloud_tea_openapi import utils_models as open_api_util_models
+from alibabacloud_tea_openapi.utils import Utils
 from alibabacloud_apig20240327 import models as apig20240327_models
 from alibabacloud_tea_util import models as util_models
 
 # 配置日志
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
+
+
+def _normalize_mcp_name(name: str) -> str:
+    """Normalize APIG MCP names to lowercase ascii tokens."""
+    value = (name or "").lower()
+    value = re.sub(r"[^a-z0-9._-]+", "-", value)
+    value = re.sub(r"[-_.]{2,}", "-", value).strip("-_.")
+    return value[:64] or "mcp-server"
+
+
+def _as_bool(value: Any, default: bool = False) -> bool:
+    if value is None:
+        return default
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, str):
+        return value.lower() in ("true", "1", "yes", "y")
+    return bool(value)
+
+
+def _response_body_to_map(response: Any) -> Dict[str, Any]:
+    """Convert Tea SDK responses or raw call_api maps to a plain body dict."""
+    if isinstance(response, dict):
+        body = response.get("body", response)
+        return body or {}
+    body = getattr(response, "body", response)
+    if hasattr(body, "to_map"):
+        return body.to_map()
+    if isinstance(body, dict):
+        return body
+    result = {}
+    for key in ("code", "message", "request_id", "data"):
+        if hasattr(body, key):
+            result[key] = getattr(body, key)
+    return result
+
+
+def _extract_mcp_server_id(body: Dict[str, Any]) -> Optional[str]:
+    data = body.get("data") or body.get("Data") or {}
+    if not isinstance(data, dict):
+        return None
+    return data.get("mcpServerId") or data.get("mcp_server_id")
 
 
 class APIMCPManager:
@@ -67,6 +112,29 @@ class APIMCPManager:
         except Exception as error:
             logger.error(f"❌ 获取HttpApiId失败: {error}")
             return None
+
+    def _call_create_mcp_server(self, body: Dict[str, Any]) -> Dict[str, Any]:
+        """Create MCP Server with raw JSON so newly-added APIG fields are preserved."""
+        logger.info("创建MCP服务器请求体: %s", json.dumps(body, ensure_ascii=False))
+        req = open_api_util_models.OpenApiRequest(
+            headers=self.headers,
+            body=Utils.parse_to_map(body)
+        )
+        params = open_api_util_models.Params(
+            action='CreateMcpServer',
+            version='2024-03-27',
+            protocol='HTTPS',
+            pathname='/v1/mcp-servers',
+            method='POST',
+            auth_type='AK',
+            style='ROA',
+            req_body_type='json',
+            body_type='json'
+        )
+        response = self.client.call_api(params, req, self.runtime)
+        body_map = _response_body_to_map(response)
+        logger.info("MCP服务器创建响应: %s", body_map)
+        return body_map
 
     def create_services(self, gateway_id: str, fc3_names: List[str],
                         resource_group_id: str = None) -> Dict[str, str]:
@@ -142,72 +210,121 @@ class APIMCPManager:
         logger.info(f"APIG服务处理完成，共获得 {len(service_mapping)} 个服务映射: {service_mapping}")
         return service_mapping
 
+    def _match_runtime_config(self, fc3_name: str, runtime_mcp_configs: List[Dict[str, Any]]) -> Dict[str, Any]:
+        fc_lower = fc3_name.lower()
+        for config in runtime_mcp_configs or []:
+            server_code = str(config.get("serverCode") or "").lower()
+            runtime_name = str(config.get("runtimeName") or config.get("functionName") or "").lower()
+            if runtime_name and runtime_name == fc_lower:
+                return config
+            if server_code and (fc_lower == server_code or fc_lower.endswith("-" + server_code)):
+                return config
+        return {}
+
+    def _build_mcp_server_body(self, gateway_id: str, domain_ids: List[str], fc3_name: str,
+                               service_id: str, description: str,
+                               config: Dict[str, Any]) -> Dict[str, Any]:
+        gateway_exposure = config.get("gatewayExposure") or {}
+        protocol = gateway_exposure.get("protocol") or config.get("protocol") or "SSE"
+        exposed_uri_path = (
+            gateway_exposure.get("exposedUriPath")
+            or config.get("exposedUriPath")
+            or ("/mcp" if protocol == "StreamableHTTP" else "/sse")
+        )
+        create_from_type = (
+            gateway_exposure.get("createFromType")
+            or config.get("createFromType")
+            or "ApiGatewayProxyMcpHosting"
+        )
+        mcp_server_name = _normalize_mcp_name(
+            gateway_exposure.get("runtimeName")
+            or config.get("runtimeName")
+            or fc3_name
+        )
+        match_path = gateway_exposure.get("matchPath") or f"/mcp-servers/{mcp_server_name}"
+
+        body = {
+            "gatewayId": gateway_id,
+            "name": mcp_server_name,
+            "description": description,
+            "type": gateway_exposure.get("type") or config.get("type") or "RealMCP",
+            "domainIds": domain_ids,
+            "backendConfig": {
+                "scene": "SingleService",
+                "services": [
+                    {
+                        "serviceId": service_id,
+                        "protocol": gateway_exposure.get("backendProtocol") or "HTTP",
+                        "port": int(gateway_exposure.get("backendPort") or 8080)
+                    }
+                ]
+            },
+            "match": {
+                "path": {
+                    "type": "Prefix",
+                    "value": match_path
+                }
+            },
+            "protocol": protocol,
+            "exposedUriPath": exposed_uri_path,
+            "createFromType": create_from_type
+        }
+
+        protocol_conversion = gateway_exposure.get(
+            "protocolConversionEnabled",
+            config.get("protocolConversionEnabled")
+        )
+        if protocol_conversion is not None:
+            # This field is present in the console flow but not yet in SDK 7.2.1.
+            body["protocolConversionEnabled"] = _as_bool(protocol_conversion)
+
+        if config.get("mcpStatisticsEnable") is not None:
+            body["mcpStatisticsEnable"] = _as_bool(config.get("mcpStatisticsEnable"))
+
+        return body
+
     def create_mcp_servers(self, gateway_id: str, domain_ids: List[str],
                            service_mapping: Dict[str, str],
-                           descriptions: Dict[str, str] = None) -> Dict[str, str]:
+                           descriptions: Dict[str, str] = None,
+                           runtime_mcp_configs: List[Dict[str, Any]] = None) -> Dict[str, str]:
         """批量创建MCP服务器，返回需要部署的函数名到MCP服务器ID的映射"""
         mcp_server_mapping = {}  # 函数名 -> MCP服务器ID的映射（只包含需要部署的）
 
         for fc3_name, service_id in service_mapping.items():
             try:
                 # AI网关MCP Server的name要求全小写，但FC3函数名保持原始大小写
-                mcp_server_name = fc3_name.lower()
+                config = self._match_runtime_config(fc3_name, runtime_mcp_configs or [])
+                gateway_exposure = config.get("gatewayExposure") or {}
+                if gateway_exposure and not _as_bool(gateway_exposure.get("enabled"), True):
+                    logger.info(f"⏭️  跳过AI网关注册: {fc3_name} gatewayExposure.enabled=false")
+                    continue
+
+                mcp_server_name = _normalize_mcp_name(
+                    gateway_exposure.get("runtimeName")
+                    or config.get("runtimeName")
+                    or fc3_name
+                )
                 logger.info(f"创建MCP服务器: {fc3_name} -> {service_id} (MCP名称: {mcp_server_name})")
 
-                # 1. 创建路径匹配配置（路径也用小写）
-                http_route_match_path = apig20240327_models.HttpRouteMatchPath(
-                    type='Prefix',
-                    value=f'/mcp-servers/{mcp_server_name}'
-                )
-                logger.info(f"✓ 路径匹配配置创建成功")
-
-                # 2. 创建匹配配置
-                http_route_match = apig20240327_models.HttpRouteMatch(
-                    path=http_route_match_path
-                )
-                logger.info("✓ 匹配配置创建成功")
-
-                # 3. 使用已知存在的HTTP路由后端配置类
-                backend_config_service = apig20240327_models.CreateHttpApiRouteRequestBackendConfigServices(
-                    service_id=service_id
-                )
-                logger.info(f"✓ 后端服务配置创建成功: {service_id}")
-
-                # 4. 使用已知存在的HTTP路由后端配置类
-                backend_config = apig20240327_models.CreateHttpApiRouteRequestBackendConfig(
-                    scene='SingleService',
-                    services=[backend_config_service]
-                )
-                logger.info("✓ 后端配置创建成功")
-
-                # 5. 创建MCP服务器请求（name用小写，description用小写key匹配）
                 server_description = (descriptions or {}).get(mcp_server_name, mcp_server_name)
-                create_mcp_server_request = apig20240327_models.CreateMcpServerRequest(
+                body = self._build_mcp_server_body(
                     gateway_id=gateway_id,
-                    name=mcp_server_name,
-                    description=server_description,
-                    type='RealMCP',
                     domain_ids=domain_ids,
-                    backend_config=backend_config,
-                    match=http_route_match,
-                    protocol='SSE',
-                    exposed_uri_path='/sse'
-                )
-                logger.info("✓ MCP服务器请求创建成功")
-
-                # 6. 发送请求
-                response = self.client.create_mcp_server_with_options(
-                    create_mcp_server_request, self.headers, self.runtime
+                    fc3_name=fc3_name,
+                    service_id=service_id,
+                    description=server_description,
+                    config=config
                 )
 
-                logger.info(f"MCP服务器创建响应: {response.body}")
+                response_body = self._call_create_mcp_server(body)
+                response_code = response_body.get("code") or response_body.get("Code")
 
-                if response.body.code == 'Ok':
-                    mcp_server_id = response.body.data.mcp_server_id
+                if response_code == 'Ok':
+                    mcp_server_id = _extract_mcp_server_id(response_body)
                     mcp_server_mapping[fc3_name] = mcp_server_id
                     logger.info(f"✓ 创建MCP服务器成功: {fc3_name} -> {mcp_server_id}")
                 else:
-                    logger.error(f"❌ 创建MCP服务器失败: {fc3_name}, 错误: {getattr(response.body, 'message', '未知错误')}")
+                    logger.error(f"❌ 创建MCP服务器失败: {fc3_name}, 错误: {response_body.get('message', response_body)}")
 
             except Exception as error:
                 error_str = str(error)
@@ -377,7 +494,8 @@ class APIMCPManager:
                               domain_ids: List[str], fc3_names: List[str],
                               resource_group_id: str = None,
                               enable_authentication: bool = False,
-                              descriptions: Dict[str, str] = None) -> Dict[str, any]:
+                              descriptions: Dict[str, str] = None,
+                              runtime_mcp_configs: List[Dict[str, Any]] = None) -> Dict[str, Any]:
         """完整的MCP服务注册流程"""
         # descriptions 的 key 统一转小写，方便后续匹配
         if descriptions:
@@ -388,6 +506,7 @@ class APIMCPManager:
         logger.info(f"   环境ID: {environment_id}")
         logger.info(f"   域名IDs: {domain_ids}")
         logger.info(f"   FC3函数: {fc3_names}")
+        logger.info(f"   runtime_mcp_configs: {runtime_mcp_configs or []}")
         logger.info(f"   启用认证: {enable_authentication}")
 
         result = {
@@ -396,7 +515,8 @@ class APIMCPManager:
             'service_mapping': {},
             'mcp_server_mapping': {},
             'deployed_mapping': {},
-            'skipped_existing': [],  # 新增：跳过的已存在MCP服务器
+            'skipped_existing': [],
+            'skipped_gateway_disabled': [],
             'errors': []
         }
 
@@ -419,18 +539,33 @@ class APIMCPManager:
 
         # 3. 创建MCP服务器
         logger.info("🖥️  步骤3: 创建MCP服务器...")
-        mcp_server_mapping = self.create_mcp_servers(gateway_id, domain_ids, service_mapping, descriptions)
+        mcp_server_mapping = self.create_mcp_servers(
+            gateway_id,
+            domain_ids,
+            service_mapping,
+            descriptions,
+            runtime_mcp_configs=runtime_mcp_configs
+        )
         result['mcp_server_mapping'] = mcp_server_mapping
 
         # 计算跳过的已存在服务器
         skipped_existing = []
+        skipped_gateway_disabled = []
         for fc3_name in service_mapping.keys():
             if fc3_name not in mcp_server_mapping:
-                skipped_existing.append(fc3_name)
+                config = self._match_runtime_config(fc3_name, runtime_mcp_configs or [])
+                gateway_exposure = config.get("gatewayExposure") or {}
+                if gateway_exposure and not _as_bool(gateway_exposure.get("enabled"), True):
+                    skipped_gateway_disabled.append(fc3_name)
+                else:
+                    skipped_existing.append(fc3_name)
         result['skipped_existing'] = skipped_existing
+        result['skipped_gateway_disabled'] = skipped_gateway_disabled
 
         if skipped_existing:
             logger.info(f"⚠️ 跳过已存在的MCP服务器: {skipped_existing}")
+        if skipped_gateway_disabled:
+            logger.info(f"⏭️ 跳过网关注册的MCP服务器: {skipped_gateway_disabled}")
 
         # 4. 部署MCP服务器（只部署新创建的）
         if mcp_server_mapping:
@@ -444,12 +579,17 @@ class APIMCPManager:
             result['deployed_mapping'] = {}
 
         # 检查结果
-        total_processed = len(result['deployed_mapping']) + len(result['skipped_existing'])
+        total_processed = (
+            len(result['deployed_mapping'])
+            + len(result['skipped_existing'])
+            + len(result['skipped_gateway_disabled'])
+        )
         if total_processed == len(fc3_names):
             result['success'] = True
             logger.info("✅ 所有MCP服务处理成功!")
             logger.info(f"   新部署: {len(result['deployed_mapping'])} 个")
             logger.info(f"   已存在: {len(result['skipped_existing'])} 个")
+            logger.info(f"   网关注册关闭: {len(result['skipped_gateway_disabled'])} 个")
             if enable_authentication:
                 logger.info(f"   认证已启用: Apikey")
         else:
@@ -627,6 +767,15 @@ def execute_registration(event_data: dict) -> dict:
     else:
         enable_authentication = bool(enable_authentication_raw)
     descriptions = event_data.get('descriptions', {})
+    runtime_mcp_configs_raw = event_data.get('runtime_mcp_configs', [])
+    if isinstance(runtime_mcp_configs_raw, str):
+        try:
+            runtime_mcp_configs = json.loads(runtime_mcp_configs_raw)
+        except json.JSONDecodeError:
+            logger.warning("⚠️ runtime_mcp_configs 不是合法JSON字符串，按空数组处理")
+            runtime_mcp_configs = []
+    else:
+        runtime_mcp_configs = runtime_mcp_configs_raw or []
 
     # 从公开OSS拉取mcp-tools.json，补充Icon到descriptions中
     descriptions = _enrich_descriptions_with_icons(descriptions, fc3_names_raw)
@@ -645,6 +794,13 @@ def execute_registration(event_data: dict) -> dict:
     # 扁平化函数名数组
     fc3_names = flatten_array(fc3_names_raw)
 
+    if not fc3_names and runtime_mcp_configs:
+        fc3_names = [
+            item.get("runtimeName") or item.get("functionName") or item.get("serverCode")
+            for item in runtime_mcp_configs
+            if isinstance(item, dict) and (item.get("runtimeName") or item.get("functionName") or item.get("serverCode"))
+        ]
+
     logger.info(f"📋 参数解析结果:")
     logger.info(f"   gateway_id: {gateway_id}")
     logger.info(f"   environment_id: {environment_id}")
@@ -655,6 +811,7 @@ def execute_registration(event_data: dict) -> dict:
     logger.info(f"   region: {region}")
     logger.info(f"   enable_authentication: {enable_authentication}")
     logger.info(f"   descriptions: {descriptions}")
+    logger.info(f"   runtime_mcp_configs: {runtime_mcp_configs}")
 
     # 参数验证
     if not all([gateway_id, domain_ids, fc3_names]):
@@ -674,7 +831,8 @@ def execute_registration(event_data: dict) -> dict:
         fc3_names=fc3_names,
         resource_group_id=resource_group_id,
         enable_authentication=enable_authentication,
-        descriptions=descriptions
+        descriptions=descriptions,
+        runtime_mcp_configs=runtime_mcp_configs
     )
 
     logger.info(f"🎯 最终结果: {result}")

@@ -1,0 +1,1218 @@
+ROSTemplateFormatVersion: '2015-09-01'
+Description:
+  zh-cn: 基于 ACS 集群部署 MCP runtime，按 MCP Server 独立扩缩容，并通过统一 ALB Ingress 暴露 API 与 MCP 协议入口。
+  en: Deploy MCP runtime on ACS with per-server scaling and a shared ALB Ingress for API and MCP protocol endpoints.
+
+Mappings:
+  PaymentTypeMapping:
+    PayTypeMap:
+      PostPaid: PayAsYouGo
+      PrePaid: Subscription
+
+Conditions:
+  CreateGatewayConditions:
+    Fn::Equals:
+      - NewGateway
+      - Ref: GatewayOption
+  CreateVpcConditions:
+    Fn::Equals:
+      - NewVPC
+      - Ref: VpcOption
+  EnablePublicIpConditions:
+    Fn::Equals:
+      - true
+      - Ref: EnablePublicIp
+  EnableGatewayRegistrationCondition:
+    Fn::Equals:
+      - true
+      - Ref: EnableGatewayRegistration
+
+Locals:
+  CurTime:
+    Type: Eval
+    Value:
+      Fn::FormatTime:
+        - '%Y%m%d-%H%M%S'
+        - Asia/Shanghai
+
+  ActualGatewayId:
+    Value:
+      Fn::If:
+        - CreateGatewayConditions
+        - Fn::GetAtt:
+            - NewApigGateway
+            - GatewayId
+        - Ref: HigressAI
+
+  ActualDomainId:
+    Value:
+      Fn::If:
+        - CreateGatewayConditions
+        - Fn::Jq:
+            - First
+            - '.[0].DomainId'
+            - Fn::GetAtt:
+                - NewApigGateway
+                - Domains
+        - Ref: HigressDomainId
+
+  GatewayPaymentType:
+    Value:
+      Fn::FindInMap:
+        - PaymentTypeMapping
+        - PayTypeMap
+        - Ref: PayType
+
+  ActualVpcId:
+    Value:
+      Fn::If:
+        - CreateVpcConditions
+        - Ref: RuntimeVpc
+        - Ref: VpcId
+
+  ActualVSwitchId1:
+    Value:
+      Fn::If:
+        - CreateVpcConditions
+        - Ref: RuntimeVSwitch1
+        - Ref: VSwitchId1
+
+  ActualVSwitchId2:
+    Value:
+      Fn::If:
+        - CreateVpcConditions
+        - Ref: RuntimeVSwitch2
+        - Ref: VSwitchId2
+
+  AlbAddressType:
+    Value:
+      Fn::If:
+        - EnablePublicIpConditions
+        - Internet
+        - Intranet
+
+  AlbScheme:
+    Value:
+      Fn::If:
+        - EnablePublicIpConditions
+        - internet
+        - intranet
+
+  McpRuntimeHost:
+    Value:
+      Fn::Jq:
+        - First
+        - '.[0].DNSName'
+        - Fn::GetAtt:
+            - AlbDataSource
+            - LoadBalancers
+
+Parameters:
+  McpConfigJson:
+    Type: Json
+    Label:
+      zh-cn: MCP运行配置
+      en: MCP Runtime Configuration
+    AssociationProperty: ALIYUN::MCP::Server::Server
+    AssociationPropertyMetadata:
+      ShowLabel: false
+      ShowCount: 6
+
+  ManagedMcpConfigJson:
+    Type: Json
+    Label:
+      zh-cn: 网关接入MCP
+      en: Managed Gateway MCP
+    AssociationPropertyMetadata:
+      Visible:
+        Condition:
+          Fn::Equals:
+            - true
+            - false
+    Default: '[]'
+
+  GatewayOption:
+    Type: String
+    AllowedValues:
+      - ExistingGateway
+      - NewGateway
+    AssociationPropertyMetadata:
+      ValueLabelMapping:
+        ExistingGateway:
+          zh-cn: 使用已有AI网关
+          en: Use Existing AI Gateway
+        NewGateway:
+          zh-cn: 新建AI网关
+          en: Create New AI Gateway
+    Label:
+      zh-cn: AI网关选项
+      en: AI Gateway Option
+    Required: true
+    Default: ExistingGateway
+
+  HigressAI:
+    Type: String
+    Required:
+      Fn::Equals:
+        - ExistingGateway
+        - ${GatewayOption}
+    AssociationProperty: ALIYUN::APIG::Gateway::GatewayId
+    AssociationPropertyMetadata:
+      GatewayType: AI
+      RegionId:
+        Ref: ALIYUN::Region
+      Visible:
+        Condition:
+          Fn::Equals:
+            - ExistingGateway
+            - ${GatewayOption}
+    Default: ''
+    Label:
+      zh-cn: 已有AI网关
+      en: Existing AI Gateway
+
+  HigressDomainId:
+    Type: String
+    Required:
+      Fn::Equals:
+        - ExistingGateway
+        - ${GatewayOption}
+    AssociationProperty: ALIYUN::APIG::Gateway::ListDomains
+    AssociationPropertyMetadata:
+      GatewayType: AI
+      Visible:
+        Condition:
+          Fn::Equals:
+            - ExistingGateway
+            - ${GatewayOption}
+    Default: ''
+    Label:
+      zh-cn: AI网关域名
+      en: AI Gateway Domain
+
+  GatewaySpec:
+    Type: String
+    Required:
+      Fn::Equals:
+        - NewGateway
+        - ${GatewayOption}
+    Default: aigw.small.x1
+    AllowedValues:
+      - aigw.small.x1
+      - aigw.medium.x1
+      - aigw.large.x1
+    AssociationPropertyMetadata:
+      Visible:
+        Condition:
+          Fn::Equals:
+            - NewGateway
+            - ${GatewayOption}
+    Label:
+      zh-cn: 网关规格
+      en: Gateway Specification
+
+  PayType:
+    Type: String
+    Label:
+      zh-cn: 付费类型
+      en: Charge Type
+    Default: PostPaid
+    AllowedValues:
+      - PostPaid
+      - PrePaid
+    AssociationProperty: ChargeType
+    AssociationPropertyMetadata:
+      LocaleKey: InstanceChargeType
+
+  PayPeriodUnit:
+    Type: String
+    Label:
+      zh-cn: 购买资源时长周期
+      en: Pay Period Unit
+    Default: Month
+    AllowedValues:
+      - Month
+      - Year
+    AssociationProperty: PayPeriodUnit
+    AssociationPropertyMetadata:
+      Visible:
+        Condition:
+          Fn::Not:
+            Fn::Equals:
+              - ${PayType}
+              - PostPaid
+
+  PayPeriod:
+    Type: Number
+    Label:
+      zh-cn: 购买资源时长
+      en: Pay Period
+    Default: 1
+    AllowedValues:
+      - 1
+      - 2
+      - 3
+      - 4
+      - 5
+      - 6
+      - 7
+      - 8
+      - 9
+    AssociationProperty: PayPeriod
+    AssociationPropertyMetadata:
+      Visible:
+        Condition:
+          Fn::Not:
+            Fn::Equals:
+              - ${PayType}
+              - PostPaid
+
+  ZoneId1:
+    Type: String
+    Label:
+      zh-cn: 可用区1
+      en: Zone 1
+    AssociationProperty: ALIYUN::ECS::Instance::ZoneId
+    AssociationPropertyMetadata:
+      DefaultValueStrategy: random
+    Required: true
+
+  ZoneId2:
+    Type: String
+    Label:
+      zh-cn: 可用区2
+      en: Zone 2
+    AssociationProperty: ALIYUN::ECS::Instance::ZoneId
+    AssociationPropertyMetadata:
+      DefaultValueStrategy: random
+      ExclusiveTo:
+        - ZoneId1
+    Required: true
+
+  VpcOption:
+    Type: String
+    Required: true
+    AllowedValues:
+      - ExistingVPC
+      - NewVPC
+    AssociationPropertyMetadata:
+      ValueLabelMapping:
+        ExistingVPC:
+          zh-cn: 使用已有VPC
+          en: Use Existing VPC
+        NewVPC:
+          zh-cn: 新建VPC
+          en: Create New VPC
+    Label:
+      zh-cn: VPC选项
+      en: VPC Option
+    Description:
+      zh-cn: 使用已有 AI 网关时，请选择与网关网络可达的 VPC 和交换机。
+      en: When using an existing AI Gateway, select a VPC and VSwitches reachable by the gateway.
+    Default: ExistingVPC
+
+  VpcId:
+    Type: String
+    Required:
+      Fn::Equals:
+        - ExistingVPC
+        - ${VpcOption}
+    AssociationProperty: ALIYUN::ECS::VPC::VPCId
+    Default: ''
+    AssociationPropertyMetadata:
+      Visible:
+        Condition:
+          Fn::Equals:
+            - ExistingVPC
+            - ${VpcOption}
+    Label:
+      zh-cn: VPC ID
+      en: VPC ID
+
+  VSwitchId1:
+    Type: String
+    Required:
+      Fn::Equals:
+        - ExistingVPC
+        - ${VpcOption}
+    AssociationProperty: ALIYUN::VPC::VSwitch::VSwitchId
+    Default: ''
+    AssociationPropertyMetadata:
+      VpcId: ${VpcId}
+      ZoneId: ${ZoneId1}
+      Visible:
+        Condition:
+          Fn::Equals:
+            - ExistingVPC
+            - ${VpcOption}
+    Label:
+      zh-cn: 交换机1
+      en: VSwitch 1
+
+  VSwitchId2:
+    Type: String
+    Required:
+      Fn::Equals:
+        - ExistingVPC
+        - ${VpcOption}
+    AssociationProperty: ALIYUN::VPC::VSwitch::VSwitchId
+    Default: ''
+    AssociationPropertyMetadata:
+      VpcId: ${VpcId}
+      ZoneId: ${ZoneId2}
+      Visible:
+        Condition:
+          Fn::Equals:
+            - ExistingVPC
+            - ${VpcOption}
+    Label:
+      zh-cn: 交换机2
+      en: VSwitch 2
+
+  VpcCidrBlock:
+    Type: String
+    Required:
+      Fn::Equals:
+        - NewVPC
+        - ${VpcOption}
+    Default: 192.168.0.0/16
+    AllowedValues:
+      - 192.168.0.0/16
+      - 172.16.0.0/12
+      - 10.0.0.0/8
+    AssociationPropertyMetadata:
+      Visible:
+        Condition:
+          Fn::Equals:
+            - NewVPC
+            - ${VpcOption}
+    Label:
+      zh-cn: VPC网段
+      en: VPC CIDR Block
+
+  VSwitchCidrBlock1:
+    Type: String
+    Required:
+      Fn::Equals:
+        - NewVPC
+        - ${VpcOption}
+    Default: 192.168.1.0/24
+    AssociationPropertyMetadata:
+      Visible:
+        Condition:
+          Fn::Equals:
+            - NewVPC
+            - ${VpcOption}
+    Label:
+      zh-cn: 交换机1网段
+      en: VSwitch 1 CIDR Block
+
+  VSwitchCidrBlock2:
+    Type: String
+    Required:
+      Fn::Equals:
+        - NewVPC
+        - ${VpcOption}
+    Default: 192.168.2.0/24
+    AssociationPropertyMetadata:
+      Visible:
+        Condition:
+          Fn::Equals:
+            - NewVPC
+            - ${VpcOption}
+    Label:
+      zh-cn: 交换机2网段
+      en: VSwitch 2 CIDR Block
+
+  ServiceCidr:
+    Type: String
+    Label:
+      zh-cn: Service网段
+      en: Service CIDR
+    Default: 172.21.0.0/20
+
+  SnatEntry:
+    Type: Boolean
+    Label:
+      zh-cn: 开启SNAT
+      en: Enable SNAT
+    Default: true
+
+  EnablePublicIp:
+    Type: Boolean
+    Label:
+      zh-cn: ALB公网访问
+      en: Public ALB
+    Default: false
+
+  ApiReplicas:
+    Type: Number
+    Label:
+      zh-cn: API Runtime副本数
+      en: API Runtime Replicas
+    Default: 2
+    MinValue: 1
+    MaxValue: 10
+
+  McpReplicas:
+    Type: Number
+    Label:
+      zh-cn: 每个MCP副本数
+      en: Replicas Per MCP Server
+    Default: 1
+    MinValue: 1
+    MaxValue: 10
+
+  RuntimeCpu:
+    Type: String
+    Label:
+      zh-cn: Runtime CPU
+      en: Runtime CPU
+    Default: '1'
+
+  RuntimeMemory:
+    Type: String
+    Label:
+      zh-cn: Runtime内存
+      en: Runtime Memory
+    Default: 2Gi
+
+  RuntimeWorkers:
+    Type: Number
+    Label:
+      zh-cn: MCPO Worker数
+      en: MCPO Workers
+    Default: 4
+    MinValue: 1
+    MaxValue: 32
+
+  EnableGatewayRegistration:
+    Type: Boolean
+    Label:
+      zh-cn: 启用AI网关注册Job
+      en: Enable AI Gateway Registration Job
+    Description:
+      zh-cn: 默认关闭。启用前需要为 ACS 集群配置 RRSA/OIDC 与带 APIG 权限的 RAM 角色。
+      en: Disabled by default. Before enabling it, configure RRSA/OIDC and a RAM role with APIG permissions for the ACS cluster.
+    Default: false
+
+  RegistrationRamRoleName:
+    Type: String
+    Required:
+      Fn::Equals:
+        - true
+        - ${EnableGatewayRegistration}
+    Default: ''
+    AssociationPropertyMetadata:
+      Visible:
+        Condition:
+          Fn::Equals:
+            - true
+            - ${EnableGatewayRegistration}
+    Label:
+      zh-cn: 注册Job RAM角色名
+      en: Registration Job RAM Role Name
+
+Resources:
+  RuntimeVpc:
+    Type: ALIYUN::ECS::VPC
+    Condition: CreateVpcConditions
+    Properties:
+      VpcName:
+        Fn::Sub: ${ALIYUN::StackName}-acs-mcp-vpc
+      CidrBlock:
+        Ref: VpcCidrBlock
+
+  RuntimeVSwitch1:
+    Type: ALIYUN::ECS::VSwitch
+    Condition: CreateVpcConditions
+    Properties:
+      VSwitchName:
+        Fn::Sub: ${ALIYUN::StackName}-acs-mcp-vsw-1
+      VpcId:
+        Ref: RuntimeVpc
+      ZoneId:
+        Ref: ZoneId1
+      CidrBlock:
+        Ref: VSwitchCidrBlock1
+
+  RuntimeVSwitch2:
+    Type: ALIYUN::ECS::VSwitch
+    Condition: CreateVpcConditions
+    Properties:
+      VSwitchName:
+        Fn::Sub: ${ALIYUN::StackName}-acs-mcp-vsw-2
+      VpcId:
+        Ref: RuntimeVpc
+      ZoneId:
+        Ref: ZoneId2
+      CidrBlock:
+        Ref: VSwitchCidrBlock2
+
+  NewApigGateway:
+    Type: ALIYUN::APIG::Gateway
+    Condition: CreateGatewayConditions
+    Properties:
+      GatewayName:
+        Ref: ALIYUN::StackName
+      GatewayType: AI
+      PaymentType:
+        Ref: GatewayPaymentType
+      Period:
+        Ref: PayPeriod
+      PeriodUnit:
+        Ref: PayPeriodUnit
+      Spec:
+        Ref: GatewaySpec
+      ZoneConfig:
+        SelectOption: Auto
+      NetworkAccessConfig:
+        Type: InternetAndIntranet
+      Vpc:
+        VpcId:
+          Ref: ActualVpcId
+      VSwitch:
+        VSwitchId:
+          Ref: ActualVSwitchId1
+
+  AckOrAcsCluster:
+    Type: ALIYUN::ACS::Cluster
+    Properties:
+      Name:
+        Fn::Sub: acs-mcp-${ALIYUN::StackName}
+      VpcId:
+        Ref: ActualVpcId
+      ServiceCidr:
+        Ref: ServiceCidr
+      ClusterSpec: ack.pro.small
+      EndpointPublicAccess: true
+      SnatEntry:
+        Ref: SnatEntry
+      IsEnterpriseSecurityGroup: true
+      VSwitchIds:
+        - Ref: ActualVSwitchId1
+        - Ref: ActualVSwitchId2
+      ZoneIds:
+        - Ref: ZoneId1
+        - Ref: ZoneId2
+      PodVSwitchIds:
+        - Ref: ActualVSwitchId1
+        - Ref: ActualVSwitchId2
+      Addons:
+        - Name: managed-coredns
+      KubernetesVersion: 1.32.7-aliyun.1
+
+  ClusterReadySleep:
+    Type: ALIYUN::ROS::Sleep
+    DependsOn:
+      - AckOrAcsCluster
+    Properties:
+      CreateDuration: 10
+
+  AlbIngressAddon:
+    Type: ALIYUN::CS::ClusterAddons
+    DependsOn: ClusterReadySleep
+    Properties:
+      ClusterId:
+        Fn::GetAtt:
+          - AckOrAcsCluster
+          - ClusterId
+      InstalledIgnore: true
+      ZoneIds:
+        - Ref: ZoneId1
+        - Ref: ZoneId2
+      Addons:
+        - Name: alb-ingress-controller
+          Config:
+            Fn::Sub:
+              - '{"albIngress":{"AddressType":"${AddressType}","ZoneMappings":{"${ZoneId1}":["${VSwitchId1}"],"${ZoneId2}":["${VSwitchId2}"]},"CreateDefaultALBConfig":true}}'
+              - AddressType:
+                  Ref: AlbAddressType
+                ZoneId1:
+                  Ref: ZoneId1
+                ZoneId2:
+                  Ref: ZoneId2
+                VSwitchId1:
+                  Ref: ActualVSwitchId1
+                VSwitchId2:
+                  Ref: ActualVSwitchId2
+
+  AlbIngressSleep:
+    Type: ALIYUN::ROS::Sleep
+    DependsOn: AlbIngressAddon
+    Properties:
+      CreateDuration: 180
+
+  McpNamespace:
+    Type: ALIYUN::CS::ClusterApplication
+    DependsOn: ClusterReadySleep
+    Properties:
+      ClusterId:
+        Fn::GetAtt:
+          - AckOrAcsCluster
+          - ClusterId
+      YamlContent: |
+        apiVersion: v1
+        kind: Namespace
+        metadata:
+          name: mcp-runtime
+          labels:
+            app.kubernetes.io/name: mcp-runtime
+            pod-identity.alibabacloud.com/injection: "on"
+
+  McpRuntimeConfigMap:
+    Type: ALIYUN::CS::ClusterApplication
+    DependsOn: McpNamespace
+    Properties:
+      ClusterId:
+        Fn::GetAtt:
+          - AckOrAcsCluster
+          - ClusterId
+      DefaultNamespace: mcp-runtime
+      YamlContent:
+        Fn::Sub:
+          - |
+            apiVersion: v1
+            kind: ConfigMap
+            metadata:
+              name: mcp-runtime-config
+              namespace: mcp-runtime
+              labels:
+                app.kubernetes.io/name: mcp-runtime
+            data:
+              config.json: |
+                ${MCP_RESULT}
+          - MCP_RESULT:
+              Fn::Jq:
+                - First
+                - '{mcpServers: map({ key: .serverCode, value: { command, args, env, type, url, packageOssPath, icon } }) | from_entries }'
+                - Ref: McpConfigJson
+
+  McpApiDeployment:
+    Type: ALIYUN::CS::ClusterApplication
+    DependsOn: McpRuntimeConfigMap
+    Properties:
+      ClusterId:
+        Fn::GetAtt:
+          - AckOrAcsCluster
+          - ClusterId
+      DefaultNamespace: mcp-runtime
+      YamlContent:
+        Fn::Sub:
+          - |
+            apiVersion: apps/v1
+            kind: Deployment
+            metadata:
+              name: mcp-api
+              namespace: mcp-runtime
+              labels:
+                app: mcp-api
+                app.kubernetes.io/name: mcp-api
+            spec:
+              replicas: ${ApiReplicas}
+              selector:
+                matchLabels:
+                  app: mcp-api
+              template:
+                metadata:
+                  labels:
+                    app: mcp-api
+                    app.kubernetes.io/name: mcp-api
+                    alibabacloud.com/acs: "true"
+                  annotations:
+                    mcp.aliyun.com/config-version: "${ConfigVersion}"
+                spec:
+                  containers:
+                    - name: mcpo
+                      image: "{{ computenest::acrimage::quickstart-mcp-acs }}"
+                      imagePullPolicy: Always
+                      command: ["/bin/sh", "-c"]
+                      args:
+                        - |
+                          exec mcpo --config /app/config.json --port 8080 --host 0.0.0.0 --workers ${RuntimeWorkers}
+                      ports:
+                        - name: http
+                          containerPort: 8080
+                          protocol: TCP
+                      volumeMounts:
+                        - name: runtime-config
+                          mountPath: /app/config.json
+                          subPath: config.json
+                        - name: runtime-logs
+                          mountPath: /app/logs
+                        - name: mcp-package
+                          mountPath: /mcp-package
+                      resources:
+                        requests:
+                          cpu: "${RuntimeCpu}"
+                          memory: "${RuntimeMemory}"
+                        limits:
+                          cpu: "${RuntimeCpu}"
+                          memory: "${RuntimeMemory}"
+                      readinessProbe:
+                        tcpSocket:
+                          port: 8080
+                        initialDelaySeconds: 20
+                        periodSeconds: 10
+                  volumes:
+                    - name: runtime-config
+                      configMap:
+                        name: mcp-runtime-config
+                    - name: runtime-logs
+                      emptyDir: {}
+                    - name: mcp-package
+                      emptyDir: {}
+          - ApiReplicas:
+              Ref: ApiReplicas
+            RuntimeWorkers:
+              Ref: RuntimeWorkers
+            RuntimeCpu:
+              Ref: RuntimeCpu
+            RuntimeMemory:
+              Ref: RuntimeMemory
+            ConfigVersion:
+              Ref: CurTime
+
+  McpApiService:
+    Type: ALIYUN::CS::ClusterApplication
+    DependsOn: McpApiDeployment
+    Properties:
+      ClusterId:
+        Fn::GetAtt:
+          - AckOrAcsCluster
+          - ClusterId
+      DefaultNamespace: mcp-runtime
+      YamlContent: |
+        apiVersion: v1
+        kind: Service
+        metadata:
+          name: mcp-api
+          namespace: mcp-runtime
+          labels:
+            app: mcp-api
+        spec:
+          type: ClusterIP
+          selector:
+            app: mcp-api
+          ports:
+            - name: http
+              port: 8080
+              targetPort: 8080
+              protocol: TCP
+
+  McpServerWorkloads:
+    Type: ALIYUN::CS::ClusterApplication
+    DependsOn: McpNamespace
+    Properties:
+      ClusterId:
+        Fn::GetAtt:
+          - AckOrAcsCluster
+          - ClusterId
+      DefaultNamespace: mcp-runtime
+      YamlContent:
+        Fn::Jq:
+          - First
+          - |
+            def name:
+              (.serverCode | ascii_downcase | gsub("[^a-z0-9-]"; "-") | gsub("-+"; "-") | sub("^-"; "") | sub("-$"; ""));
+            def streamable_args($name):
+              " --outputTransport streamableHttp --port 8080 --streamableHttpPath /mcp-servers/" + $name + " --healthEndpoint /healthz";
+            def shell_command($name):
+              if .command == null then
+                "exec supergateway --sse \"" + (.url // "") + "\"" + streamable_args($name)
+              elif .command == "npx" and (.pkgType == "private") then
+                "exec supergateway --stdio \"npx " + ((.args // []) | map(if startswith("/mcp-package/") then "/mcp-package/" + (. | ltrimstr("/mcp-package/") | rtrimstr(".zip")) else . end) | join(" ")) + "\"" + streamable_args($name)
+              elif .command == "npx" then
+                "exec supergateway --stdio \"npx -y " + ((.args // []) | join(" ")) + "\"" + streamable_args($name)
+              elif .command == "uvx" and (.pkgType == "private") then
+                "exec supergateway --stdio \"uvx " + ((.args // []) | map(if startswith("/mcp-package/") then "/mcp-package/" + (. | ltrimstr("/mcp-package/") | rtrimstr(".zip")) else . end) | join(" ")) + "\"" + streamable_args($name)
+              elif .command == "uvx" then
+                "exec supergateway --stdio \"uvx " + ((.args // []) | join(" ")) + "\"" + streamable_args($name)
+              else
+                "exec supergateway --sse \"" + (.url // "") + "\"" + streamable_args($name)
+              end;
+            def env_lines:
+              if (.env | type) == "object" and ((.env | length) > 0) then
+                "          env:\n" + ((.env | to_entries) | map("            - name: " + .key + "\n              value: " + (.value | tostring | @json)) | join("\n")) + "\n"
+              else
+                ""
+              end;
+            . as $root |
+            $root.servers |
+            map(
+              name as $name |
+              "---\n" +
+              "apiVersion: apps/v1\n" +
+              "kind: Deployment\n" +
+              "metadata:\n" +
+              "  name: mcp-" + $name + "\n" +
+              "  namespace: mcp-runtime\n" +
+              "  labels:\n" +
+              "    app: mcp-server\n" +
+              "    serverCode: " + $name + "\n" +
+              "spec:\n" +
+              "  replicas: " + ($root.replicas | tostring) + "\n" +
+              "  selector:\n" +
+              "    matchLabels:\n" +
+              "      app: mcp-server\n" +
+              "      serverCode: " + $name + "\n" +
+              "  template:\n" +
+              "    metadata:\n" +
+              "      labels:\n" +
+              "        app: mcp-server\n" +
+              "        serverCode: " + $name + "\n" +
+              "        alibabacloud.com/acs: \"true\"\n" +
+              "    spec:\n" +
+              "      containers:\n" +
+              "        - name: supergateway\n" +
+              "          image: \"{{ computenest::acrimage::quickstart-mcp-acs }}\"\n" +
+              "          imagePullPolicy: Always\n" +
+              "          command: [\"/bin/sh\", \"-c\"]\n" +
+              "          args:\n" +
+              "            - |\n" +
+              "              " + shell_command($name) + "\n" +
+              env_lines +
+              "          ports:\n" +
+              "            - name: http\n" +
+              "              containerPort: 8080\n" +
+              "              protocol: TCP\n" +
+              "          volumeMounts:\n" +
+              "            - name: mcp-package\n" +
+              "              mountPath: /mcp-package\n" +
+              "          resources:\n" +
+              "            requests:\n" +
+              "              cpu: " + ($root.cpu | @json) + "\n" +
+              "              memory: " + ($root.memory | @json) + "\n" +
+              "            limits:\n" +
+              "              cpu: " + ($root.cpu | @json) + "\n" +
+              "              memory: " + ($root.memory | @json) + "\n" +
+              "          readinessProbe:\n" +
+              "            tcpSocket:\n" +
+              "              port: 8080\n" +
+              "            initialDelaySeconds: 10\n" +
+              "            periodSeconds: 10\n" +
+              "      volumes:\n" +
+              "        - name: mcp-package\n" +
+              "          emptyDir: {}\n" +
+              "---\n" +
+              "apiVersion: v1\n" +
+              "kind: Service\n" +
+              "metadata:\n" +
+              "  name: mcp-" + $name + "\n" +
+              "  namespace: mcp-runtime\n" +
+              "  labels:\n" +
+              "    app: mcp-server\n" +
+              "    serverCode: " + $name + "\n" +
+              "spec:\n" +
+              "  type: ClusterIP\n" +
+              "  selector:\n" +
+              "    app: mcp-server\n" +
+              "    serverCode: " + $name + "\n" +
+              "  ports:\n" +
+              "    - name: http\n" +
+              "      port: 8080\n" +
+              "      targetPort: 8080\n" +
+              "      protocol: TCP\n"
+            ) | join("\n")
+          - servers:
+              Ref: McpConfigJson
+            replicas:
+              Ref: McpReplicas
+            cpu:
+              Ref: RuntimeCpu
+            memory:
+              Ref: RuntimeMemory
+
+  McpRuntimeIngress:
+    Type: ALIYUN::CS::ClusterApplication
+    DependsOn:
+      - AlbIngressSleep
+      - McpApiService
+      - McpServerWorkloads
+    Properties:
+      ClusterId:
+        Fn::GetAtt:
+          - AckOrAcsCluster
+          - ClusterId
+      DefaultNamespace: mcp-runtime
+      YamlContent:
+        Fn::Sub:
+          - |
+            apiVersion: networking.k8s.io/v1
+            kind: Ingress
+            metadata:
+              name: mcp-runtime
+              namespace: mcp-runtime
+              annotations:
+                kubernetes.io/ingress.class: alb
+                alb.ingress.kubernetes.io/scheme: ${AlbScheme}
+                alb.ingress.kubernetes.io/listen-ports: '[{"HTTP": 80}]'
+            spec:
+              ingressClassName: alb
+              rules:
+                - http:
+                    paths:
+            ${IngressPaths}
+          - AlbScheme:
+              Ref: AlbScheme
+            IngressPaths:
+              Fn::Jq:
+                - First
+                - |
+                  def name:
+                    (.serverCode | ascii_downcase | gsub("[^a-z0-9-]"; "-") | gsub("-+"; "-") | sub("^-"; "") | sub("-$"; ""));
+                  map(
+                    name as $name |
+                    "                      - path: /mcp-servers/" + $name + "\n" +
+                    "                        pathType: Prefix\n" +
+                    "                        backend:\n" +
+                    "                          service:\n" +
+                    "                            name: mcp-" + $name + "\n" +
+                    "                            port:\n" +
+                    "                              number: 8080\n" +
+                    "                      - path: /" + $name + "\n" +
+                    "                        pathType: Prefix\n" +
+                    "                        backend:\n" +
+                    "                          service:\n" +
+                    "                            name: mcp-api\n" +
+                    "                            port:\n" +
+                    "                              number: 8080"
+                  ) | join("\n")
+                - Ref: McpConfigJson
+
+  AlbDataSource:
+    Type: DATASOURCE::ALB::LoadBalancers
+    DependsOn: McpRuntimeIngress
+    Properties:
+      AddressType:
+        Ref: AlbAddressType
+      VpcIds:
+        - Ref: ActualVpcId
+      Tags:
+        - Key: ack.aliyun.com
+          Value:
+            Fn::GetAtt:
+              - AckOrAcsCluster
+              - ClusterId
+
+  McpRegistrationServiceAccount:
+    Type: ALIYUN::CS::ClusterApplication
+    Condition: EnableGatewayRegistrationCondition
+    DependsOn: McpNamespace
+    Properties:
+      ClusterId:
+        Fn::GetAtt:
+          - AckOrAcsCluster
+          - ClusterId
+      DefaultNamespace: mcp-runtime
+      YamlContent:
+        Fn::Sub:
+          - |
+            apiVersion: v1
+            kind: ServiceAccount
+            metadata:
+              name: mcp-registration
+              namespace: mcp-runtime
+              annotations:
+                pod-identity.alibabacloud.com/role-name: ${RegistrationRamRoleName}
+          - RegistrationRamRoleName:
+              Ref: RegistrationRamRoleName
+
+  McpRegistrationJob:
+    Type: ALIYUN::CS::ClusterApplication
+    Condition: EnableGatewayRegistrationCondition
+    DependsOn:
+      - McpRegistrationServiceAccount
+      - McpRuntimeIngress
+      - AlbDataSource
+    Properties:
+      ClusterId:
+        Fn::GetAtt:
+          - AckOrAcsCluster
+          - ClusterId
+      DefaultNamespace: mcp-runtime
+      YamlContent:
+        Fn::Sub:
+          - |
+            apiVersion: batch/v1
+            kind: Job
+            metadata:
+              name: mcp-registration
+              namespace: mcp-runtime
+              labels:
+                app: mcp-registration
+            spec:
+              backoffLimit: 1
+              template:
+                metadata:
+                  labels:
+                    app: mcp-registration
+                    alibabacloud.com/acs: "true"
+                spec:
+                  serviceAccountName: mcp-registration
+                  restartPolicy: Never
+                  containers:
+                    - name: register
+                      image: "{{ computenest::acrimage::quickstart-mcp-acs }}"
+                      imagePullPolicy: Always
+                      command: ["/bin/sh", "-c"]
+                      args:
+                        - |
+                          set -eu
+                          cd /app
+                          curl -sSLo /tmp/aliyun-cli.tgz https://aliyuncli.alicdn.com/aliyun-cli-linux-latest-amd64.tgz
+                          tar xzf /tmp/aliyun-cli.tgz -C /app aliyun
+                          chmod +x /app/aliyun
+                          curl -sSLo /tmp/pre-mcp-tools.json https://service-info-public.oss-cn-hangzhou.aliyuncs.com/mcp/mcp-tools.json
+                          python /app/higress_enterprise.py register \
+                            --gateway-id ${GatewayId} \
+                            --private-ip ${RuntimeHost} \
+                            --domain-id "${DomainId}" \
+                            --tools-config /app/config.json \
+                            --pre-config /tmp/pre-mcp-tools.json \
+                            --region ${RegionId} \
+                            --si {{ serviceInstanceId }} \
+                            --mode create-skip
+                      volumeMounts:
+                        - name: runtime-config
+                          mountPath: /app/config.json
+                          subPath: config.json
+                  volumes:
+                    - name: runtime-config
+                      configMap:
+                        name: mcp-runtime-config
+          - GatewayId:
+              Ref: ActualGatewayId
+            DomainId:
+              Ref: ActualDomainId
+            RuntimeHost:
+              Ref: McpRuntimeHost
+            RegionId:
+              Ref: ALIYUN::Region
+
+Outputs:
+  McpGatewayConsole:
+    Label:
+      zh-cn: MCP管控平台
+      en: MCP Control Plane
+    Value:
+      Fn::Sub:
+        - https://apig.console.aliyun.com/#/${RegionId}/ai-gateway/${GatewayId}/mcp-server?region=${RegionId}
+        - RegionId:
+            Ref: ALIYUN::Region
+          GatewayId:
+            Ref: ActualGatewayId
+
+  HigressAI:
+    Label:
+      zh-cn: 网关ID
+      en: Gateway ID
+    Value:
+      Ref: ActualGatewayId
+
+  ClusterId:
+    Label:
+      zh-cn: ACS集群ID
+      en: ACS Cluster ID
+    Value:
+      Fn::GetAtt:
+        - AckOrAcsCluster
+        - ClusterId
+
+  McpRuntimeEndpoint:
+    Label:
+      zh-cn: MCP Runtime访问地址
+      en: MCP Runtime Endpoint
+    Value:
+      Fn::Sub:
+        - http://${AlbDns}
+        - AlbDns:
+            Ref: McpRuntimeHost
+
+  McpApiEndpointHint:
+    Label:
+      zh-cn: API路径格式
+      en: API Path Pattern
+    Value:
+      Fn::Sub:
+        - http://${AlbDns}/{serverCode}
+        - AlbDns:
+            Ref: McpRuntimeHost
+
+  McpProtocolEndpointHint:
+    Label:
+      zh-cn: MCP协议路径格式
+      en: MCP Protocol Path Pattern
+    Value:
+      Fn::Sub:
+        - http://${AlbDns}/mcp-servers/{serverCode}
+        - AlbDns:
+            Ref: McpRuntimeHost
+
+  GatewayRegistrationEnabled:
+    Label:
+      zh-cn: AI网关注册Job是否启用
+      en: Whether AI Gateway Registration Job Is Enabled
+    Value:
+      Ref: EnableGatewayRegistration
+
+Metadata:
+  ALIYUN::ROS::Interface:
+    ParameterGroups:
+      - Parameters:
+          - McpConfigJson
+        Label:
+          default:
+            zh-cn: MCP服务配置
+            en: MCP Service Configuration
+      - Parameters:
+          - GatewayOption
+          - HigressAI
+          - HigressDomainId
+          - GatewaySpec
+        Label:
+          default:
+            zh-cn: AI网关配置
+            en: AI Gateway Configuration
+      - Parameters:
+          - ZoneId1
+          - ZoneId2
+          - VpcOption
+          - VpcId
+          - VSwitchId1
+          - VSwitchId2
+          - VpcCidrBlock
+          - VSwitchCidrBlock1
+          - VSwitchCidrBlock2
+          - ServiceCidr
+          - SnatEntry
+          - EnablePublicIp
+        Label:
+          default:
+            zh-cn: ACS网络配置
+            en: ACS Network Configuration
+      - Parameters:
+          - ApiReplicas
+          - McpReplicas
+          - RuntimeCpu
+          - RuntimeMemory
+          - RuntimeWorkers
+        Label:
+          default:
+            zh-cn: Runtime配置
+            en: Runtime Configuration
+      - Parameters:
+          - EnableGatewayRegistration
+          - RegistrationRamRoleName
+        Label:
+          default:
+            zh-cn: AI网关注册配置
+            en: AI Gateway Registration Configuration
+      - Parameters:
+          - PayType
+          - PayPeriodUnit
+          - PayPeriod
+        Label:
+          default:
+            zh-cn: 付费配置
+            en: Charge Configuration

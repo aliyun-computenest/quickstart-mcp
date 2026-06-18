@@ -23,6 +23,29 @@ Service:
         EnableLogging: false
         Parameters:
         - McpConfigJson
+      - Name: Manage-Gateway-MCP
+        Description: 接入或移出网关MCP
+        Type: Custom
+        SupportPredefinedParameters: false
+        EnableLogging: false
+        Parameters:
+        - ManagedMcpConfigJson
+    - TemplateName: ACS企业版
+      Operation:
+      - Name: Modify-MCP-Servers
+        Description: 修改已部署的MCP工具
+        Type: Custom
+        SupportPredefinedParameters: false
+        EnableLogging: false
+        Parameters:
+        - McpConfigJson
+      - Name: Manage-Gateway-MCP
+        Description: 接入或移出网关MCP
+        Type: Custom
+        SupportPredefinedParameters: false
+        EnableLogging: false
+        Parameters:
+        - ManagedMcpConfigJson
     - TemplateName: ECS单机版
       Operation:
       - Name: 变更ECS实例规格
@@ -64,6 +87,12 @@ Service:
         ArchitectureDiagramUrl: 'resources/architecture/architecture.jpg'
         AllowedRegions:
           - ap-southeast-1
+      - Name: ACS企业版
+        Url: 'ros_templates/acs.yaml'
+        ArchitectureDiagramUrl: 'resources/architecture/architecture.jpg'
+        AllowedRegions:
+        - cn-hangzhou
+        - ap-southeast-1
       - Name: ECS企业版
         Url: 'ros_templates/template-enterprise.yaml'
         ArchitectureDiagramUrl: 'resources/architecture/architecture.jpg'
@@ -75,6 +104,9 @@ Service:
           ArtifactVersion: draft
         fc-mcp-code:
           ArtifactId: ${Artifact.FcMcpCode.ArtifactId}
+          ArtifactVersion: draft
+        quickstart-mcp-acs:
+          ArtifactId: ${Artifact.AcsMcpImage.ArtifactId}
           ArtifactVersion: draft
     TemplateConfigs:
 
@@ -93,6 +125,12 @@ Service:
       ArchitectureDiagramUrl: 'resources/architecture/architecture.jpg'
       AllowedRegions:
         - ap-southeast-1
+    - Name: ACS企业版
+      Url: 'ros_templates/acs.yaml'
+      ArchitectureDiagramUrl: 'resources/architecture/architecture.jpg'
+      AllowedRegions:
+      - cn-hangzhou
+      - ap-southeast-1
     - Name: ECS企业版
       Url: 'ros_templates/template-enterprise.yaml'
       ArchitectureDiagramUrl: 'resources/architecture/architecture.jpg'
@@ -171,3 +209,20 @@ Artifact:
         sed -i 's/pull_policy: always/pull_policy: if_not_present/g' mcp/docker-compose.yaml
         docker compose -f mcp/docker-compose.yaml build --no-cache 2>&1 | stdbuf -oL grep -viE 'Downloading|sha256|extracting|KiB|Downloaded|%' || true;
         docker compose -f mcp/docker-compose.yaml pull 2>&1 | stdbuf -oL grep -viE 'Downloading|sha256|extracting|KiB|Downloaded|%' || true;
+  AcsMcpImage:
+    ArtifactType: AcrImage
+    ArtifactName: quickstart-mcp-acs
+    Description: quickstart-mcp ACS runtime image
+    SupportRegionIds:
+    - cn-hangzhou
+    - cn-shanghai
+    - ap-southeast-1
+    ArtifactBuildType: Dockerfile
+    ArtifactBuildProperty:
+      CodeRepo:
+        Platform: github
+        Owner: aliyun-computenest
+        RepoName: quickstart-mcp
+        Branch: codex/acs-mcp-template
+        DockerfilePath: mcp/Dockerfile.acs
+      RegionId: ap-southeast-1

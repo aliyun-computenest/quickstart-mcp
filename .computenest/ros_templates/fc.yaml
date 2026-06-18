@@ -40,7 +40,8 @@ Locals:
             "resource_group_id": "${ResourceGroupId}",
             "region": "${Region}",
             "enable_authentication": "${EnableAuth}",
-            "descriptions": ${Descriptions}
+            "descriptions": ${Descriptions},
+            "runtime_mcp_configs": ${RuntimeMcpConfigs}
           }
         - GatewayId:
             Ref: ActualGatewayId
@@ -71,6 +72,11 @@ Locals:
               - First
               - 'tostring'
               - Ref: DescriptionsMap
+          RuntimeMcpConfigs:
+            Fn::Jq:
+              - First
+              - 'tostring'
+              - Ref: McpConfigJson
   FunctionNameArray:
     Value:
       Fn::Jq:
@@ -309,6 +315,19 @@ Parameters:
       ShowCounts: 9
       ShowTagsCounts: 10
     Default: '[{"serviceName":"Fetch网页内容抓取","serverCode":"fetch","env":{},"command":"uvx","args":["mcp-server-fetch"]}]'
+
+  ManagedMcpConfigJson:
+    Type: Json
+    Label:
+      zh-cn: 网关接入MCP
+      en: Managed Gateway MCP
+    AssociationPropertyMetadata:
+      Visible:
+        Condition:
+          Fn::Equals:
+            - true
+            - false
+    Default: '[]'
 
   GatewayOption:
     Type: String
@@ -1345,7 +1364,7 @@ Resources:
           - FcRole
           - Arn
       Layers:
-        - Fn::Sub: "acs:fc:${ALIYUN::Region}:1853370294850618:layers/alibabacloud-apig-sdk/versions/1"
+        - Fn::Sub: "acs:fc:${ALIYUN::Region}:1563457855438522:layers/alibabacloud_apig20240327/versions/9"
       Description: "apig registration"
       Code:
         OssBucketName:
@@ -1449,6 +1468,18 @@ Outputs:
             Ref: ALIYUN::Region
           GatewayId:
             Ref: ActualGatewayId
+
+  HigressAI:
+    Label:
+      en: 'gateway id'
+      zh-cn: 网关id
+    Value:
+      Fn::If:
+        - CreateGatewayConditions
+        - Fn::GetAtt:
+            - NewApigGateway
+            - GatewayId
+        - Ref: HigressAI
 
 Metadata:
   ALIYUN::ROS::Interface:

@@ -418,7 +418,7 @@ class MCPGatewayRegistrar:
         body = {
             "gatewayId": gateway_id,
             "sourceType": "VIP",
-            "serviceConfigs": [{"name": service_name, "addresses": [f"{private_ip}:8000"]}]
+            "serviceConfigs": [{"name": service_name, "addresses": [f"{private_ip}:80"]}]
         }
         response = self._execute_aliyun_cli("POST", "/v1/services", body)
         data = self._check_response(response, "创建共享MCP服务")
@@ -450,8 +450,8 @@ class MCPGatewayRegistrar:
                     'value': f'/mcp-servers/{name.lower()}'
                 }
             },
-            'protocol': 'SSE',
-            'exposedUriPath': '/sse'
+            'protocol': 'StreamableHTTP',
+            'exposedUriPath': f'/mcp-servers/{name.lower()}'
         }
         try:
             response = self._execute_aliyun_cli('POST', '/v1/mcp-servers', body)
@@ -563,7 +563,7 @@ class MCPGatewayRegistrar:
             # 更新状态中的网关信息
             self.state.update_gateway_info(gateway_id, domain_id, service_id, service_name)
 
-            openapi_base_url = f"http://{private_ip}:8000"
+            openapi_base_url = f"http://{private_ip}:80"
 
             # 2. 逐个注册工具
             for tool_name in current_tools_list:

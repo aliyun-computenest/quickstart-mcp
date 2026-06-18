@@ -1,0 +1,2620 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>计算巢 MCP 市场简化版</title>
+  <style>
+    :root {
+      --canvas: #f2f3f5;
+      --app: #fff;
+      --surface: #fff;
+      --subtle: #f7f8fa;
+      --line: #e6e9ef;
+      --line-strong: #d7dce5;
+      --text: #1f2329;
+      --text-2: #3a3f4b;
+      --text-3: #6f7785;
+      --text-4: #a4abb6;
+      --blue: #0064c8;
+      --blue-soft: #edf4ff;
+      --green: #14a06f;
+      --orange: #ff6a00;
+      --red: #d93026;
+      --radius: 4px;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      background: var(--canvas);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+      font-size: 14px;
+      letter-spacing: 0;
+    }
+
+    .canvas {
+      width: max-content;
+      display: grid;
+      grid-template-columns: repeat(2, 1440px);
+      gap: 56px;
+      padding: 56px;
+    }
+
+    .screen {
+      position: relative;
+      width: 1440px;
+      height: 920px;
+      overflow: hidden;
+      background: var(--app);
+      border: 1px solid var(--line-strong);
+    }
+
+    .board-title {
+      position: absolute;
+      left: 0;
+      top: -32px;
+      color: var(--text-2);
+      font-size: 14px;
+      font-weight: 700;
+    }
+
+    .topbar {
+      position: absolute;
+      inset: 0 0 auto 0;
+      height: 50px;
+      border-bottom: 1px solid var(--line);
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 24px;
+      padding-right: 28px;
+      color: var(--text-2);
+      font-size: 12px;
+    }
+
+    .topbar::before {
+      content: "阿里云   工作台";
+      position: absolute;
+      left: 56px;
+      top: 0;
+      height: 50px;
+      display: flex;
+      align-items: center;
+      color: var(--orange);
+      font-size: 17px;
+      font-weight: 700;
+      white-space: pre;
+    }
+
+    .sidebar {
+      position: absolute;
+      inset: 50px auto 0 0;
+      width: 208px;
+      border-right: 1px solid var(--line);
+      background: #fff;
+    }
+
+    .brand {
+      height: 54px;
+      padding-left: 24px;
+      display: flex;
+      align-items: center;
+      font-weight: 700;
+    }
+
+    .nav {
+      padding: 8px 0;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .nav-item {
+      height: 34px;
+      padding: 0 24px;
+      display: flex;
+      align-items: center;
+      color: var(--text-2);
+      font-size: 12px;
+    }
+
+    .nav-item.active {
+      background: #edf2f8;
+      color: var(--blue);
+      font-weight: 600;
+    }
+
+    .nav-section {
+      margin: 16px 14px 8px;
+      color: var(--text-4);
+      font-size: 11px;
+      font-weight: 600;
+    }
+
+    .main {
+      position: absolute;
+      left: 208px;
+      top: 50px;
+      right: 0;
+      bottom: 0;
+      padding: 20px 24px 28px;
+      background: #fff;
+    }
+
+    .breadcrumb {
+      color: var(--text-4);
+      font-size: 12px;
+      line-height: 18px;
+    }
+
+    .page-head {
+      margin-top: 18px;
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 24px;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: 24px;
+      line-height: 32px;
+      font-weight: 600;
+    }
+
+    h2 {
+      margin: 0;
+      font-size: 15px;
+      line-height: 24px;
+      font-weight: 700;
+    }
+
+    h3 {
+      margin: 0;
+      font-size: 14px;
+      line-height: 22px;
+      font-weight: 700;
+    }
+
+    .subtitle {
+      margin: 4px 0 0;
+      max-width: 820px;
+      color: var(--text-3);
+      font-size: 12px;
+      line-height: 20px;
+    }
+
+    .tabs-line {
+      margin-top: 20px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .tabbar {
+      height: 42px;
+      display: inline-flex;
+      gap: 34px;
+    }
+
+    .tab {
+      height: 42px;
+      padding: 0 2px;
+      display: inline-flex;
+      align-items: center;
+      color: var(--text-2);
+      font-size: 13px;
+    }
+
+    .tab.active {
+      color: var(--blue);
+      font-weight: 600;
+      box-shadow: inset 0 -2px 0 var(--blue);
+    }
+
+    .toolbar {
+      margin-top: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .left-tools,
+    .right-tools {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .search {
+      width: 310px;
+      height: 32px;
+      padding: 0 12px;
+      border: 1px solid var(--line-strong);
+      border-radius: 2px;
+      color: var(--text-4);
+      display: flex;
+      align-items: center;
+      font-size: 12px;
+    }
+
+    .btn {
+      height: 32px;
+      padding: 0 14px;
+      border: 1px solid var(--line-strong);
+      border-radius: 2px;
+      background: #fff;
+      color: var(--text-2);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 13px;
+      font-weight: 500;
+      white-space: nowrap;
+    }
+
+    .btn.primary {
+      border-color: var(--blue);
+      background: var(--blue);
+      color: #fff;
+    }
+
+    .btn.text {
+      border-color: transparent;
+      background: transparent;
+      color: var(--blue);
+      padding-inline: 4px;
+    }
+
+    .icon-btn {
+      width: 32px;
+      height: 32px;
+      border: 1px solid var(--line-strong);
+      background: #fff;
+      color: var(--text-3);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .tag-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .tag {
+      height: 24px;
+      padding: 0 9px;
+      border: 1px solid var(--line-strong);
+      border-radius: 2px;
+      background: #fff;
+      color: var(--text-3);
+      display: inline-flex;
+      align-items: center;
+      font-size: 12px;
+      white-space: nowrap;
+    }
+
+    .tag.blue {
+      border-color: #cfe2ff;
+      color: var(--blue);
+      background: #f8fbff;
+    }
+
+    .tag.green {
+      border-color: rgba(20, 160, 111, .42);
+      color: var(--green);
+      background: #f7fffb;
+    }
+
+    .tag.orange {
+      border-color: rgba(255, 106, 0, .5);
+      color: var(--orange);
+      background: #fffaf6;
+    }
+
+    .state-icon {
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      border: 1px solid rgba(20, 160, 111, .35);
+      background: #f5fffa;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+    }
+
+    .state-icon::after {
+      content: "";
+      width: 8px;
+      height: 4px;
+      border-left: 2px solid var(--green);
+      border-bottom: 2px solid var(--green);
+      transform: rotate(-45deg);
+      margin-top: -1px;
+    }
+
+    .cards {
+      margin-top: 18px;
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 14px;
+    }
+
+    .custom-entry {
+      margin-top: 16px;
+      padding: 14px 16px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: #fbfcfd;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+    }
+
+    .custom-entry-title {
+      color: var(--text);
+      font-size: 14px;
+      line-height: 22px;
+      font-weight: 700;
+    }
+
+    .custom-entry-desc {
+      margin-top: 2px;
+      color: var(--text-3);
+      font-size: 12px;
+      line-height: 20px;
+    }
+
+    .mcp-card {
+      min-height: 214px;
+      padding: 20px 20px 16px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: #fff;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .card-top {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .mark {
+      width: 42px;
+      height: 42px;
+      border: 1px solid var(--line-strong);
+      border-radius: 6px;
+      background: var(--subtle);
+      color: var(--text-2);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+      font-weight: 700;
+      flex: none;
+    }
+
+    .mark.blue { border-color: #cfe2ff; background: #f6faff; color: var(--blue); }
+    .mark.green { border-color: #c9efdd; background: #f7fffb; color: var(--green); }
+    .mark.orange { border-color: #ffd5b3; background: #fffaf6; color: var(--orange); }
+
+    .mcp-name {
+      color: var(--text);
+      font-size: 17px;
+      line-height: 24px;
+      font-weight: 700;
+    }
+
+    .badge {
+      height: 24px;
+      margin-left: auto;
+      padding: 0 9px;
+      border: 1px solid #cfe2ff;
+      border-radius: 12px;
+      color: var(--blue);
+      background: #f8fbff;
+      display: inline-flex;
+      align-items: center;
+      font-size: 12px;
+      font-weight: 600;
+    }
+
+    .desc {
+      margin: 18px 0 16px;
+      color: var(--text-3);
+      font-size: 13px;
+      line-height: 22px;
+      min-height: 66px;
+    }
+
+    .card-foot {
+      margin-top: auto;
+      padding-top: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      color: var(--text-4);
+      font-size: 12px;
+    }
+
+    .mini-actions {
+      display: inline-flex;
+      gap: 14px;
+    }
+
+    .link {
+      color: var(--blue);
+      font-weight: 600;
+      white-space: nowrap;
+    }
+
+    .instance-list {
+      margin-top: 16px;
+      border: 1px solid var(--line);
+      border-bottom: 0;
+      background: #fff;
+    }
+
+    .instance-row {
+      min-height: 58px;
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--line);
+      display: grid;
+      grid-template-columns: 1.4fr 1.5fr .8fr .7fr .7fr 82px;
+      align-items: center;
+      gap: 18px;
+      color: var(--text-2);
+      font-size: 13px;
+    }
+
+    .instance-row.header {
+      min-height: 40px;
+      background: var(--subtle);
+      color: var(--text-2);
+      font-weight: 700;
+    }
+
+    .instance-main {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .gateway-meta {
+      margin-top: 4px;
+      color: var(--text-3);
+      font-size: 12px;
+      line-height: 20px;
+    }
+
+    .status {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      color: var(--green);
+      font-size: 12px;
+      font-weight: 600;
+      white-space: nowrap;
+    }
+
+    .dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--green);
+    }
+
+    .gateway-detail {
+      margin-top: 18px;
+      border: 1px solid var(--line);
+      background: #fff;
+    }
+
+    .detail-head {
+      padding: 18px 20px;
+      border-bottom: 1px solid var(--line);
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 18px;
+    }
+
+    .detail-title {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .detail-body {
+      padding: 18px 20px;
+    }
+
+    .mcp-icon-grid {
+      margin-top: 12px;
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .mcp-icon-card {
+      min-height: 92px;
+      padding: 14px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: #fff;
+    }
+
+    .mcp-icon-card .mark {
+      margin-bottom: 12px;
+    }
+
+    .mcp-icon-card strong {
+      display: block;
+      color: var(--text);
+      line-height: 20px;
+    }
+
+    .detail-actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .overlay {
+      position: absolute;
+      inset: 0;
+      background: rgba(0, 0, 0, .42);
+    }
+
+    .modal {
+      position: absolute;
+      left: 270px;
+      top: 78px;
+      width: 980px;
+      height: 764px;
+      border: 1px solid var(--line-strong);
+      border-radius: var(--radius);
+      background: #fff;
+      box-shadow: 0 18px 46px rgba(23, 26, 33, .22);
+      overflow: hidden;
+    }
+
+    .modal-head {
+      height: 84px;
+      padding: 26px 36px 0;
+      border-bottom: 1px solid var(--line);
+      position: relative;
+    }
+
+    .modal-title {
+      font-size: 22px;
+      line-height: 30px;
+      font-weight: 600;
+    }
+
+    .close {
+      position: absolute;
+      right: 28px;
+      top: 24px;
+      color: var(--text-3);
+      font-size: 24px;
+    }
+
+    .form {
+      padding: 26px 36px 80px;
+    }
+
+    .field {
+      margin-bottom: 22px;
+    }
+
+    .label {
+      margin-bottom: 8px;
+      color: var(--text-2);
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    .input,
+    .textarea {
+      width: 100%;
+      min-height: 38px;
+      padding: 0 14px;
+      border: 1px solid var(--line-strong);
+      border-radius: 2px;
+      color: var(--text-2);
+      display: flex;
+      align-items: center;
+      font-size: 13px;
+    }
+
+    .textarea {
+      height: 92px;
+      padding-top: 12px;
+      align-items: flex-start;
+      color: var(--text-4);
+    }
+
+    .option-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+
+    .option {
+      min-width: 154px;
+      height: 54px;
+      padding: 0 16px;
+      border: 1px solid var(--line-strong);
+      border-radius: 2px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      color: var(--text-2);
+      font-weight: 600;
+    }
+
+    .option.active {
+      border-color: #9cc8ff;
+      background: #f8fbff;
+      color: var(--blue);
+    }
+
+    .radio,
+    .check {
+      width: 16px;
+      height: 16px;
+      border: 1px solid var(--line-strong);
+      border-radius: 50%;
+      background: #fff;
+      display: inline-flex;
+      flex: none;
+    }
+
+    .radio.on {
+      border: 4px solid var(--blue);
+    }
+
+    .check {
+      border-radius: 2px;
+    }
+
+    .check.on {
+      border-color: var(--blue);
+      background: var(--blue);
+      position: relative;
+    }
+
+    .check.on::after {
+      content: "";
+      width: 7px;
+      height: 4px;
+      border-left: 2px solid #fff;
+      border-bottom: 2px solid #fff;
+      transform: rotate(-45deg);
+      position: absolute;
+      left: 3px;
+      top: 4px;
+    }
+
+    .modal-actions {
+      position: absolute;
+      right: 36px;
+      bottom: 28px;
+      display: flex;
+      gap: 12px;
+    }
+
+    .modal-actions .btn {
+      height: 40px;
+      min-width: 96px;
+      font-size: 14px;
+    }
+
+    .config-modal {
+      left: 228px;
+      top: 64px;
+      width: 1088px;
+      height: 786px;
+    }
+
+    .config-modal .modal-head {
+      height: 82px;
+      padding: 22px 28px 0;
+    }
+
+    .modal-subtitle {
+      margin-top: 5px;
+      color: var(--text-3);
+      font-size: 12px;
+      line-height: 18px;
+    }
+
+    .config-content {
+      height: calc(100% - 82px);
+      display: grid;
+      grid-template-columns: 320px minmax(0, 1fr);
+      background: #fff;
+    }
+
+    .config-list-pane {
+      border-right: 1px solid var(--line);
+      background: #fbfcfd;
+      padding: 18px;
+    }
+
+    .config-search {
+      height: 34px;
+      padding: 0 12px;
+      border: 1px solid var(--line-strong);
+      background: #fff;
+      color: var(--text-4);
+      display: flex;
+      align-items: center;
+      font-size: 12px;
+    }
+
+    .config-source-head {
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      color: var(--text-3);
+      font-size: 12px;
+      line-height: 18px;
+    }
+
+    .config-source-head strong {
+      color: var(--text-2);
+      font-size: 13px;
+    }
+
+    .config-mode-tabs + .config-search {
+      margin-top: 12px;
+    }
+
+    .config-mode-tabs {
+      display: flex;
+      gap: 4px;
+      padding: 3px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: #f2f4f7;
+    }
+
+    .config-mode-tab {
+      height: 30px;
+      flex: 1;
+      min-width: 0;
+      padding: 0 8px;
+      border-radius: 3px;
+      color: var(--text-3);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+      font-weight: 600;
+      white-space: nowrap;
+    }
+
+    .config-mode-tab.active {
+      color: var(--blue);
+      background: #fff;
+      box-shadow: 0 0 0 1px rgba(0, 100, 200, .22), 0 1px 2px rgba(31, 35, 41, .06);
+    }
+
+    .config-item {
+      min-height: 62px;
+      padding: 8px 10px;
+      border: 1px solid transparent;
+      border-radius: var(--radius);
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      background: transparent;
+    }
+
+    .config-item + .config-item {
+      margin-top: 6px;
+    }
+
+    .config-item.active {
+      border-color: #b8d4ff;
+      background: #fff;
+    }
+
+    .config-item .check {
+      margin-top: 14px;
+    }
+
+    .config-item-main {
+      min-width: 0;
+      flex: 1;
+    }
+
+    .config-item-title {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: var(--text);
+      font-size: 13px;
+      font-weight: 700;
+      line-height: 20px;
+    }
+
+    .config-item-title strong {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .config-state {
+      margin-top: 2px;
+      color: var(--text-3);
+      font-size: 12px;
+      line-height: 17px;
+    }
+
+    .config-section {
+      margin-top: 14px;
+      padding-top: 14px;
+      border-top: 1px solid var(--line);
+    }
+
+    .config-section.first {
+      margin-top: 12px;
+      padding-top: 0;
+      border-top: 0;
+    }
+
+    .config-section-head {
+      min-height: 28px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 6px;
+    }
+
+    .config-section-title {
+      color: var(--text-2);
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    .config-section-desc {
+      margin: 0 0 8px;
+      color: var(--text-3);
+      font-size: 12px;
+      line-height: 18px;
+    }
+
+    .config-form-pane {
+      padding: 18px 24px 82px;
+      position: relative;
+    }
+
+    .config-form-title {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 16px;
+      padding-bottom: 14px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .config-form-title h3 {
+      margin: 0;
+      font-size: 18px;
+      line-height: 26px;
+    }
+
+    .bind-row {
+      margin-top: 14px;
+      padding: 10px 12px;
+      border: 1px solid #b8d4ff;
+      background: #f8fbff;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      color: var(--text-2);
+      font-size: 13px;
+    }
+
+    .bind-row.display-only {
+      border-color: var(--line);
+      background: #fbfcfd;
+    }
+
+    .bind-main {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-weight: 700;
+    }
+
+    .readonly-summary {
+      margin-top: 14px;
+      padding: 12px;
+      border: 1px solid var(--line);
+      background: #fbfcfd;
+      display: grid;
+      grid-template-columns: 64px minmax(0, 1fr);
+      gap: 14px;
+      align-items: center;
+    }
+
+    .readonly-summary .mcp-name {
+      margin-bottom: 4px;
+    }
+
+    .readonly-meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .parameter-section {
+      margin-top: 16px;
+    }
+
+    .parameter-section h4 {
+      margin: 0 0 8px;
+      color: var(--text);
+      font-size: 14px;
+      line-height: 22px;
+    }
+
+    .credential-hint {
+      margin-top: 8px;
+      padding: 8px 10px;
+      border: 1px solid #d7e8ff;
+      background: #f8fbff;
+      color: var(--text-3);
+      font-size: 12px;
+      line-height: 18px;
+    }
+
+    .config-form {
+      margin-top: 16px;
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 16px 18px;
+    }
+
+    .config-form .field {
+      margin-bottom: 0;
+    }
+
+    .config-form .field.full {
+      grid-column: 1 / -1;
+    }
+
+    .icon-upload {
+      width: 74px;
+      height: 74px;
+      border: 1px solid var(--line-strong);
+      border-radius: var(--radius);
+      background: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--text-3);
+      font-weight: 700;
+    }
+
+    .compact-options .option {
+      min-width: 108px;
+      height: 42px;
+      font-size: 13px;
+    }
+
+    .package-options .option {
+      flex: 1;
+      min-width: 0;
+      height: 58px;
+      align-items: flex-start;
+      padding-top: 10px;
+    }
+
+    .option-text {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      font-size: 13px;
+    }
+
+    .option-text small {
+      color: var(--text-3);
+      font-size: 12px;
+      font-weight: 400;
+    }
+
+    .env-inline {
+      margin-top: 8px;
+      border: 1px solid var(--line);
+      border-bottom: 0;
+    }
+
+    .env-inline-row {
+      min-height: 36px;
+      padding: 6px 10px;
+      border-bottom: 1px solid var(--line);
+      display: grid;
+      grid-template-columns: 160px minmax(0, 1fr) 64px;
+      gap: 12px;
+      align-items: center;
+      color: var(--text-2);
+      font-size: 12px;
+    }
+
+    .config-actions {
+      position: absolute;
+      right: 24px;
+      bottom: 24px;
+      display: flex;
+      gap: 12px;
+    }
+
+    .mcp-diff {
+      margin-top: 18px;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+      gap: 16px;
+    }
+
+    .diff-panel {
+      border: 1px solid var(--line);
+      background: #fff;
+    }
+
+    .diff-head {
+      min-height: 48px;
+      padding: 12px 14px;
+      border-bottom: 1px solid var(--line);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .diff-head h3 {
+      margin: 0;
+      font-size: 16px;
+      line-height: 24px;
+    }
+
+    .diff-list {
+      padding: 8px 14px 12px;
+    }
+
+    .diff-item {
+      min-height: 44px;
+      border-bottom: 1px solid var(--line);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      color: var(--text);
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    .diff-item:last-child {
+      border-bottom: 0;
+    }
+
+    .diff-state {
+      min-width: 44px;
+      height: 24px;
+      border: 1px solid var(--line-strong);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--text-3);
+      font-size: 12px;
+      font-weight: 700;
+      background: #fff;
+    }
+
+    .diff-state.add {
+      color: var(--green);
+      border-color: #a9e3cb;
+      background: #f4fcf8;
+    }
+
+    .diff-state.remove {
+      color: var(--orange);
+      border-color: #ffd0b2;
+      background: #fff8f3;
+    }
+
+    .change-actions {
+      margin-top: 22px;
+      display: flex;
+      justify-content: flex-end;
+      gap: 12px;
+    }
+
+    .deploy-modal {
+      left: 246px;
+      top: 54px;
+      width: 1030px;
+      height: 812px;
+    }
+
+    .deploy-content {
+      height: calc(100% - 84px);
+      padding: 16px 36px 74px;
+      overflow: hidden;
+    }
+
+    .mcp-summary {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 20px;
+      padding-bottom: 14px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .mcp-summary-main {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .mcp-summary .desc {
+      min-height: 0;
+      margin: 4px 0 0;
+    }
+
+    .guide-strip {
+      margin-top: 12px;
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      border: 1px solid var(--line);
+      background: #fbfcfd;
+    }
+
+    .guide-step {
+      min-height: 62px;
+      padding: 10px 14px;
+      border-right: 1px solid var(--line);
+      display: flex;
+      gap: 12px;
+    }
+
+    .guide-step:last-child {
+      border-right: 0;
+    }
+
+    .step-num {
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      background: var(--blue);
+      color: #fff;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      flex: none;
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .guide-title {
+      color: var(--text-2);
+      font-size: 13px;
+      font-weight: 700;
+      line-height: 20px;
+    }
+
+    .guide-text {
+      margin-top: 3px;
+      color: var(--text-3);
+      font-size: 12px;
+      line-height: 17px;
+    }
+
+    .deploy-layout {
+      margin-top: 12px;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr);
+      align-items: start;
+    }
+
+    .deploy-main {
+      display: grid;
+      gap: 12px;
+    }
+
+    .deploy-section {
+      border: 1px solid var(--line);
+      background: #fff;
+      padding: 12px;
+    }
+
+    .section-head {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 14px;
+    }
+
+    .section-kicker {
+      display: block;
+      margin-bottom: 3px;
+      color: var(--text-4);
+      font-size: 12px;
+      line-height: 18px;
+    }
+
+    .section-desc {
+      margin: 4px 0 0;
+      color: var(--text-3);
+      font-size: 12px;
+      line-height: 18px;
+    }
+
+    .compact-toolbar {
+      margin-top: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .compact-search {
+      width: 360px;
+      height: 34px;
+      padding: 0 12px;
+      border: 1px solid var(--line-strong);
+      color: var(--text-4);
+      display: flex;
+      align-items: center;
+      font-size: 12px;
+    }
+
+    .gateway-table {
+      margin-top: 10px;
+      border: 1px solid var(--line);
+      border-bottom: 0;
+    }
+
+    .gateway-table-row {
+      min-height: 44px;
+      padding: 8px 12px;
+      border-bottom: 1px solid var(--line);
+      display: grid;
+      grid-template-columns: 34px 1.45fr .9fr .75fr .75fr;
+      align-items: center;
+      gap: 14px;
+      font-size: 13px;
+      color: var(--text-2);
+    }
+
+    .gateway-table-row.header {
+      min-height: 34px;
+      background: var(--subtle);
+      color: var(--text-2);
+      font-weight: 700;
+    }
+
+    .gateway-table-row strong {
+      display: block;
+      color: var(--text);
+      line-height: 20px;
+    }
+
+    .param-table {
+      margin-top: 10px;
+      border: 1px solid var(--line);
+      border-bottom: 0;
+    }
+
+    .param-row {
+      min-height: 38px;
+      padding: 6px 12px;
+      border-bottom: 1px solid var(--line);
+      display: grid;
+      grid-template-columns: 150px minmax(0, 1fr) 180px;
+      gap: 14px;
+      align-items: center;
+      color: var(--text-2);
+      font-size: 13px;
+    }
+
+    .param-row.header {
+      min-height: 32px;
+      background: var(--subtle);
+      font-weight: 700;
+    }
+
+    .param-value {
+      min-height: 30px;
+      padding: 5px 10px;
+      border: 1px solid var(--line-strong);
+      background: #fff;
+      color: var(--text);
+      display: flex;
+      align-items: center;
+    }
+
+    .gateway-helper {
+      margin-top: 10px;
+      padding: 10px 12px;
+      border: 1px solid var(--line);
+      background: #fbfcfd;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      color: var(--text-3);
+      font-size: 12px;
+      line-height: 20px;
+    }
+
+    .gateway-helper strong {
+      color: var(--text-2);
+    }
+
+    .env-box {
+      margin-top: 18px;
+      border: 1px solid var(--line);
+    }
+
+    .env-row {
+      min-height: 38px;
+      padding: 8px 12px;
+      border-bottom: 1px solid var(--line);
+      display: grid;
+      grid-template-columns: 150px 1fr;
+      gap: 12px;
+      align-items: center;
+      color: var(--text-2);
+      font-size: 12px;
+    }
+
+    .env-row:last-child {
+      border-bottom: 0;
+    }
+
+    .agent-tabs-line {
+      margin-top: 22px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .agent-tabs {
+      height: 42px;
+      display: inline-flex;
+    }
+
+    .agent-tab {
+      width: 126px;
+      height: 42px;
+      border: 1px solid var(--line-strong);
+      border-bottom: 0;
+      margin-right: -1px;
+      background: #fff;
+      color: var(--text-2);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 13px;
+    }
+
+    .agent-tab.active {
+      position: relative;
+      color: var(--blue);
+      font-weight: 600;
+      box-shadow: inset 0 2px 0 var(--blue);
+    }
+
+    .agent-mcp-actions {
+      margin-top: 16px;
+      display: flex;
+      justify-content: flex-start;
+    }
+
+    .agent-selector {
+      margin-top: 14px;
+      height: 552px;
+      border: 1px solid var(--line);
+      background: #fff;
+      display: grid;
+      grid-template-columns: 352px minmax(0, 1fr);
+      overflow: hidden;
+    }
+
+    .agent-selector-pane {
+      min-width: 0;
+      padding: 16px;
+    }
+
+    .agent-selector-pane + .agent-selector-pane {
+      border-left: 1px solid var(--line);
+    }
+
+    .pane-title {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 10px;
+    }
+
+    .pane-title strong {
+      font-size: 14px;
+      line-height: 22px;
+    }
+
+    .source-switch {
+      height: 34px;
+      padding: 2px;
+      border: 1px solid var(--line);
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      margin-bottom: 12px;
+      background: #f8fafc;
+    }
+
+    .source-option {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--text-3);
+      font-size: 12px;
+      font-weight: 600;
+    }
+
+    .source-option.active {
+      background: #fff;
+      color: var(--blue);
+      border: 1px solid #9cc8ff;
+    }
+
+    .gateway-choice {
+      min-height: 86px;
+      padding: 12px;
+      border: 1px solid var(--line);
+      background: #fff;
+      display: grid;
+      grid-template-columns: 18px minmax(0, 1fr);
+      gap: 10px;
+      align-items: flex-start;
+    }
+
+    .gateway-choice + .gateway-choice {
+      margin-top: 10px;
+    }
+
+    .gateway-choice.active {
+      border-color: #9cc8ff;
+      background: #f8fbff;
+    }
+
+    .mcp-server-toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 10px;
+    }
+
+    .mcp-server-toolbar .search {
+      width: 280px;
+    }
+
+    .mcp-group-title {
+      margin: 12px 0 8px;
+      color: var(--text-3);
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .mcp-server-row {
+      min-height: 66px;
+      padding: 10px 12px;
+      border: 1px solid var(--line);
+      display: grid;
+      grid-template-columns: 18px minmax(0, 1fr) 94px;
+      gap: 10px;
+      align-items: flex-start;
+      background: #fff;
+    }
+
+    .mcp-server-row + .mcp-server-row {
+      margin-top: 8px;
+    }
+
+    .mcp-server-row.active {
+      border-color: #9cc8ff;
+      background: #fbfdff;
+    }
+
+    .mcp-server-name {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: var(--text);
+      font-weight: 700;
+      line-height: 20px;
+    }
+
+    .mcp-server-meta {
+      margin-top: 4px;
+      color: var(--text-3);
+      font-size: 12px;
+      line-height: 18px;
+    }
+
+    .agent-json-preview {
+      margin-top: 12px;
+      padding: 10px 12px;
+      border: 1px solid var(--line);
+      background: #fbfcfd;
+      color: var(--text-3);
+      font-size: 12px;
+      line-height: 20px;
+      display: flex;
+      justify-content: space-between;
+      gap: 14px;
+    }
+
+    .note {
+      margin-top: 12px;
+      color: var(--text-4);
+      font-size: 12px;
+      line-height: 20px;
+    }
+
+    .selector-head {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 18px;
+    }
+
+    .hide-note { display: none; }
+  </style>
+</head>
+<body>
+  <main class="canvas">
+    <section class="screen">
+      <div class="board-title">01 公共 MCP</div>
+      <aside class="sidebar">
+        <div class="brand">计算巢</div>
+        <nav class="nav">
+          <div class="nav-item">欢迎页</div>
+          <div class="nav-item">服务目录</div>
+          <div class="nav-item">模型市场</div>
+          <div class="nav-item active">MCP市场</div>
+          <div class="nav-item">Agent市场</div>
+          <div class="nav-item">Agent部署</div>
+          <div class="nav-section">服务管理</div>
+          <div class="nav-item">我的服务</div>
+          <div class="nav-item">服务实例</div>
+          <div class="nav-item">设置</div>
+        </nav>
+      </aside>
+      <header class="topbar"><span>钉钉交流群</span><span>帮助文档</span></header>
+      <section class="main">
+        <div class="breadcrumb">计算巢 / MCP市场</div>
+        <div class="page-head">
+          <div>
+            <h1>MCP市场</h1>
+            <p class="subtitle">公共 MCP 用于发现能力和创建配置；真正给 Agent 使用的是 MCP 网关里已经部署好的 MCP。</p>
+          </div>
+        </div>
+
+        <div class="tabs-line">
+          <div class="tabbar"><span class="tab active">公共MCP</span><span class="tab">MCP网关</span></div>
+        </div>
+
+        <div class="toolbar">
+          <div class="left-tools">
+            <div class="search">搜索名称、能力或适用场景</div>
+            <span class="icon-btn">⌕</span>
+            <span class="icon-btn">↻</span>
+          </div>
+          <div class="right-tools">
+            <span class="tag blue">知识管理</span>
+            <span class="tag">搜索</span>
+            <span class="tag">开发者工具</span>
+            <span class="tag">浏览器自动化</span>
+            <span class="tag">数据源</span>
+          </div>
+        </div>
+
+        <div class="custom-entry">
+          <div>
+            <div class="custom-entry-title">没有合适的公共 MCP？</div>
+            <div class="custom-entry-desc">手动接入自定义 MCP，支持 NPX、UVX、SSE 和 Streamable HTTP。</div>
+          </div>
+          <span class="btn primary">新增自定义MCP</span>
+        </div>
+
+        <section class="cards">
+          <article class="mcp-card">
+            <div class="card-top"><span class="mark">GH</span><div class="mcp-name">GitHub</div><span class="badge">公共</span></div>
+            <p class="desc">支持仓库、Issue、PR 和代码搜索。使用前需要配置用户自己的 GitHub Token。</p>
+            <div class="tag-row"><span class="tag orange">开发者工具</span><span class="tag">NPX</span><span class="tag green">可部署到网关</span></div>
+            <div class="card-foot"><span>模板</span><span class="mini-actions"><span class="link">创建配置</span><span class="link">详情</span></span></div>
+          </article>
+          <article class="mcp-card">
+            <div class="card-top"><span class="mark blue">F</span><div class="mcp-name">Fetch网页内容抓取</div><span class="badge">公共</span></div>
+            <p class="desc">抓取网页内容并转为 markdown，支持 Agent 在检索、摘要和自动化流程中使用。</p>
+            <div class="tag-row"><span class="tag orange">浏览器自动化</span><span class="tag">Streamable HTTP</span></div>
+            <div class="card-foot"><span>模板</span><span class="mini-actions"><span class="link">创建配置</span><span class="link">详情</span></span></div>
+          </article>
+          <article class="mcp-card">
+            <div class="card-top"><span class="mark green">A</span><div class="mcp-name">高德地图</div><span class="badge">公共</span></div>
+            <p class="desc">提供地理编码、路径规划和 POI 检索能力，适合出行、客服和本地生活类 Agent。</p>
+            <div class="tag-row"><span class="tag orange">位置服务</span><span class="tag">SSE</span><span class="tag">需配置 Key</span></div>
+            <div class="card-foot"><span>模板</span><span class="mini-actions"><span class="link">创建配置</span><span class="link">详情</span></span></div>
+          </article>
+          <article class="mcp-card">
+            <div class="card-top"><span class="mark orange">S</span><div class="mcp-name">Tavily智搜</div><span class="badge">公共</span></div>
+            <p class="desc">面向 AI 应用的搜索和事实核验服务，适合实时信息检索和资料补全。</p>
+            <div class="tag-row"><span class="tag orange">搜索</span><span class="tag">Streamable HTTP</span></div>
+            <div class="card-foot"><span>模板</span><span class="mini-actions"><span class="link">创建配置</span><span class="link">详情</span></span></div>
+          </article>
+          <article class="mcp-card">
+            <div class="card-top"><span class="mark blue">P</span><div class="mcp-name">Playwright</div><span class="badge">公共</span></div>
+            <p class="desc">用于浏览器自动化、页面检查和端到端流程验证，可部署到网关或 Sandbox。</p>
+            <div class="tag-row"><span class="tag orange">浏览器自动化</span><span class="tag">NPX</span></div>
+            <div class="card-foot"><span>模板</span><span class="mini-actions"><span class="link">创建配置</span><span class="link">详情</span></span></div>
+          </article>
+          <article class="mcp-card">
+            <div class="card-top"><span class="mark green">DB</span><div class="mcp-name">PostgreSQL</div><span class="badge">公共</span></div>
+            <p class="desc">连接用户数据库并提供查询工具。使用前需要保存连接串或凭据引用。</p>
+            <div class="tag-row"><span class="tag orange">数据源</span><span class="tag">SSE</span><span class="tag">需授权</span></div>
+            <div class="card-foot"><span>模板</span><span class="mini-actions"><span class="link">创建配置</span><span class="link">详情</span></span></div>
+          </article>
+        </section>
+      </section>
+    </section>
+
+    <section class="screen">
+      <div class="board-title">02 MCP 网关</div>
+      <aside class="sidebar">
+        <div class="brand">计算巢</div>
+        <nav class="nav">
+          <div class="nav-item">欢迎页</div>
+          <div class="nav-item">服务目录</div>
+          <div class="nav-item">模型市场</div>
+          <div class="nav-item active">MCP市场</div>
+          <div class="nav-item">Agent市场</div>
+          <div class="nav-item">Agent部署</div>
+          <div class="nav-section">服务管理</div>
+          <div class="nav-item">我的服务</div>
+          <div class="nav-item">服务实例</div>
+          <div class="nav-item">设置</div>
+        </nav>
+      </aside>
+      <header class="topbar"><span>钉钉交流群</span><span>帮助文档</span></header>
+      <section class="main">
+        <div class="breadcrumb">计算巢 / MCP市场 / MCP网关</div>
+        <div class="page-head">
+          <div>
+            <h1>MCP网关</h1>
+            <p class="subtitle">这里展示用户已经部署好的 MCP 网关。点击网关名称或从服务实例详情进入，统一展示 MCP 网关详情。</p>
+          </div>
+        </div>
+
+        <div class="tabs-line">
+          <div class="tabbar"><span class="tab">公共MCP</span><span class="tab active">MCP网关</span></div>
+        </div>
+
+        <div class="toolbar">
+          <div class="left-tools">
+            <div class="search">搜索网关名称或 Region</div>
+            <span class="icon-btn">⌕</span>
+          </div>
+          <div class="right-tools">
+            <span class="btn primary">创建MCP网关</span>
+          </div>
+        </div>
+
+        <section class="instance-list">
+          <div class="instance-row header"><span>服务实例名称 / 网关名称</span><span>服务实例 ID</span><span>Region</span><span>MCP 数量</span><span>状态</span><span>操作</span></div>
+          <div class="instance-row">
+            <div class="instance-main"><span class="mark blue">G</span><div><strong>生产 MCP 网关</strong><div class="gateway-meta">默认运行环境</div></div></div>
+            <span>si-94fd4bb334514e36b1de</span>
+            <span>cn-hangzhou</span>
+            <span>4 个</span>
+            <span class="status"><span class="dot"></span>运行中</span>
+            <span class="link">查看详情</span>
+          </div>
+          <div class="instance-row">
+            <div class="instance-main"><span class="mark green">T</span><div><strong>测试 MCP 网关</strong><div class="gateway-meta">研发验证</div></div></div>
+            <span>si-acb583ebc0784a4b8add</span>
+            <span>cn-hangzhou</span>
+            <span>3 个</span>
+            <span class="status"><span class="dot"></span>运行中</span>
+            <span class="link">查看详情</span>
+          </div>
+          <div class="instance-row">
+            <div class="instance-main"><span class="mark orange">D</span><div><strong>数据分析 MCP 网关</strong><div class="gateway-meta">分析类 Agent 专用</div></div></div>
+            <span>si-53523797a23d46ccbbc9</span>
+            <span>cn-shanghai</span>
+            <span>6 个</span>
+            <span class="status"><span class="dot"></span>运行中</span>
+            <span class="link">查看详情</span>
+          </div>
+        </section>
+      </section>
+    </section>
+
+    <section class="screen">
+      <div class="board-title">03 服务实例详情 - MCP 网关详情</div>
+      <aside class="sidebar">
+        <div class="brand">计算巢</div>
+        <nav class="nav">
+          <div class="nav-item">欢迎页</div>
+          <div class="nav-item">服务目录</div>
+          <div class="nav-item">模型市场</div>
+          <div class="nav-item active">MCP市场</div>
+          <div class="nav-item">Agent市场</div>
+          <div class="nav-item">Agent部署</div>
+          <div class="nav-section">服务管理</div>
+          <div class="nav-item">我的服务</div>
+          <div class="nav-item">服务实例</div>
+          <div class="nav-item">设置</div>
+        </nav>
+      </aside>
+      <header class="topbar"><span>钉钉交流群</span><span>帮助文档</span></header>
+      <section class="main">
+        <div class="breadcrumb">计算巢 / MCP市场 / MCP网关 / 生产 MCP 网关</div>
+        <div class="page-head">
+          <div>
+            <h1>生产 MCP 网关</h1>
+            <p class="subtitle">服务实例 si-94fd4bb334514e36b1de，当前可用 5 个 MCP。</p>
+          </div>
+        </div>
+        <section class="gateway-detail">
+          <div class="detail-head">
+            <div class="detail-title">
+              <span class="mark blue">G</span>
+              <div>
+                <div class="mcp-name">生产 MCP 网关</div>
+                <div class="gateway-meta">si-94fd4bb334514e36b1de · cn-hangzhou · 默认运行环境</div>
+              </div>
+            </div>
+            <div class="detail-actions">
+              <span class="status"><span class="dot"></span>运行中</span>
+              <span class="btn">刷新状态</span>
+              <span class="btn primary">配置MCP</span>
+            </div>
+          </div>
+          <div class="detail-body">
+            <h3>实例 MCP 清单</h3>
+            <div class="mcp-icon-grid">
+              <article class="mcp-icon-card">
+                <span class="mark">GH</span>
+                <strong>GitHub</strong>
+                <div class="gateway-meta">开发者工具</div>
+              </article>
+              <article class="mcp-icon-card">
+                <span class="mark blue">F</span>
+                <strong>Fetch网页内容抓取</strong>
+                <div class="gateway-meta">浏览器自动化</div>
+              </article>
+              <article class="mcp-icon-card">
+                <span class="mark orange">T</span>
+                <strong>Tavily智搜</strong>
+                <div class="gateway-meta">搜索</div>
+              </article>
+              <article class="mcp-icon-card">
+                <span class="mark green">K</span>
+                <strong>私有知识库检索</strong>
+                <div class="gateway-meta">自定义</div>
+              </article>
+              <article class="mcp-icon-card">
+                <span class="mark orange">API</span>
+                <strong>订单查询 API</strong>
+                <div class="gateway-meta">网关接入 · 已接入</div>
+              </article>
+            </div>
+          </div>
+        </section>
+      </section>
+    </section>
+
+    <section class="screen">
+      <div class="board-title">04 配置 MCP - 公共 MCP</div>
+      <aside class="sidebar">
+        <div class="brand">计算巢</div>
+        <nav class="nav">
+          <div class="nav-item">欢迎页</div>
+          <div class="nav-item">服务目录</div>
+          <div class="nav-item">模型市场</div>
+          <div class="nav-item active">MCP市场</div>
+          <div class="nav-item">Agent市场</div>
+          <div class="nav-item">Agent部署</div>
+          <div class="nav-section">服务管理</div>
+          <div class="nav-item">我的服务</div>
+          <div class="nav-item">服务实例</div>
+          <div class="nav-item">设置</div>
+        </nav>
+      </aside>
+      <header class="topbar"><span>钉钉交流群</span><span>帮助文档</span></header>
+      <section class="main">
+        <div class="breadcrumb">计算巢 / MCP市场 / MCP网关 / 生产 MCP 网关</div>
+        <div class="page-head">
+          <div>
+            <h1>生产 MCP 网关</h1>
+            <p class="subtitle">服务实例 si-94fd4bb334514e36b1de，当前已部署 4 个 MCP。</p>
+          </div>
+        </div>
+        <section class="gateway-detail">
+          <div class="detail-head">
+            <div class="detail-title">
+              <span class="mark blue">G</span>
+              <div>
+                <div class="mcp-name">生产 MCP 网关</div>
+                <div class="gateway-meta">si-94fd4bb334514e36b1de · cn-hangzhou · 默认运行环境</div>
+              </div>
+            </div>
+            <div class="detail-actions">
+              <span class="status"><span class="dot"></span>运行中</span>
+              <span class="btn primary">配置MCP</span>
+            </div>
+          </div>
+          <div class="detail-body">
+            <h3>已部署 MCP</h3>
+            <div class="mcp-icon-grid">
+              <article class="mcp-icon-card">
+                <span class="mark">GH</span>
+                <strong>GitHub</strong>
+                <div class="gateway-meta">开发者工具</div>
+              </article>
+              <article class="mcp-icon-card">
+                <span class="mark blue">F</span>
+                <strong>Fetch网页内容抓取</strong>
+                <div class="gateway-meta">浏览器自动化</div>
+              </article>
+              <article class="mcp-icon-card">
+                <span class="mark orange">T</span>
+                <strong>Tavily智搜</strong>
+                <div class="gateway-meta">搜索</div>
+              </article>
+              <article class="mcp-icon-card">
+                <span class="mark green">K</span>
+                <strong>私有知识库检索</strong>
+                <div class="gateway-meta">自定义</div>
+              </article>
+            </div>
+          </div>
+        </section>
+      </section>
+      <div class="overlay"></div>
+      <section class="modal config-modal">
+        <div class="modal-head">
+          <div class="modal-title">配置生产 MCP 网关</div>
+          <div class="modal-subtitle">从公共 MCP、自定义 MCP 或网关已有 MCP 中选择要加入当前网关的服务，并配置所需参数。</div>
+          <div class="close">×</div>
+        </div>
+        <div class="config-content">
+          <aside class="config-list-pane">
+            <div class="config-source-head"><strong>选择来源</strong><span>3 类</span></div>
+            <div class="config-mode-tabs">
+              <span class="config-mode-tab active">公共 MCP</span>
+              <span class="config-mode-tab">自定义 MCP</span>
+              <span class="config-mode-tab">网关接入</span>
+            </div>
+            <div class="config-search">搜索名称、类型或部署方式</div>
+
+            <section class="config-section first">
+              <article class="config-item active">
+                <span class="check on"></span>
+                <span class="mark">GH</span>
+                <div class="config-item-main">
+                  <div class="config-item-title"><strong>GitHub</strong><span class="tag">Stream HTTP</span></div>
+                  <div class="config-state">开发者工具 · 已选中</div>
+                </div>
+              </article>
+              <article class="config-item">
+                <span class="check on"></span>
+                <span class="mark blue">F</span>
+                <div class="config-item-main">
+                  <div class="config-item-title"><strong>Fetch网页内容抓取</strong><span class="tag">NPX</span></div>
+                  <div class="config-state">浏览器自动化 · 已选中</div>
+                </div>
+              </article>
+              <article class="config-item">
+                <span class="check"></span>
+                <span class="mark orange">T</span>
+                <div class="config-item-main">
+                  <div class="config-item-title"><strong>Tavily智搜</strong><span class="tag">SSE</span></div>
+                  <div class="config-state">搜索 · 未选中</div>
+                </div>
+              </article>
+              <article class="config-item">
+                <span class="check"></span>
+                <span class="mark green">A</span>
+                <div class="config-item-main">
+                  <div class="config-item-title"><strong>高德地图</strong><span class="tag">SSE</span></div>
+                  <div class="config-state">位置服务 · 未选中</div>
+                </div>
+              </article>
+              <article class="config-item">
+                <span class="check"></span>
+                <span class="mark orange">LC</span>
+                <div class="config-item-main">
+                  <div class="config-item-title"><strong>LeetCode(力扣)</strong><span class="tag">NPX</span></div>
+                  <div class="config-state">学术研究 · 未选中</div>
+                </div>
+              </article>
+              <article class="config-item">
+                <span class="check"></span>
+                <span class="mark blue">T</span>
+                <div class="config-item-main">
+                  <div class="config-item-title"><strong>12306-MCP票务查询</strong><span class="tag">NPX</span></div>
+                  <div class="config-state">搜索工具 · 未选中</div>
+                </div>
+              </article>
+              <article class="config-item">
+                <span class="check"></span>
+                <span class="mark green">P</span>
+                <div class="config-item-main">
+                  <div class="config-item-title"><strong>支付宝MCP</strong><span class="tag">SSE</span></div>
+                  <div class="config-state">金融 · 未选中</div>
+                </div>
+              </article>
+              <article class="config-item">
+                <span class="check"></span>
+                <span class="mark">PW</span>
+                <div class="config-item-main">
+                  <div class="config-item-title"><strong>Playwright</strong><span class="tag">Stream HTTP</span></div>
+                  <div class="config-state">浏览器自动化 · 未选中</div>
+                </div>
+              </article>
+            </section>
+          </aside>
+
+          <section class="config-form-pane">
+            <div class="config-form-title">
+              <div>
+                <h3>配置 GitHub 参数</h3>
+                <div class="gateway-meta">公共 MCP 的服务定义由平台维护，这里只配置当前网关运行所需参数。</div>
+              </div>
+            </div>
+
+            <div class="bind-row display-only">
+              <div class="bind-main">当前网关</div>
+              <span class="gateway-meta">生产 MCP 网关 · si-94fd4bb334514e36b1de</span>
+            </div>
+
+            <div class="readonly-summary">
+              <span class="icon-upload">GH</span>
+              <div>
+                <div class="mcp-name">GitHub</div>
+                <div class="gateway-meta">用于 GitHub 仓库、Issue、PR 和代码搜索的 MCP 服务。</div>
+                <div class="readonly-meta"><span class="tag">开发者工具</span><span class="tag">Stream HTTP</span><span class="tag">公共 MCP</span></div>
+              </div>
+            </div>
+
+            <div class="parameter-section">
+              <h4>运行参数</h4>
+              <div class="env-inline">
+                <div class="env-inline-row"><strong>GITHUB_TOKEN</strong><span class="input">credential://github-token</span><span class="link">删除</span></div>
+                <div class="env-inline-row"><strong>GITHUB_TOOLSETS</strong><span class="input">repos,issues,pull_requests</span><span class="link">删除</span></div>
+                <div class="env-inline-row"><strong>READ_ONLY</strong><span class="input">true</span><span class="link">删除</span></div>
+              </div>
+              <div class="credential-hint">公共 MCP 只保存用户参数和凭据引用，服务定义不可在这里修改。</div>
+              <div class="credential-hint">“网关接入”只查询当前网关下已部署的 HTTP 转 MCP，接入后写入实例参数 ManagedMcpConfigJson，不会再次注册 MCP Server；后续展示以 AI 网关刷新结果为准。</div>
+              <div class="section-desc" style="margin-top:10px"><span class="link">+ 新增参数</span></div>
+            </div>
+
+            <div class="config-actions"><span class="btn">取消</span><span class="btn primary">下一步</span></div>
+          </section>
+        </div>
+      </section>
+    </section>
+
+    <section class="screen">
+      <div class="board-title">05 配置 MCP - 自定义 MCP</div>
+      <aside class="sidebar">
+        <div class="brand">计算巢</div>
+        <nav class="nav">
+          <div class="nav-item">欢迎页</div>
+          <div class="nav-item">服务目录</div>
+          <div class="nav-item">模型市场</div>
+          <div class="nav-item active">MCP市场</div>
+          <div class="nav-item">Agent市场</div>
+          <div class="nav-item">Agent部署</div>
+          <div class="nav-section">服务管理</div>
+          <div class="nav-item">我的服务</div>
+          <div class="nav-item">服务实例</div>
+          <div class="nav-item">设置</div>
+        </nav>
+      </aside>
+      <header class="topbar"><span>钉钉交流群</span><span>帮助文档</span></header>
+      <section class="main">
+        <div class="breadcrumb">计算巢 / MCP市场 / MCP网关 / 生产 MCP 网关</div>
+        <div class="page-head">
+          <div>
+            <h1>生产 MCP 网关</h1>
+            <p class="subtitle">服务实例 si-94fd4bb334514e36b1de，当前已部署 4 个 MCP。</p>
+          </div>
+        </div>
+        <section class="gateway-detail">
+          <div class="detail-head">
+            <div class="detail-title">
+              <span class="mark blue">G</span>
+              <div>
+                <div class="mcp-name">生产 MCP 网关</div>
+                <div class="gateway-meta">si-94fd4bb334514e36b1de · cn-hangzhou · 默认运行环境</div>
+              </div>
+            </div>
+            <div class="detail-actions">
+              <span class="status"><span class="dot"></span>运行中</span>
+              <span class="btn primary">配置MCP</span>
+            </div>
+          </div>
+          <div class="detail-body">
+            <h3>已部署 MCP</h3>
+            <div class="mcp-icon-grid">
+              <article class="mcp-icon-card">
+                <span class="mark">GH</span>
+                <strong>GitHub</strong>
+                <div class="gateway-meta">开发者工具</div>
+              </article>
+              <article class="mcp-icon-card">
+                <span class="mark blue">F</span>
+                <strong>Fetch网页内容抓取</strong>
+                <div class="gateway-meta">浏览器自动化</div>
+              </article>
+              <article class="mcp-icon-card">
+                <span class="mark orange">T</span>
+                <strong>Tavily智搜</strong>
+                <div class="gateway-meta">搜索</div>
+              </article>
+              <article class="mcp-icon-card">
+                <span class="mark green">K</span>
+                <strong>私有知识库检索</strong>
+                <div class="gateway-meta">自定义</div>
+              </article>
+            </div>
+          </div>
+        </section>
+      </section>
+      <div class="overlay"></div>
+      <section class="modal config-modal">
+        <div class="modal-head">
+          <div class="modal-title">配置生产 MCP 网关</div>
+          <div class="modal-subtitle">从公共 MCP、自定义 MCP 或网关已有 MCP 中选择要加入当前网关的服务，并配置所需参数。</div>
+          <div class="close">×</div>
+        </div>
+        <div class="config-content">
+          <aside class="config-list-pane">
+            <div class="config-source-head"><strong>选择来源</strong><span>3 类</span></div>
+            <div class="config-mode-tabs">
+              <span class="config-mode-tab">公共 MCP</span>
+              <span class="config-mode-tab active">自定义 MCP</span>
+              <span class="config-mode-tab">网关接入</span>
+            </div>
+            <div class="config-search">搜索名称、类型或部署方式</div>
+
+            <section class="config-section first">
+              <div class="config-section-head">
+                <span class="config-section-title">用户保存的 MCP</span>
+                <span class="gateway-meta">已选 2 个</span>
+              </div>
+              <p class="config-section-desc">这里展示用户自己的 MCP 配置，可选择是否部署到当前网关。</p>
+              <article class="config-item active">
+                <span class="check on"></span>
+                <span class="mark green">K</span>
+                <div class="config-item-main">
+                  <div class="config-item-title"><strong>私有知识库检索</strong><span class="tag">Stream HTTP</span></div>
+                  <div class="config-state">自定义 · 已选中</div>
+                </div>
+              </article>
+              <article class="config-item">
+                <span class="check on"></span>
+                <span class="mark">LC</span>
+                <div class="config-item-main">
+                  <div class="config-item-title"><strong>LeetCode(力扣)</strong><span class="tag">NPX</span></div>
+                  <div class="config-state">自定义 · 已选中</div>
+                </div>
+              </article>
+              <article class="config-item">
+                <span class="check"></span>
+                <span class="mark orange">O</span>
+                <div class="config-item-main">
+                  <div class="config-item-title"><strong>内部工单查询</strong><span class="tag">私有包</span></div>
+                  <div class="config-state">自定义 · 未选中</div>
+                </div>
+              </article>
+            </section>
+          </aside>
+
+          <section class="config-form-pane">
+            <div class="config-form-title">
+              <div>
+                <h3>配置自定义 MCP：私有知识库检索</h3>
+                <div class="gateway-meta">当前选中私有知识库检索。自定义 MCP 可以修改配置，也可以从网关移除。</div>
+              </div>
+              <span class="btn">删除配置</span>
+            </div>
+
+            <div class="bind-row display-only">
+              <div class="bind-main">当前网关</div>
+              <span class="gateway-meta">生产 MCP 网关 · si-94fd4bb334514e36b1de</span>
+            </div>
+
+            <div class="config-form">
+              <div class="field">
+                <div class="label">图标</div>
+                <div class="icon-upload">K</div>
+              </div>
+              <div class="field">
+                <div class="label">名称</div>
+                <div class="input">私有知识库检索</div>
+              </div>
+              <div class="field">
+                <div class="label">ID</div>
+                <div class="input">private-kb-search</div>
+              </div>
+              <div class="field">
+                <div class="label">分类</div>
+                <div class="input">自定义</div>
+              </div>
+              <div class="field full">
+                <div class="label">安装方式</div>
+                <div class="option-row compact-options">
+                  <span class="option"><span class="radio"></span>NPX</span>
+                  <span class="option"><span class="radio"></span>UVX</span>
+                  <span class="option"><span class="radio"></span>SSE</span>
+                  <span class="option active"><span class="radio on"></span>Stream HTTP</span>
+                </div>
+              </div>
+              <div class="field full">
+                <div class="label">包类型</div>
+                <div class="option-row package-options">
+                  <span class="option"><span class="radio"></span><span class="option-text">公共包<small>从公共仓库安装</small></span></span>
+                  <span class="option active"><span class="radio on"></span><span class="option-text">私有包<small>使用用户 OSS 中的配置</small></span></span>
+                </div>
+              </div>
+              <div class="field full">
+                <div class="label">连接地址 / 命令</div>
+                <div class="input">https://mcp.example.com/kb/search</div>
+              </div>
+              <div class="field full">
+                <div class="label">环境变量</div>
+                <div class="env-inline">
+                  <div class="env-inline-row"><strong>KB_ENDPOINT</strong><span class="input">https://kb.example.com</span><span class="link">删除</span></div>
+                  <div class="env-inline-row"><strong>KB_TOKEN</strong><span class="input">credential://private-kb-token</span><span class="link">删除</span></div>
+                </div>
+                <p class="section-desc">保存的是用户自己的 MCP 配置，部署到网关后可被多个 Agent 复用。</p>
+              </div>
+            </div>
+
+            <div class="config-actions"><span class="btn">取消</span><span class="btn primary">下一步</span></div>
+          </section>
+        </div>
+      </section>
+    </section>
+
+    <section class="screen">
+      <div class="board-title">06 配置变更确认</div>
+      <aside class="sidebar">
+        <div class="brand">计算巢</div>
+        <nav class="nav">
+          <div class="nav-item">欢迎页</div>
+          <div class="nav-item">服务目录</div>
+          <div class="nav-item">模型市场</div>
+          <div class="nav-item active">MCP市场</div>
+          <div class="nav-item">Agent市场</div>
+          <div class="nav-item">Agent部署</div>
+          <div class="nav-section">服务管理</div>
+          <div class="nav-item">我的服务</div>
+          <div class="nav-item">服务实例</div>
+          <div class="nav-item">设置</div>
+        </nav>
+      </aside>
+      <header class="topbar"><span>钉钉交流群</span><span>帮助文档</span></header>
+      <section class="main">
+        <div class="breadcrumb">计算巢 / MCP市场 / MCP网关 / 生产 MCP 网关</div>
+        <div class="page-head">
+          <div>
+            <h1>生产 MCP 网关</h1>
+            <p class="subtitle">服务实例 si-94fd4bb334514e36b1de，当前已部署 4 个 MCP。</p>
+          </div>
+        </div>
+      </section>
+      <div class="overlay"></div>
+      <section class="modal deploy-modal">
+        <div class="modal-head">
+          <div class="modal-title">确认更新 MCP 网关</div>
+          <div class="close">×</div>
+        </div>
+        <div class="deploy-content">
+          <div class="mcp-summary">
+            <div class="mcp-summary-main">
+              <span class="mark blue">G</span>
+              <div>
+                <div class="mcp-name">生产 MCP 网关</div>
+                <p class="desc">请确认更新前后的 MCP 列表变化。</p>
+              </div>
+            </div>
+            <div class="tag-row"><span class="tag">si-94fd4bb334514e36b1de</span><span class="tag">cn-hangzhou</span></div>
+          </div>
+
+          <div class="mcp-diff">
+            <section class="diff-panel">
+              <div class="diff-head">
+                <h3>更新前</h3>
+                <span class="tag">4 个 MCP</span>
+              </div>
+              <div class="diff-list">
+                <div class="diff-item"><span>GitHub</span><span class="diff-state">保留</span></div>
+                <div class="diff-item"><span>Fetch网页内容抓取</span><span class="diff-state">保留</span></div>
+                <div class="diff-item"><span>Tavily智搜</span><span class="diff-state remove">移除</span></div>
+                <div class="diff-item"><span>私有知识库检索</span><span class="diff-state">保留</span></div>
+              </div>
+            </section>
+            <section class="diff-panel">
+              <div class="diff-head">
+                <h3>更新后</h3>
+                <span class="tag">4 个 MCP</span>
+              </div>
+              <div class="diff-list">
+                <div class="diff-item"><span>GitHub</span><span class="diff-state">保留</span></div>
+                <div class="diff-item"><span>Fetch网页内容抓取</span><span class="diff-state">保留</span></div>
+                <div class="diff-item"><span>私有知识库检索</span><span class="diff-state">保留</span></div>
+                <div class="diff-item"><span>LeetCode(力扣)</span><span class="diff-state add">新增</span></div>
+              </div>
+            </section>
+          </div>
+
+          <div class="credential-hint">确认后将以更新后的 MCP 列表覆盖当前网关配置。</div>
+          <div class="change-actions"><span class="btn">上一步</span><span class="btn primary">确认更新网关</span><span class="btn">取消</span></div>
+        </div>
+      </section>
+    </section>
+
+    <section class="screen">
+      <div class="board-title">07 部署参数确认</div>
+      <aside class="sidebar">
+        <div class="brand">计算巢</div>
+        <nav class="nav">
+          <div class="nav-item">欢迎页</div>
+          <div class="nav-item">服务目录</div>
+          <div class="nav-item">模型市场</div>
+          <div class="nav-item active">MCP市场</div>
+          <div class="nav-item">Agent市场</div>
+          <div class="nav-item">Agent部署</div>
+          <div class="nav-section">服务管理</div>
+          <div class="nav-item">我的服务</div>
+          <div class="nav-item">服务实例</div>
+          <div class="nav-item">设置</div>
+        </nav>
+      </aside>
+      <header class="topbar"><span>钉钉交流群</span><span>帮助文档</span></header>
+      <section class="main">
+        <div class="breadcrumb">计算巢 / MCP市场 / 公共MCP</div>
+        <h1 style="margin-top:18px">MCP市场</h1>
+      </section>
+      <div class="overlay"></div>
+      <section class="modal deploy-modal">
+        <div class="modal-head">
+          <div class="modal-title">部署到 MCP 网关</div>
+          <div class="close">×</div>
+        </div>
+        <div class="deploy-content">
+          <div class="mcp-summary">
+            <div class="mcp-summary-main">
+              <span class="mark">M</span>
+              <div>
+                <div class="mcp-name">Markmap思维导图</div>
+                <p class="desc">将 Markdown 文本转为交互式思维导图，适合文档梳理、学习复盘和知识库沉淀。</p>
+              </div>
+            </div>
+            <div class="tag-row"><span class="tag orange">知识管理</span><span class="tag">NPX</span></div>
+          </div>
+
+          <div class="guide-strip">
+            <div class="guide-step">
+              <span class="step-num">1</span>
+              <div>
+                <div class="guide-title">确认运行参数</div>
+                <div class="guide-text">先补齐 MCP 启动所需参数和凭据引用。</div>
+              </div>
+            </div>
+            <div class="guide-step">
+              <span class="step-num">2</span>
+              <div>
+                <div class="guide-title">选择 MCP 网关</div>
+                <div class="guide-text">把 MCP 部署到一个已有网关；没有网关时先新建。</div>
+              </div>
+            </div>
+            <div class="guide-step">
+              <span class="step-num">3</span>
+              <div>
+                <div class="guide-title">在 Agent 中使用</div>
+                <div class="guide-text">Agent 部署页选择整个网关或其中部分 MCP。</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="deploy-layout">
+            <div class="deploy-main">
+              <section class="deploy-section">
+                <div class="section-head">
+                  <div>
+                    <span class="section-kicker">步骤 1</span>
+                    <h2>确认运行参数</h2>
+                    <p class="section-desc">先确认 MCP 运行参数，下一步再选择网关部署。</p>
+                  </div>
+                  <span class="tag">可编辑</span>
+                </div>
+                <div class="param-table">
+                  <div class="param-row header"><span>参数名</span><span>参数值</span><span>说明</span></div>
+                  <div class="param-row"><strong>MARKMAP_DIR</strong><span class="param-value">/workspace/output</span><span>思维导图输出目录</span></div>
+                  <div class="param-row"><strong>MARKMAP_THEME</strong><span class="param-value">default</span><span>默认渲染主题</span></div>
+                </div>
+              </section>
+            </div>
+
+          </div>
+        </div>
+        <div class="modal-actions"><span class="btn primary">下一步</span><span class="btn">取消</span></div>
+      </section>
+    </section>
+
+    <section class="screen">
+      <div class="board-title">08 选择 MCP 网关</div>
+      <aside class="sidebar">
+        <div class="brand">计算巢</div>
+        <nav class="nav">
+          <div class="nav-item">欢迎页</div>
+          <div class="nav-item">服务目录</div>
+          <div class="nav-item">模型市场</div>
+          <div class="nav-item active">MCP市场</div>
+          <div class="nav-item">Agent市场</div>
+          <div class="nav-item">Agent部署</div>
+          <div class="nav-section">服务管理</div>
+          <div class="nav-item">我的服务</div>
+          <div class="nav-item">服务实例</div>
+          <div class="nav-item">设置</div>
+        </nav>
+      </aside>
+      <header class="topbar"><span>钉钉交流群</span><span>帮助文档</span></header>
+      <section class="main">
+        <div class="breadcrumb">计算巢 / MCP市场 / 公共MCP</div>
+        <h1 style="margin-top:18px">MCP市场</h1>
+      </section>
+      <div class="overlay"></div>
+      <section class="modal deploy-modal">
+        <div class="modal-head">
+          <div class="modal-title">选择 MCP 网关</div>
+          <div class="close">×</div>
+        </div>
+        <div class="deploy-content">
+          <div class="mcp-summary">
+            <div class="mcp-summary-main">
+              <span class="mark">M</span>
+              <div>
+                <div class="mcp-name">Markmap思维导图</div>
+                <p class="desc">运行参数已确认，继续选择要部署到的 MCP 网关。</p>
+              </div>
+            </div>
+            <div class="tag-row"><span class="tag orange">知识管理</span><span class="tag">NPX</span></div>
+          </div>
+
+          <div class="guide-strip">
+            <div class="guide-step">
+              <span class="step-num">1</span>
+              <div>
+                <div class="guide-title">确认运行参数</div>
+                <div class="guide-text">MCP 启动参数和凭据引用已确认。</div>
+              </div>
+            </div>
+            <div class="guide-step">
+              <span class="step-num">2</span>
+              <div>
+                <div class="guide-title">选择 MCP 网关</div>
+                <div class="guide-text">把 MCP 部署到一个已有网关；没有网关时先新建。</div>
+              </div>
+            </div>
+            <div class="guide-step">
+              <span class="step-num">3</span>
+              <div>
+                <div class="guide-title">在 Agent 中使用</div>
+                <div class="guide-text">Agent 部署页选择整个网关或其中部分 MCP。</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="deploy-layout">
+            <div class="deploy-main">
+              <section class="deploy-section">
+                <div class="section-head">
+                  <div>
+                    <span class="section-kicker">步骤 2</span>
+                    <h2>选择目标 MCP 网关</h2>
+                    <p class="section-desc">选择一个目标网关后，即可一键将当前 MCP 部署进去。</p>
+                  </div>
+                </div>
+                <div class="compact-toolbar">
+                  <div class="compact-search">搜索网关名称或 Region</div>
+                </div>
+                <div class="gateway-table">
+                  <div class="gateway-table-row header"><span></span><span>网关</span><span>Region</span><span>MCP 数量</span><span>状态</span></div>
+                  <div class="gateway-table-row">
+                    <span class="radio on"></span>
+                    <div><strong>生产 MCP 网关</strong><div class="gateway-meta">默认运行环境</div></div>
+                    <span>cn-hangzhou</span>
+                    <span>4 个</span>
+                    <span class="status"><span class="dot"></span>运行中</span>
+                  </div>
+                  <div class="gateway-table-row">
+                    <span class="radio"></span>
+                    <div><strong>测试 MCP 网关</strong><div class="gateway-meta">研发验证</div></div>
+                    <span>cn-hangzhou</span>
+                    <span>3 个</span>
+                    <span class="status"><span class="dot"></span>运行中</span>
+                  </div>
+                  <div class="gateway-table-row">
+                    <span class="radio"></span>
+                    <div><strong>数据分析 MCP 网关</strong><div class="gateway-meta">分析类 Agent 专用</div></div>
+                    <span>cn-shanghai</span>
+                    <span>6 个</span>
+                    <span class="status"><span class="dot"></span>运行中</span>
+                  </div>
+                </div>
+                <div class="gateway-helper">
+                  <div><strong>还没有合适的 MCP 网关？</strong><br>创建一个默认网关，并将当前 MCP 直接部署进去。</div>
+                  <span class="btn">创建并部署到新网关</span>
+                </div>
+              </section>
+            </div>
+
+          </div>
+        </div>
+        <div class="modal-actions"><span class="btn">上一步</span><span class="btn primary">一键部署到网关</span><span class="btn">取消</span></div>
+      </section>
+    </section>
+
+    <section class="screen">
+      <div class="board-title">09 Agent 部署 - 选择网关内 MCP</div>
+      <aside class="sidebar">
+        <div class="brand">计算巢</div>
+        <nav class="nav">
+          <div class="nav-item">欢迎页</div>
+          <div class="nav-item">服务目录</div>
+          <div class="nav-item">模型市场</div>
+          <div class="nav-item">MCP市场</div>
+          <div class="nav-item">Agent市场</div>
+          <div class="nav-item active">Agent部署</div>
+          <div class="nav-section">服务管理</div>
+          <div class="nav-item">我的服务</div>
+          <div class="nav-item">服务实例</div>
+          <div class="nav-item">设置</div>
+        </nav>
+      </aside>
+      <header class="topbar"><span>钉钉交流群</span><span>帮助文档</span></header>
+      <section class="main">
+        <div class="breadcrumb">计算巢 / Agent部署</div>
+        <div class="page-head">
+          <div>
+            <h1>Agent部署</h1>
+            <p class="subtitle">先选择已部署的 MCP 网关服务实例，再选择该实例内可用 MCP。</p>
+          </div>
+        </div>
+
+        <div class="agent-tabs-line">
+          <div class="agent-tabs">
+            <span class="agent-tab">Agent</span>
+            <span class="agent-tab">沙箱</span>
+            <span class="agent-tab">会话管理</span>
+            <span class="agent-tab">记忆</span>
+            <span class="agent-tab">知识库</span>
+            <span class="agent-tab active">MCP</span>
+            <span class="agent-tab">Agent 管理平台</span>
+          </div>
+        </div>
+
+        <div class="agent-mcp-actions">
+          <span class="btn primary">保存 MCP 选择</span>
+        </div>
+
+        <section class="agent-selector">
+          <div class="agent-selector-pane">
+            <div class="pane-title">
+              <strong>选择 MCP 网关实例</strong>
+              <span class="tag blue">serviceId 固定过滤</span>
+            </div>
+            <div class="search">搜索服务实例名称或 ID</div>
+
+            <div class="gateway-choice active">
+              <span class="radio on"></span>
+              <div>
+                <div class="mcp-server-name">生产 MCP 网关 <span class="tag green">运行中</span></div>
+                <div class="mcp-server-meta">si-94fd4bb334514e36b1de · cn-hangzhou</div>
+                <div class="mcp-server-meta">可用 MCP 4 个</div>
+              </div>
+            </div>
+
+            <div class="gateway-choice">
+              <span class="radio"></span>
+              <div>
+                <div class="mcp-server-name">测试 MCP 网关 <span class="tag green">运行中</span></div>
+                <div class="mcp-server-meta">si-acb583ebc0784a4b8add · cn-hangzhou</div>
+                <div class="mcp-server-meta">可用 MCP 1 个</div>
+              </div>
+            </div>
+
+            <div class="credential-hint">选择实例后展示该实例网关内全部可用 MCP。Agent 使用时不区分 MCP 来源和创建方式。</div>
+          </div>
+
+          <div class="agent-selector-pane">
+            <div class="mcp-server-toolbar">
+              <div>
+                <div class="pane-title" style="margin-bottom:0"><strong>选择服务实例可用 MCP</strong></div>
+                <div class="mcp-server-meta">生产 MCP 网关共 4 个 MCP，已选择 3 个。</div>
+              </div>
+              <div class="left-tools">
+                <div class="search">搜索 MCP 名称或工具</div>
+                <span class="btn">刷新</span>
+              </div>
+            </div>
+
+            <div class="mcp-group-title">可用 MCP</div>
+            <div class="mcp-server-row active">
+              <span class="check on"></span>
+              <div>
+                <div class="mcp-server-name">Fetch网页内容抓取 <span class="tag">tools: fetch</span></div>
+                <div class="mcp-server-meta">/mcp-servers/fetch/sse</div>
+              </div>
+              <span class="status"><span class="dot"></span>Deployed</span>
+            </div>
+            <div class="mcp-server-row active">
+              <span class="check on"></span>
+              <div>
+                <div class="mcp-server-name">LeetCode(力扣) <span class="tag">tools: list_problem, get_problem</span></div>
+                <div class="mcp-server-meta">/mcp-servers/leetcode/sse</div>
+              </div>
+              <span class="status"><span class="dot"></span>Deployed</span>
+            </div>
+            <div class="mcp-server-row active">
+              <span class="check on"></span>
+              <div>
+                <div class="mcp-server-name">订单查询 API <span class="tag">12 tools</span></div>
+                <div class="mcp-server-meta">/mcp-servers/order-api</div>
+              </div>
+              <span class="status"><span class="dot"></span>Deployed</span>
+            </div>
+            <div class="mcp-server-row">
+              <span class="check"></span>
+              <div>
+                <div class="mcp-server-name">CRM 客户 API <span class="tag">8 tools</span></div>
+                <div class="mcp-server-meta">/mcp-servers/crm-api</div>
+              </div>
+              <span class="status"><span class="dot"></span>Deployed</span>
+            </div>
+
+            <div class="agent-json-preview">
+              <span>输出：serviceInstanceId + gatewayId + mcpServerId 列表 + tools 快照。</span>
+              <span class="link">查看 JSON</span>
+            </div>
+          </div>
+        </section>
+      </section>
+    </section>
+  </main>
+  <div class="hide-note">简化版设计稿，可横向滚动查看多个画板。</div>
+</body>
+</html>
