@@ -102,10 +102,12 @@ Service:
         ecs_image_quickstart-mcp:
           ArtifactId: ${Artifact.EcsImage.ArtifactId}
           ArtifactVersion: draft
-        fc-mcp-code:
+      FileArtifactRelation:
+        '{{ computenest::file::FcMcpCode }}':
           ArtifactId: ${Artifact.FcMcpCode.ArtifactId}
           ArtifactVersion: draft
-        quickstart-mcp-acs:
+      AcrImageArtifactRelation:
+        '{{ computenest::acrimage::quickstart-mcp-acs }}':
           ArtifactId: ${Artifact.AcsMcpImage.ArtifactId}
           ArtifactVersion: draft
     TemplateConfigs:

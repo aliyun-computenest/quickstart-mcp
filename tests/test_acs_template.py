@@ -41,8 +41,10 @@ def test_acs_template_is_registered_in_computenest_config():
         "Parameters": ["McpConfigJson"],
     }
 
-    artifact_relation = service["DeployMetadata"]["SupplierDeployMetadata"]["ArtifactRelation"]
-    assert artifact_relation["quickstart-mcp-acs"]["ArtifactVersion"] == "draft"
+    supplier_metadata = service["DeployMetadata"]["SupplierDeployMetadata"]
+    assert supplier_metadata["ArtifactRelation"]["ecs_image_quickstart-mcp"]["ArtifactVersion"] == "draft"
+    assert supplier_metadata["FileArtifactRelation"]["{{ computenest::file::FcMcpCode }}"]["ArtifactVersion"] == "draft"
+    assert supplier_metadata["AcrImageArtifactRelation"]["{{ computenest::acrimage::quickstart-mcp-acs }}"]["ArtifactVersion"] == "draft"
     assert config["Artifact"]["AcsMcpImage"]["ArtifactType"] == "AcrImage"
     assert config["Artifact"]["AcsMcpImage"]["ArtifactBuildProperty"]["CodeRepo"]["DockerfilePath"] == "mcp/Dockerfile.acs"
 
