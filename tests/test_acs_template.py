@@ -55,7 +55,13 @@ def test_acs_template_is_registered_in_computenest_config():
         "Branch": "main",
     }
     assert config["Artifact"]["AcsMcpImage"]["ArtifactType"] == "AcrImage"
-    assert config["Artifact"]["AcsMcpImage"]["ArtifactBuildProperty"]["CodeRepo"]["DockerfilePath"] == "mcp/Dockerfile.acs"
+    assert config["Artifact"]["AcsMcpImage"]["ArtifactBuildProperty"]["CodeRepo"] == {
+        "Platform": "github",
+        "Owner": "aliyun-computenest",
+        "RepoName": "aliyun-computenest/quickstart-mcp",
+        "Branch": "main",
+        "DockerfilePath": "mcp/Dockerfile.acs",
+    }
 
 
 def test_acs_runtime_image_artifact_supports_cn_hangzhou_beta_publish():
