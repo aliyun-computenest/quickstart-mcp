@@ -48,6 +48,12 @@ def test_acs_template_is_registered_in_computenest_config():
     assert supplier_metadata["AcrImageArtifactRelation"]["{{ computenest::acrimage::quickstart-mcp-acs }}"]["ArtifactVersion"] == "draft"
     assert "FileArtifactRelation" not in supplier_metadata
     assert "FcMcpCode" not in config["Artifact"]
+    assert config["Artifact"]["EcsImage"]["ArtifactBuildProperty"]["CodeRepo"] == {
+        "Platform": "github",
+        "Owner": "aliyun-computenest",
+        "RepoName": "aliyun-computenest/quickstart-mcp",
+        "Branch": "main",
+    }
     assert config["Artifact"]["AcsMcpImage"]["ArtifactType"] == "AcrImage"
     assert config["Artifact"]["AcsMcpImage"]["ArtifactBuildProperty"]["CodeRepo"]["DockerfilePath"] == "mcp/Dockerfile.acs"
 
