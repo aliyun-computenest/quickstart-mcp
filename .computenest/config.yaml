@@ -197,6 +197,6 @@ Artifact:
         Platform: github
         Owner: aliyun-computenest
         RepoName: quickstart-mcp
-        Branch: codex/acs-mcp-template
+        Branch: main
         DockerfilePath: mcp/Dockerfile.acs
       RegionId: ap-southeast-1
