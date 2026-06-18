@@ -10,6 +10,7 @@ FC_TEMPLATE_PATH = ROOT / ".computenest" / "ros_templates" / "fc.yaml"
 ECS_TEMPLATE_PATH = ROOT / ".computenest" / "ros_templates" / "template.yaml"
 ECS_ENTERPRISE_TEMPLATE_PATH = ROOT / ".computenest" / "ros_templates" / "template-enterprise.yaml"
 ACS_DOCKERFILE_PATH = ROOT / "mcp" / "Dockerfile.acs"
+ROOT_DOCKERFILE_PATH = ROOT / "Dockerfile"
 
 
 def load_yaml(path: Path):
@@ -170,6 +171,7 @@ def test_acs_runtime_image_installs_supergateway_without_changing_ecs_dockerfile
     assert "npm install -g supergateway" in dockerfile
     assert "COPY mcp/ /app/" in dockerfile
     assert "ENTRYPOINT" not in dockerfile
+    assert ROOT_DOCKERFILE_PATH.read_text(encoding="utf-8") == dockerfile
 
 
 def test_acs_template_quotes_computenest_image_placeholder_inside_kubernetes_yaml():
