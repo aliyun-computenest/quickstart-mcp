@@ -56,16 +56,15 @@ def test_acs_template_is_registered_in_computenest_config():
         "Branch": "main",
     }
     assert config["Artifact"]["AcsMcpImage"]["ArtifactType"] == "AcrImage"
-    assert config["Artifact"]["AcsMcpImage"]["ArtifactBuildType"] == "ContainerImage"
     assert config["Artifact"]["AcsMcpImage"]["ArtifactProperty"] == {
-        "RepoName": "lzq/quickstart-mcp-acs",
-        "Tag": "202606190051-amd64",
-        "RepoType": "Public",
+        "RepoName": "${AcrImageBuilder.AcsMcpImage.RepoName}",
+        "Tag": "${AcrImageBuilder.AcsMcpImage.Tag}",
     }
-    assert config["Artifact"]["AcsMcpImage"]["ArtifactBuildProperty"]["RegionId"] == "cn-hangzhou"
-    assert config["Artifact"]["AcsMcpImage"]["ArtifactBuildProperty"]["SourceContainerImage"] == (
-        "second-registry.cn-hangzhou.cr.aliyuncs.com/lzq/quickstart-mcp-acs:202606190051-amd64"
-    )
+    assert config["AcrImageBuilder"]["AcsMcpImage"] == {
+        "DockerFilePath": "mcp/Dockerfile.acs",
+        "RepoName": "quickstart-mcp-acs",
+        "Tag": "beta-20260619-dockerfile",
+    }
 
 
 def test_acs_runtime_image_artifact_supports_cn_hangzhou_beta_publish():
