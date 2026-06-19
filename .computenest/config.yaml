@@ -117,8 +117,8 @@ Service:
     Image: 
       https://service-info-public.oss-cn-hangzhou.aliyuncs.com/1853370294850618/service-image/ba45d5c8-8654-44a9-a60a-a3090a958c77.png
     Softwares:
-    - Name: mcpo
-      Version: 0.0.12
+    - Name: supergateway
+      Version: 3.4.3
     - Name: higress
       Version: 2.1.2
 Artifact:
@@ -164,9 +164,9 @@ Artifact:
     - ap-southeast-1
     ArtifactBuildType: ContainerImage
     ArtifactProperty:
-      RepoName: lzq/quickstart-mcp-acs
-      Tag: '202606190051-amd64'
+      RepoName: computenest/quickstart-mcp-acs
+      Tag: beta-20260618-streamable-181458
       RepoType: Public
     ArtifactBuildProperty:
       RegionId: cn-hangzhou
-      SourceContainerImage: second-registry.cn-hangzhou.cr.aliyuncs.com/lzq/quickstart-mcp-acs:202606190051-amd64
+      SourceContainerImage: compute-nest-registry.cn-hangzhou.cr.aliyuncs.com/computenest/quickstart-mcp-acs:beta-20260618-streamable-181458

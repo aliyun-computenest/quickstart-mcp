@@ -688,118 +688,6 @@ Resources:
                 - '{mcpServers: map({ key: .serverCode, value: { command, args, env, type, url, packageOssPath, icon } }) | from_entries }'
                 - Ref: McpConfigJson
 
-  McpApiDeployment:
-    Type: ALIYUN::CS::ClusterApplication
-    DependsOn: McpRuntimeConfigMap
-    Properties:
-      ClusterId:
-        Fn::GetAtt:
-          - AckOrAcsCluster
-          - ClusterId
-      DefaultNamespace: mcp-runtime
-      YamlContent:
-        Fn::Sub:
-          - |
-            apiVersion: apps/v1
-            kind: Deployment
-            metadata:
-              name: mcp-api
-              namespace: mcp-runtime
-              labels:
-                app: mcp-api
-                app.kubernetes.io/name: mcp-api
-            spec:
-              replicas: ${ApiReplicas}
-              selector:
-                matchLabels:
-                  app: mcp-api
-              template:
-                metadata:
-                  labels:
-                    app: mcp-api
-                    app.kubernetes.io/name: mcp-api
-                    alibabacloud.com/acs: "true"
-                  annotations:
-                    mcp.aliyun.com/config-version: "${ConfigVersion}"
-                spec:
-                  containers:
-                    - name: mcpo
-                      image: "{{ computenest::acrimage::quickstart-mcp-acs }}"
-                      imagePullPolicy: Always
-                      command: ["/bin/sh", "-c"]
-                      args:
-                        - |
-                          exec mcpo --config /app/config.json --port 8080 --host 0.0.0.0 --workers ${RuntimeWorkers}
-                      ports:
-                        - name: http
-                          containerPort: 8080
-                          protocol: TCP
-                      volumeMounts:
-                        - name: runtime-config
-                          mountPath: /app/config.json
-                          subPath: config.json
-                        - name: runtime-logs
-                          mountPath: /app/logs
-                        - name: mcp-package
-                          mountPath: /mcp-package
-                      resources:
-                        requests:
-                          cpu: "${RuntimeCpu}"
-                          memory: "${RuntimeMemory}"
-                        limits:
-                          cpu: "${RuntimeCpu}"
-                          memory: "${RuntimeMemory}"
-                      readinessProbe:
-                        tcpSocket:
-                          port: 8080
-                        initialDelaySeconds: 20
-                        periodSeconds: 10
-                  volumes:
-                    - name: runtime-config
-                      configMap:
-                        name: mcp-runtime-config
-                    - name: runtime-logs
-                      emptyDir: {}
-                    - name: mcp-package
-                      emptyDir: {}
-          - ApiReplicas:
-              Ref: ApiReplicas
-            RuntimeWorkers:
-              Ref: RuntimeWorkers
-            RuntimeCpu:
-              Ref: RuntimeCpu
-            RuntimeMemory:
-              Ref: RuntimeMemory
-            ConfigVersion:
-              Ref: CurTime
-
-  McpApiService:
-    Type: ALIYUN::CS::ClusterApplication
-    DependsOn: McpApiDeployment
-    Properties:
-      ClusterId:
-        Fn::GetAtt:
-          - AckOrAcsCluster
-          - ClusterId
-      DefaultNamespace: mcp-runtime
-      YamlContent: |
-        apiVersion: v1
-        kind: Service
-        metadata:
-          name: mcp-api
-          namespace: mcp-runtime
-          labels:
-            app: mcp-api
-        spec:
-          type: ClusterIP
-          selector:
-            app: mcp-api
-          ports:
-            - name: http
-              port: 8080
-              targetPort: 8080
-              protocol: TCP
-
   McpServerWorkloads:
     Type: ALIYUN::CS::ClusterApplication
     DependsOn: McpNamespace
@@ -927,7 +815,6 @@ Resources:
     Type: ALIYUN::CS::ClusterApplication
     DependsOn:
       - AlbIngressSleep
-      - McpApiService
       - McpServerWorkloads
     Properties:
       ClusterId:
@@ -968,13 +855,6 @@ Resources:
                     "                        backend:\n" +
                     "                          service:\n" +
                     "                            name: mcp-" + $name + "\n" +
-                    "                            port:\n" +
-                    "                              number: 8080\n" +
-                    "                      - path: /" + $name + "\n" +
-                    "                        pathType: Prefix\n" +
-                    "                        backend:\n" +
-                    "                          service:\n" +
-                    "                            name: mcp-api\n" +
                     "                            port:\n" +
                     "                              number: 8080"
                   ) | join("\n")
@@ -1126,16 +1006,6 @@ Outputs:
     Value:
       Fn::Sub:
         - http://${AlbDns}
-        - AlbDns:
-            Ref: McpRuntimeHost
-
-  McpApiEndpointHint:
-    Label:
-      zh-cn: API路径格式
-      en: API Path Pattern
-    Value:
-      Fn::Sub:
-        - http://${AlbDns}/{serverCode}
         - AlbDns:
             Ref: McpRuntimeHost
 

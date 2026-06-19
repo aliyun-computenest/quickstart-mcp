@@ -64,13 +64,13 @@ def test_acs_template_is_registered_in_computenest_config():
     assert config["Artifact"]["AcsMcpImage"]["ArtifactType"] == "AcrImage"
     assert config["Artifact"]["AcsMcpImage"]["ArtifactBuildType"] == "ContainerImage"
     assert config["Artifact"]["AcsMcpImage"]["ArtifactProperty"] == {
-        "RepoName": "lzq/quickstart-mcp-acs",
-        "Tag": "202606190051-amd64",
+        "RepoName": "computenest/quickstart-mcp-acs",
+        "Tag": "beta-20260618-streamable-181458",
         "RepoType": "Public",
     }
     assert config["Artifact"]["AcsMcpImage"]["ArtifactBuildProperty"]["RegionId"] == "cn-hangzhou"
     assert config["Artifact"]["AcsMcpImage"]["ArtifactBuildProperty"]["SourceContainerImage"] == (
-        "second-registry.cn-hangzhou.cr.aliyuncs.com/lzq/quickstart-mcp-acs:202606190051-amd64"
+        "compute-nest-registry.cn-hangzhou.cr.aliyuncs.com/computenest/quickstart-mcp-acs:beta-20260618-streamable-181458"
     )
 
 
@@ -160,8 +160,8 @@ def test_acs_template_contains_runtime_gateway_and_registration_resources():
     assert resources["AckOrAcsCluster"]["Type"] == "ALIYUN::ACS::Cluster"
     assert "McpRuntimeDeployment" not in resources
     assert "McpRuntimeService" not in resources
-    assert resources["McpApiDeployment"]["Type"] == "ALIYUN::CS::ClusterApplication"
-    assert resources["McpApiService"]["Type"] == "ALIYUN::CS::ClusterApplication"
+    assert "McpApiDeployment" not in resources
+    assert "McpApiService" not in resources
     assert resources["McpServerWorkloads"]["Type"] == "ALIYUN::CS::ClusterApplication"
     assert resources["McpRuntimeIngress"]["Type"] == "ALIYUN::CS::ClusterApplication"
     assert parameters["EnableGatewayRegistration"]["Default"] is False
@@ -170,19 +170,21 @@ def test_acs_template_contains_runtime_gateway_and_registration_resources():
     assert "{{ computenest::acrimage::quickstart-mcp-acs }}" in template_text
     assert "serverCode" in yaml.safe_dump(resources["McpServerWorkloads"])
     assert "/mcp-servers/" in template_text
+    assert "mcp-api" not in template_text
+    assert "mcpo" not in template_text
     assert "McpGatewayConsole" in outputs
     assert "McpRuntimeEndpoint" in outputs
+    assert "McpApiEndpointHint" not in outputs
 
 
 def test_acs_runtime_image_installs_supergateway_without_changing_ecs_dockerfile():
     dockerfile = ACS_DOCKERFILE_PATH.read_text(encoding="utf-8")
 
     assert "npm install -g supergateway" in dockerfile
-    assert "mcpo==0.0.15" in dockerfile
-    assert "git clone https://github.com/LYH-RAIN/mcpo.git" not in dockerfile
+    assert "mcpo" not in dockerfile
     assert "COPY mcp/ /app/" in dockerfile
     assert "ENTRYPOINT" not in dockerfile
-    assert ROOT_DOCKERFILE_PATH.read_text(encoding="utf-8") == dockerfile
+    assert "mcpo" in ROOT_DOCKERFILE_PATH.read_text(encoding="utf-8")
 
 
 def test_acs_template_quotes_computenest_image_placeholder_inside_kubernetes_yaml():

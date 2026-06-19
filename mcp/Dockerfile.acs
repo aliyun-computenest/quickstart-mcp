@@ -33,7 +33,6 @@ RUN uv venv "$VIRTUAL_ENV"
 ENV PATH="$VIRTUAL_ENV/bin:$PATH"
 
 RUN uv pip install --default-index https://mirrors.aliyun.com/pypi/simple \
-        mcpo==0.0.15 \
         requests && \
     rm -rf ~/.cache
 
@@ -42,7 +41,7 @@ RUN if [ -f "/app/prepare.sh" ]; then \
         /app/prepare.sh; \
     fi
 
-RUN which mcpo && which supergateway
+RUN which supergateway
 
 WORKDIR /app
 EXPOSE 8080
