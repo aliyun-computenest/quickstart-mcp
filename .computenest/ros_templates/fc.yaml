@@ -1811,7 +1811,7 @@ Resources:
                               logger.info(f"⏰ 等待10秒后进行第二次部署...")
                               time.sleep(10)
 
-                              logger.info(f"🔄 开始第二次部署: {fc3_name} -> {mcp_server_id}")
+                              logger.info(f"开始第二次部署: {fc3_name} -> {mcp_server_id}")
                               response2 = self.client.deploy_mcp_server_with_options(
                                   mcp_server_id, self.headers, self.runtime
                               )
@@ -1824,7 +1824,7 @@ Resources:
 
                               # 部署成功后，如果启用认证，则创建认证策略
                               if enable_authentication:
-                                  logger.info(f"🔐 为 {fc3_name} 启用认证...")
+                                  logger.info(f"为 {fc3_name} 启用认证...")
                                   auth_result = self.create_and_attach_authentication(
                                       gateway_id=gateway_id,
                                       environment_id=environment_id,
@@ -1871,7 +1871,7 @@ Resources:
                   if descriptions:
                       descriptions = {k.lower(): v for k, v in descriptions.items()}
 
-                  logger.info(f"🚀 开始注册MCP服务...")
+                  logger.info(f"开始注册MCP服务...")
                   logger.info(f"   网关ID: {gateway_id}")
                   logger.info(f"   环境ID: {environment_id}")
                   logger.info(f"   域名IDs: {domain_ids}")
@@ -1891,7 +1891,7 @@ Resources:
                   }
 
                   # 1. 获取HttpApiId（可能不需要，但保留用于验证）
-                  logger.info("📡 步骤1: 获取HttpApiId...")
+                  logger.info("步骤1: 获取HttpApiId...")
                   http_api_id = self.get_http_api_id(gateway_id)
                   if http_api_id:
                       result['http_api_id'] = http_api_id
@@ -1900,7 +1900,7 @@ Resources:
                       logger.warning("⚠️ 未找到HttpApiId，但继续执行MCP服务创建")
 
                   # 2. 创建APIG服务
-                  logger.info("🔧 步骤2: 创建APIG服务...")
+                  logger.info("步骤2: 创建APIG服务...")
                   service_mapping = self.create_services(gateway_id, fc3_names, resource_group_id)
                   if not service_mapping:
                       result['errors'].append("未能创建任何APIG服务")
@@ -1908,7 +1908,7 @@ Resources:
                   result['service_mapping'] = service_mapping
 
                   # 3. 创建MCP服务器
-                  logger.info("🖥️  步骤3: 创建MCP服务器...")
+                  logger.info("步骤3: 创建MCP服务器...")
                   mcp_server_mapping = self.create_mcp_servers(
                       gateway_id,
                       domain_ids,
@@ -1939,7 +1939,7 @@ Resources:
 
                   # 4. 部署MCP服务器（只部署新创建的）
                   if mcp_server_mapping:
-                      logger.info("🚀 步骤4: 部署MCP服务器...")
+                      logger.info("步骤4: 部署MCP服务器...")
                       deployed_mapping = self.deploy_mcp_servers(
                           gateway_id, environment_id, mcp_server_mapping, enable_authentication
                       )
@@ -1978,7 +1978,7 @@ Resources:
                   # 处理不同类型的事件参数
                   if isinstance(event, bytes):
                       # bytes类型，先解码为字符串
-                      logger.info("🔧 检测到bytes类型事件，进行解码")
+                      logger.info("检测到bytes类型事件，进行解码")
                       event_str = event.decode('utf-8')
 
                       # 替换 Python 布尔值为 JSON 布尔值
@@ -1991,7 +1991,7 @@ Resources:
                       event_str = event_str.replace(': None', ': null')
                       event_str = event_str.replace(':None', ':null')
 
-                      logger.info(f"🔧 修复后的事件字符串: {event_str}")
+                      logger.info(f"修复后的事件字符串: {event_str}")
 
                       event_data = json.loads(event_str)
 
@@ -2002,7 +2002,7 @@ Resources:
 
                           # 检查是否是HTTP触发器调用
                           if "body" in event_json:
-                              logger.info("📡 检测到HTTP触发器调用")
+                              logger.info("检测到HTTP触发器调用")
                               req_body = event_json['body']
                               if 'isBase64Encoded' in event_json and event_json['isBase64Encoded']:
                                   req_body = base64.b64decode(event_json['body']).decode("utf-8")
@@ -2022,7 +2022,7 @@ Resources:
                               }
                           else:
                               # 直接是参数JSON字符串（FunctionInvoker调用）
-                              logger.info("🔧 检测到FunctionInvoker调用（JSON字符串）")
+                              logger.info("检测到FunctionInvoker调用（JSON字符串）")
                               event_data = event_json
 
                       except json.JSONDecodeError:
@@ -2035,7 +2035,7 @@ Resources:
 
                   elif isinstance(event, dict):
                       # 直接是字典（FunctionInvoker调用）
-                      logger.info("🔧 检测到FunctionInvoker调用（字典）")
+                      logger.info("检测到FunctionInvoker调用（字典）")
                       event_data = event
 
                   else:
@@ -2066,7 +2066,7 @@ Resources:
           def _fetch_mcp_tools_metadata() -> Dict[str, Dict]:
               """从公开OSS拉取mcp-tools.json，返回 {ServerCode小写: 工具元数据} 的映射"""
               try:
-                  logger.info(f"📡 拉取MCP工具元数据: {MCP_TOOLS_METADATA_URL}")
+                  logger.info(f"拉取MCP工具元数据: {MCP_TOOLS_METADATA_URL}")
                   req = urllib.request.Request(MCP_TOOLS_METADATA_URL, headers={"User-Agent": "fc-mcp/1.0"})
                   with urllib.request.urlopen(req, timeout=10) as resp:
                       tools_list = json.loads(resp.read().decode('utf-8'))
@@ -2121,7 +2121,7 @@ Resources:
 
           def execute_registration(event_data: dict) -> dict:
               """执行MCP服务注册"""
-              logger.info(f"📥 解析后的事件数据: {event_data}")
+              logger.info(f"解析后的事件数据: {event_data}")
 
               # 提取参数
               gateway_id = event_data.get('gateway_id')
@@ -2171,7 +2171,7 @@ Resources:
                       if isinstance(item, dict) and (item.get("runtimeName") or item.get("functionName") or item.get("serverCode"))
                   ]
 
-              logger.info(f"📋 参数解析结果:")
+              logger.info(f"参数解析结果:")
               logger.info(f"   gateway_id: {gateway_id}")
               logger.info(f"   environment_id: {environment_id}")
               logger.info(f"   domain_ids: {domain_ids}")
@@ -2205,7 +2205,7 @@ Resources:
                   runtime_mcp_configs=runtime_mcp_configs
               )
 
-              logger.info(f"🎯 最终结果: {result}")
+              logger.info(f"最终结果: {result}")
               return result
       # VPC配置 - 使用网关的VPC信息
       VpcConfig:
