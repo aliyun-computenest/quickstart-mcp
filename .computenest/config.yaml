@@ -62,6 +62,7 @@ Service:
         Url: 'ros_templates/template.yaml'
         ArchitectureDiagramUrl: 'resources/architecture/architecture.jpg'
         AllowedRegions:
+        - cn-hangzhou
         - ap-southeast-1
       - Name: FC企业版
         Url: 'ros_templates/fc.yaml'
@@ -88,6 +89,7 @@ Service:
       Url: 'ros_templates/template.yaml'
       ArchitectureDiagramUrl: 'resources/architecture/architecture.jpg'
       AllowedRegions:
+      - cn-hangzhou
       - ap-southeast-1
       OutputConfigs:
       - OutputKey: DebugInnerConsole

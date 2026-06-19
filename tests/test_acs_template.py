@@ -9,6 +9,7 @@ ACS_TEMPLATE_PATH = ROOT / ".computenest" / "ros_templates" / "acs.yaml"
 FC_TEMPLATE_PATH = ROOT / ".computenest" / "ros_templates" / "fc.yaml"
 ECS_TEMPLATE_PATH = ROOT / ".computenest" / "ros_templates" / "template.yaml"
 ECS_ENTERPRISE_TEMPLATE_PATH = ROOT / ".computenest" / "ros_templates" / "template-enterprise.yaml"
+ECS_SERVICE_TEST_PATH = ROOT / ".computenest" / "service_test" / "ECS单机版.yaml"
 ACS_DOCKERFILE_PATH = ROOT / "mcp" / "Dockerfile.acs"
 ROOT_DOCKERFILE_PATH = ROOT / "Dockerfile"
 
@@ -87,6 +88,24 @@ def test_acs_runtime_image_artifact_supports_cn_hangzhou_beta_publish():
     assert "cn-hangzhou" in consumer_acs["AllowedRegions"]
     assert acs_artifact["ArtifactName"] == "quickstart-mcp-acs"
     assert "cn-hangzhou" in acs_artifact["SupportRegionIds"]
+
+
+def test_ecs_single_template_supports_regions_used_by_service_tests():
+    config = load_yaml(CONFIG_PATH)
+    service_test = load_yaml(ECS_SERVICE_TEST_PATH)
+    service = config["Service"]
+    supplier_templates = service["DeployMetadata"]["SupplierDeployMetadata"]["SupplierTemplateConfigs"]
+    consumer_templates = service["DeployMetadata"]["TemplateConfigs"]
+    supplier_ecs = next(item for item in supplier_templates if item["Name"] == "ECS单机版")
+    consumer_ecs = next(item for item in consumer_templates if item["Name"] == "ECS单机版")
+    ecs_artifact = config["Artifact"]["EcsImage"]
+    required_regions = {"cn-hangzhou", "ap-southeast-1"}
+
+    assert required_regions.issubset(set(supplier_ecs["AllowedRegions"]))
+    assert required_regions.issubset(set(consumer_ecs["AllowedRegions"]))
+    assert set(supplier_ecs["AllowedRegions"]).issubset(set(ecs_artifact["SupportRegionIds"]))
+    assert set(consumer_ecs["AllowedRegions"]).issubset(set(ecs_artifact["SupportRegionIds"]))
+    assert service_test["regionId"] in consumer_ecs["AllowedRegions"]
 
 
 def test_gateway_managed_mcp_change_operation_is_registered_for_gateway_templates():
