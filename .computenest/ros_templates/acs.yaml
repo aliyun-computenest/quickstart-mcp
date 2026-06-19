@@ -724,7 +724,7 @@ Resources:
                 spec:
                   containers:
                     - name: mcpo
-                      image: "second-registry.cn-hangzhou.cr.aliyuncs.com/lzq/quickstart-mcp-acs:202606190051-amd64"
+                      image: "{{ computenest::acrimage::quickstart-mcp-acs }}"
                       imagePullPolicy: Always
                       command: ["/bin/sh", "-c"]
                       args:
@@ -865,7 +865,7 @@ Resources:
               "    spec:\n" +
               "      containers:\n" +
               "        - name: supergateway\n" +
-              "          image: \"second-registry.cn-hangzhou.cr.aliyuncs.com/lzq/quickstart-mcp-acs:202606190051-amd64\"\n" +
+              "          image: \"{{ computenest::acrimage::quickstart-mcp-acs }}\"\n" +
               "          imagePullPolicy: Always\n" +
               "          command: [\"/bin/sh\", \"-c\"]\n" +
               "          args:\n" +
@@ -1053,7 +1053,7 @@ Resources:
                   restartPolicy: Never
                   containers:
                     - name: register
-                      image: "second-registry.cn-hangzhou.cr.aliyuncs.com/lzq/quickstart-mcp-acs:202606190051-amd64"
+                      image: "{{ computenest::acrimage::quickstart-mcp-acs }}"
                       imagePullPolicy: Always
                       command: ["/bin/sh", "-c"]
                       args:
