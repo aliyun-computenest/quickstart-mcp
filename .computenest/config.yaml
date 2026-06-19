@@ -102,10 +102,6 @@ Service:
         ecs_image_quickstart-mcp:
           ArtifactId: ${Artifact.EcsImage.ArtifactId}
           ArtifactVersion: draft
-      AcrImageArtifactRelation:
-        '{{ computenest::acrimage::quickstart-mcp-acs }}':
-          ArtifactId: ${Artifact.AcsMcpImage.ArtifactId}
-          ArtifactVersion: draft
     TemplateConfigs:
 
     - Name: ECS单机版
@@ -183,19 +179,3 @@ Artifact:
         sed -i 's/pull_policy: always/pull_policy: if_not_present/g' mcp/docker-compose.yaml
         docker compose -f mcp/docker-compose.yaml build --no-cache 2>&1 | stdbuf -oL grep -viE 'Downloading|sha256|extracting|KiB|Downloaded|%' || true;
         docker compose -f mcp/docker-compose.yaml pull 2>&1 | stdbuf -oL grep -viE 'Downloading|sha256|extracting|KiB|Downloaded|%' || true;
-  AcsMcpImage:
-    ArtifactType: AcrImage
-    ArtifactName: quickstart-mcp-acs
-    Description: quickstart-mcp ACS runtime image
-    SupportRegionIds:
-    - cn-hangzhou
-    - cn-shanghai
-    - ap-southeast-1
-    ArtifactProperty:
-      RepoName: ${AcrImageBuilder.AcsMcpImage.RepoName}
-      Tag: ${AcrImageBuilder.AcsMcpImage.Tag}
-AcrImageBuilder:
-  AcsMcpImage:
-    DockerFilePath: mcp/Dockerfile.acs
-    RepoName: quickstart-mcp-acs
-    Tag: beta-20260619-dockerfile

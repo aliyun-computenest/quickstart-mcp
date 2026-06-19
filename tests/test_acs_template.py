@@ -11,6 +11,7 @@ ECS_TEMPLATE_PATH = ROOT / ".computenest" / "ros_templates" / "template.yaml"
 ECS_ENTERPRISE_TEMPLATE_PATH = ROOT / ".computenest" / "ros_templates" / "template-enterprise.yaml"
 ACS_DOCKERFILE_PATH = ROOT / "mcp" / "Dockerfile.acs"
 ROOT_DOCKERFILE_PATH = ROOT / "Dockerfile"
+ACS_RUNTIME_IMAGE = "second-registry.cn-hangzhou.cr.aliyuncs.com/lzq/quickstart-mcp-acs:202606190051-amd64"
 
 
 def load_yaml(path: Path):
@@ -46,24 +47,16 @@ def test_acs_template_is_registered_in_computenest_config():
 
     supplier_metadata = service["DeployMetadata"]["SupplierDeployMetadata"]
     assert supplier_metadata["ArtifactRelation"]["ecs_image_quickstart-mcp"]["ArtifactVersion"] == "draft"
-    assert supplier_metadata["AcrImageArtifactRelation"]["{{ computenest::acrimage::quickstart-mcp-acs }}"]["ArtifactVersion"] == "draft"
+    assert "AcrImageArtifactRelation" not in supplier_metadata
     assert "FileArtifactRelation" not in supplier_metadata
     assert "FcMcpCode" not in config["Artifact"]
+    assert "AcsMcpImage" not in config["Artifact"]
+    assert "AcrImageBuilder" not in config
     assert config["Artifact"]["EcsImage"]["ArtifactBuildProperty"]["CodeRepo"] == {
         "Platform": "github",
         "Owner": "aliyun-computenest",
         "RepoName": "aliyun-computenest/quickstart-mcp",
         "Branch": "main",
-    }
-    assert config["Artifact"]["AcsMcpImage"]["ArtifactType"] == "AcrImage"
-    assert config["Artifact"]["AcsMcpImage"]["ArtifactProperty"] == {
-        "RepoName": "${AcrImageBuilder.AcsMcpImage.RepoName}",
-        "Tag": "${AcrImageBuilder.AcsMcpImage.Tag}",
-    }
-    assert config["AcrImageBuilder"]["AcsMcpImage"] == {
-        "DockerFilePath": "mcp/Dockerfile.acs",
-        "RepoName": "quickstart-mcp-acs",
-        "Tag": "beta-20260619-dockerfile",
     }
 
 
@@ -74,12 +67,9 @@ def test_acs_runtime_image_artifact_supports_cn_hangzhou_beta_publish():
     consumer_templates = service["DeployMetadata"]["TemplateConfigs"]
     supplier_acs = next(item for item in supplier_templates if item["Name"] == "ACS企业版")
     consumer_acs = next(item for item in consumer_templates if item["Name"] == "ACS企业版")
-    acs_artifact = config["Artifact"]["AcsMcpImage"]
 
     assert "cn-hangzhou" in supplier_acs["AllowedRegions"]
     assert "cn-hangzhou" in consumer_acs["AllowedRegions"]
-    assert acs_artifact["ArtifactName"] == "quickstart-mcp-acs"
-    assert "cn-hangzhou" in acs_artifact["SupportRegionIds"]
 
 
 def test_gateway_managed_mcp_change_operation_is_registered_for_gateway_templates():
@@ -160,7 +150,8 @@ def test_acs_template_contains_runtime_gateway_and_registration_resources():
     assert parameters["EnableGatewayRegistration"]["Default"] is False
     assert resources["McpRegistrationJob"]["Type"] == "ALIYUN::CS::ClusterApplication"
     assert resources["McpRegistrationJob"]["Condition"] == "EnableGatewayRegistrationCondition"
-    assert "{{ computenest::acrimage::quickstart-mcp-acs }}" in template_text
+    assert "{{ computenest::acrimage::quickstart-mcp-acs }}" not in template_text
+    assert ACS_RUNTIME_IMAGE in template_text
     assert "serverCode" in yaml.safe_dump(resources["McpServerWorkloads"])
     assert "/mcp-servers/" in template_text
     assert "McpGatewayConsole" in outputs
@@ -182,4 +173,4 @@ def test_acs_template_quotes_computenest_image_placeholder_inside_kubernetes_yam
     template_text = ACS_TEMPLATE_PATH.read_text(encoding="utf-8")
 
     assert 'image: {{ computenest::acrimage::quickstart-mcp-acs }}' not in template_text
-    assert 'image: "{{ computenest::acrimage::quickstart-mcp-acs }}"' in template_text
+    assert f'image: "{ACS_RUNTIME_IMAGE}"' in template_text
