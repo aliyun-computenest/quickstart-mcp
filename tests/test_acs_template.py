@@ -168,6 +168,11 @@ def test_acs_template_contains_runtime_gateway_and_registration_resources():
     assert resources["AckOrAcsCluster"]["Type"] == "ALIYUN::ACS::Cluster"
     assert resources["KnativeKourier"]["Type"] == "ALIYUN::CS::ClusterHelmApplication"
     assert resources["KnativeServing"]["Type"] == "ALIYUN::CS::ClusterHelmApplication"
+    assert resources["HelmManagerAddon"]["Type"] == "ALIYUN::CS::ClusterAddons"
+    assert resources["HelmManagerAddon"]["DependsOn"] == "ClusterReadySleep"
+    assert resources["HelmManagerAddon"]["Properties"]["Addons"] == [{"Name": "ack-helm-manager"}]
+    assert resources["HelmManagerSleep"]["DependsOn"] == ["HelmManagerAddon"]
+    assert resources["KnativeKourier"]["DependsOn"] == "HelmManagerSleep"
     assert resources["KnativeServing"]["DependsOn"] == "KnativeKourier"
     assert "ack-knative-kourier" in resources["KnativeKourier"]["Properties"]["ChartUrl"]
     assert "ack-knative-serving" in resources["KnativeServing"]["Properties"]["ChartUrl"]

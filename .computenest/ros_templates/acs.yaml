@@ -599,9 +599,28 @@ Resources:
     Properties:
       CreateDuration: 10
 
+  HelmManagerAddon:
+    Type: ALIYUN::CS::ClusterAddons
+    DependsOn: ClusterReadySleep
+    Properties:
+      ClusterId:
+        Fn::GetAtt:
+          - AckOrAcsCluster
+          - ClusterId
+      InstalledIgnore: true
+      Addons:
+        - Name: ack-helm-manager
+
+  HelmManagerSleep:
+    Type: ALIYUN::ROS::Sleep
+    DependsOn:
+      - HelmManagerAddon
+    Properties:
+      CreateDuration: 120
+
   KnativeKourier:
     Type: ALIYUN::CS::ClusterHelmApplication
-    DependsOn: ClusterReadySleep
+    DependsOn: HelmManagerSleep
     Properties:
       ClusterId:
         Fn::GetAtt:
