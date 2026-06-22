@@ -178,6 +178,9 @@ def test_acs_template_contains_runtime_gateway_and_registration_resources():
     assert "ack-knative-serving" in resources["KnativeServing"]["Properties"]["ChartUrl"]
     assert resources["KnativeKourier"]["Properties"]["IgnoreExisting"] == "SkipAllOperationsIfExisting"
     assert resources["KnativeServing"]["Properties"]["IgnoreExisting"] == "SkipAllOperationsIfExisting"
+    assert resources["KnativeKourier"]["Properties"]["ChartValues"]["registryURL"] == {
+        "Fn::Sub": "registry-${ALIYUN::Region}.ack.aliyuncs.com"
+    }
     assert resources["McpNamespace"]["DependsOn"] == "KnativeServing"
     assert "McpRuntimeDeployment" not in resources
     assert "McpRuntimeService" not in resources

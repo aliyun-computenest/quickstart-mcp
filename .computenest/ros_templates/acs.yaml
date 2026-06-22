@@ -634,6 +634,8 @@ Resources:
         version: v1.10.9-aliyun.1
         regionID:
           Ref: ALIYUN::Region
+        registryURL:
+          Fn::Sub: registry-${ALIYUN::Region}.ack.aliyuncs.com
 
   KnativeServing:
     Type: ALIYUN::CS::ClusterHelmApplication
