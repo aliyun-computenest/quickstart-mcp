@@ -1,6 +1,6 @@
 # HTTP-to-MCP 自定义 MCP 接入与测试
 
-这份文档说明怎么把 AI 网关创建的 HTTP-to-MCP 服务接入 quickstart-mcp。结论是：不新增计算巢入口，不新增参数；把 AI 网关生成的 MCP 访问地址当作自定义 MCP 写入 `McpConfigJson`，再按普通 MCP 做部署、展示、Agent 下发和验收。
+这份文档说明怎么把 AI 网关创建的 HTTP-to-MCP 服务接入 quickstart-mcp。结论是：不新增计算巢入口，不新增参数；把 AI 网关生成的 MCP 访问地址当作自定义 MCP 写入 `McpConfigJson`，前端展示和 Agent 下发直接使用该地址。
 
 ## 范围
 
@@ -11,7 +11,7 @@
 | 配置入口 | 复用自定义 MCP，不新增“AI 网关接入”页签。 |
 | 存储字段 | 只写 `McpConfigJson`，不新增 `ManagedMcpConfigJson`。 |
 | 前端查询 | 不调用 APIG `ListMcpServers` 或 `GetMcpServer` 拉列表。 |
-| 运行时 | ACS 按 `McpConfigJson` 创建 Knative Service。 |
+| 运行时 | ACS 只为本地命令型 MCP 创建 Knative Service；远端 URL 不创建 ACS workload。 |
 | Agent 部署 | 传 MCP endpoint，不传 `gatewayId` 或 `mcpServerId`。 |
 
 ## 配置契约
@@ -37,7 +37,7 @@ HTTP-to-MCP 作为自定义远程 MCP 保存。远程 MCP 不带 `command` 和 `
 
 | 字段 | 必填 | 说明 |
 |------|------|------|
-| `serverCode` | 是 | 实例内唯一标识，也用于生成 `/mcp-servers/{serverCode}`。 |
+| `serverCode` | 是 | 实例内唯一标识。命令型 MCP 会用它生成 `/mcp-servers/{serverCode}`；远端 URL 只用于展示和 Agent 选择。 |
 | `type` | 是 | 取值为 `sse` 或 `streamable-http`。 |
 | `url` | 是 | AI 网关控制台复制出的 MCP 访问地址。 |
 | `env` | 否 | 额外运行参数。没有参数时传 `{}`。 |
@@ -59,19 +59,19 @@ HTTP-to-MCP 作为自定义远程 MCP 保存。远程 MCP 不带 `command` 和 `
 
 ## 运行时行为
 
-ACS 每个 MCP 条目创建一个 Knative Service，并统一向外暴露 Streamable HTTP。
+ACS 只给本地命令型 MCP 创建 Knative Service，并统一向外暴露 Streamable HTTP。远端自定义 MCP 已经有可连接的 SSE 或 Streamable HTTP 地址，不再由 ACS runtime 包一层。
 
 | `McpConfigJson` 条目 | ACS 启动方式 | 对外路径 |
 |----------------------|--------------|----------|
 | `command=npx` 或 `command=uvx` | `supergateway --stdio ... --outputTransport streamableHttp` | `/mcp-servers/{serverCode}` |
-| 无 `command`，`type=sse` | `supergateway --sse <url> --outputTransport streamableHttp` | `/mcp-servers/{serverCode}` |
-| 无 `command`，`type=streamable-http` | `supergateway --streamableHttp <url> --outputTransport streamableHttp` | `/mcp-servers/{serverCode}` |
+| 无 `command`，有 `url` | 不创建 ACS workload | 使用 `McpConfigJson.url` |
 
-Agent 部署时使用最终可连接的 endpoint。对于 ACS 实例内的 MCP，endpoint 是：
+Agent 部署时使用最终可连接的 endpoint：
 
-```text
-{McpRuntimeEndpoint}/mcp-servers/{serverCode}
-```
+| MCP 形态 | Agent endpoint |
+|----------|----------------|
+| 命令型 MCP | `{McpRuntimeEndpoint}/mcp-servers/{serverCode}` |
+| 远端 URL MCP | `McpConfigJson.url` |
 
 Agent 配置只需要传 transport 和 url：
 
@@ -80,7 +80,7 @@ Agent 配置只需要传 transport 和 url：
   "mcpServers": {
     "order-api": {
       "transport": "streamable-http",
-      "url": "http://alb-example.cn-hangzhou.alb.aliyuncsslb.com/mcp-servers/order-api"
+      "url": "https://example.com/mcp-servers/order-api"
     }
   }
 }
@@ -137,18 +137,19 @@ kubectl -n mcp-runtime get ksvc,route,pod,svc,ingress
 
 | 检查项 | 期望 |
 |--------|------|
-| Knative Service | 每个 MCP 一个 `mcp-{serverCode}`。 |
-| Backend Service | 每个 MCP 一个 `mcp-{serverCode}-backend`，有 endpoints。 |
-| Pod | `2/2 Running`，无 `ImagePullBackOff` 或 `CrashLoopBackOff`。 |
+| Knative Service | 只为有 `command` 的 MCP 创建 `mcp-{serverCode}`。 |
+| Backend Service | 只为有 `command` 的 MCP 创建 `mcp-{serverCode}-backend`，有 endpoints。 |
+| Pod | 命令型 MCP `2/2 Running`，无 `ImagePullBackOff` 或 `CrashLoopBackOff`。 |
+| 远端 URL | 不出现对应 `mcp-{serverCode}` pod。 |
 | 旧组件 | 没有 `mcp-api` workload，没有 `mcpo`。 |
-| 启动参数 | SSE 上游使用 `--sse`，Streamable HTTP 上游使用 `--streamableHttp`。 |
+| 启动参数 | 不出现远端 URL 的 `--sse` 或 `--streamableHttp` 二次包装。 |
 
 ### 4. 验证 MCP 协议
 
-对 ACS 输出 endpoint 发起 Streamable HTTP 初始化请求。
+命令型 MCP 对 ACS 输出 endpoint 发起 Streamable HTTP 初始化请求。远端 URL MCP 直接请求 `McpConfigJson.url`；AI 网关 HTTP-to-MCP 的 Streamable HTTP 地址是 `/mcp-servers/{name}`，SSE 地址是 `/mcp-servers/{name}/sse`。
 
 ```bash
-MCP_URL="http://alb-example.cn-hangzhou.alb.aliyuncsslb.com/mcp-servers/order-api"
+MCP_URL="https://example.com/mcp-servers/order-api"
 
 curl -i -sS -X POST "$MCP_URL" \
   -H "Content-Type: application/json" \
@@ -200,7 +201,7 @@ curl -i -sS -X POST "$MCP_URL" \
 | 检查项 | 期望 |
 |--------|------|
 | transport | `streamable-http`。 |
-| url | 使用最终 MCP endpoint。 |
+| url | 命令型 MCP 用 ACS ALB endpoint；远端 URL MCP 用 `McpConfigJson.url`。 |
 | 内部 ID | 不传 `gatewayId`、`mcpServerId`。 |
 | 调用结果 | Agent 能完成一次 tools 调用。 |
 
@@ -213,7 +214,7 @@ curl -i -sS -X POST "$MCP_URL" \
 | ALB 返回 `503` | 查 Knative Route、Kourier、backend service endpoints。 |
 | `initialize` 成功但 `tools/list` 为空 | 查 AI 网关 HTTP-to-MCP 的 tools 映射。 |
 | 返回 `401` 或 `403` | 查 AI 网关鉴权、请求头、API Key。 |
-| Pod 启动后退出 | 查 `supergateway` 上游参数和 URL 是否匹配 `type`。 |
+| 远端 URL 写入后出现新 pod | ACS 模板过滤失效；远端 URL 不应创建 workload。 |
 
 ## 回归清单
 
@@ -231,7 +232,7 @@ git diff --check
 | 场景 | 必须通过 |
 |------|----------|
 | ACS 新建实例 | `Deployed`。 |
-| ACS 变配 | 新增远程 HTTP-to-MCP 后仍 `Deployed`。 |
-| SSE 上游 | `initialize` 和 `tools/list` 通过。 |
-| Streamable HTTP 上游 | `initialize` 和 `tools/list` 通过。 |
+| ACS 变配 | 新增远程 HTTP-to-MCP 后仍 `Deployed`，且不新增远端 URL pod。 |
+| SSE 地址 | 直接请求 AI 网关 SSE endpoint 能建立会话。 |
+| Streamable HTTP 地址 | 直接请求 AI 网关 Streamable HTTP endpoint 的 `initialize` 和 `tools/list` 通过。 |
 | Agent 部署 | 只传 MCP endpoint，并能调用 tools。 |

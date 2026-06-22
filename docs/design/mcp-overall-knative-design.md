@@ -12,7 +12,7 @@ MCP 配置模型不变。AI 网关里创建出来的 HTTP-to-MCP，本质上是�
 
 | # | Requirement | Decision |
 |---|-------------|----------|
-| 1 | ACS Runtime | 每个 MCP 用一个 Knative Serving Service 承载。 |
+| 1 | ACS Runtime | 本地命令型 MCP 用 Knative Serving Service 承载；远端 URL 不创建 workload。 |
 | 2 | 配置字段 | 只使用 `McpConfigJson`，不新增顶层参数。 |
 | 3 | AI 网关 HTTP-to-MCP | 按自定义 MCP URL 使用，不做单独导入界面。 |
 | 4 | 前端展示 | 继续展示公共 MCP 和自定义 MCP；不新增第三个 tab。 |
@@ -46,7 +46,7 @@ MCP 配置模型不变。AI 网关里创建出来的 HTTP-to-MCP，本质上是�
 | 配置 MCP | 前端通过现有服务实例变配写回完整 `McpConfigJson`。 |
 | 查询展示 | 前端读取服务实例详情里的 `McpConfigJson`，按现有公共 MCP / 自定义 MCP 逻辑展示。 |
 | AI 网关 HTTP-to-MCP | 前端不调用 APIG `ListMcpServers` / `GetMcpServer`，不拉 AI 网关列表。 |
-| Agent 部署 | 后端把用户选择的 MCP 转成 `transport + url` 下发给 Agent。 |
+| Agent 部署 | 后端把用户选择的 MCP 转成 `transport + url` 下发给 Agent；远端 URL 直接使用 `McpConfigJson.url`。 |
 
 Agent 配置示例：
 
@@ -111,8 +111,8 @@ AI 网关控制台创建 HTTP-to-MCP
   -> 复制 MCP URL
   -> 计算巢自定义 MCP 填 URL
   -> 写入 McpConfigJson
-  -> ACS 按 McpConfigJson 创建 Knative Service
-  -> Agent 部署时拿到 transport + url
+  -> ACS 不为远端 URL 创建 workload
+  -> Agent 部署时拿到原始 transport + url
 ```
 
 ---
@@ -125,5 +125,5 @@ AI 网关控制台创建 HTTP-to-MCP
 | 配置 MCP 弹窗 | 不出现 AI 网关接入 tab。 |
 | 模板参数 | 不出现独立纳管参数。 |
 | AI 网关 HTTP-to-MCP | 作为自定义 MCP URL 使用。 |
-| ACS Runtime | 每个 MCP 独立创建 Knative Serving Service。 |
+| ACS Runtime | 命令型 MCP 独立创建 Knative Serving Service；远端 URL 不创建 pod。 |
 | Agent 部署 | 只接收可连接 MCP endpoint。 |

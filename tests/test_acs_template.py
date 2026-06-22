@@ -205,7 +205,7 @@ def test_acs_template_contains_runtime_gateway_and_registration_resources():
     assert "kind: Deployment" not in workload_yaml
     assert "autoscaling.knative.dev/min-scale" in workload_yaml
     assert "autoscaling.knative.dev/max-scale" in workload_yaml
-    assert "networking.knative.dev/visibility: cluster-local" in workload_yaml
+    assert "networking.knative.dev/visibility: cluster-local" in template_text
     assert "app: mcp-server-backend" in workload_yaml
     assert "serving.knative.dev/service: mcp-" in workload_yaml
     assert "containerPort:" in workload_yaml
@@ -221,13 +221,13 @@ def test_acs_template_contains_runtime_gateway_and_registration_resources():
     assert "McpApiEndpointHint" not in outputs
 
 
-def test_acs_template_supports_remote_mcp_url_transport_types():
+def test_acs_template_keeps_remote_mcp_urls_out_of_runtime_workloads():
     template_text = ACS_TEMPLATE_PATH.read_text(encoding="utf-8")
 
-    assert "def remote_input_arg" in template_text
-    assert 'if $type == "streamable-http" or $type == "streamablehttp" then "--streamableHttp" else "--sse" end' in template_text
-    assert '"exec supergateway " + remote_input_arg' in template_text
-    assert "remote_command($name)" in template_text
+    assert "def remote_input_arg" not in template_text
+    assert "remote_command($name)" not in template_text
+    assert template_text.count("map(select(.command != null))") >= 2
+    assert '"exec supergateway --stdio \\"" + stdio_command' in template_text
 
 
 def test_acs_runtime_image_installs_supergateway_without_changing_ecs_dockerfile():

@@ -769,15 +769,10 @@ Resources:
               (.serverCode | ascii_downcase | gsub("[^a-z0-9-]"; "-") | gsub("-+"; "-") | sub("^-"; "") | sub("-$"; ""));
             def streamable_args($name):
               " --outputTransport streamableHttp --port 8080 --streamableHttpPath /mcp-servers/" + $name + " --healthEndpoint /healthz";
-            def remote_input_arg:
-              ((.type // "") | ascii_downcase | gsub("_"; "-")) as $type |
-              if $type == "streamable-http" or $type == "streamablehttp" then "--streamableHttp" else "--sse" end;
-            def remote_command($name):
-              "exec supergateway " + remote_input_arg + " \"" + (.url // "") + "\"" + streamable_args($name);
+            def stdio_command:
+              ([.command] + (.args // [])) | map(tostring) | join(" ");
             def shell_command($name):
-              if .command == null then
-                remote_command($name)
-              elif .command == "npx" and (.pkgType == "private") then
+              if .command == "npx" and (.pkgType == "private") then
                 "exec supergateway --stdio \"npx " + ((.args // []) | map(if startswith("/mcp-package/") then "/mcp-package/" + (. | ltrimstr("/mcp-package/") | rtrimstr(".zip")) else . end) | join(" ")) + "\"" + streamable_args($name)
               elif .command == "npx" then
                 "exec supergateway --stdio \"npx -y " + ((.args // []) | join(" ")) + "\"" + streamable_args($name)
@@ -786,7 +781,7 @@ Resources:
               elif .command == "uvx" then
                 "exec supergateway --stdio \"uvx " + ((.args // []) | join(" ")) + "\"" + streamable_args($name)
               else
-                remote_command($name)
+                "exec supergateway --stdio \"" + stdio_command + "\"" + streamable_args($name)
               end;
             def env_lines:
               if (.env | type) == "object" and ((.env | length) > 0) then
@@ -796,6 +791,7 @@ Resources:
               end;
             . as $root |
             $root.servers |
+            map(select(.command != null)) |
             map(
               name as $name |
               "---\n" +
@@ -916,6 +912,7 @@ Resources:
                 - |
                   def name:
                     (.serverCode | ascii_downcase | gsub("[^a-z0-9-]"; "-") | gsub("-+"; "-") | sub("^-"; "") | sub("-$"; ""));
+                  map(select(.command != null)) |
                   map(
                     name as $name |
                     "                      - path: /mcp-servers/" + $name + "\n" +
