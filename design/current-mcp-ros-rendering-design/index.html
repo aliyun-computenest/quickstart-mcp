@@ -1,0 +1,563 @@
+<!DOCTYPE html>
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="x-ua-compatible" content="ie=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+  <meta name="description" content="计算巢是阿里云开放给企业应用服务商的服务管理平台。服务商能够在计算巢上发布私有化部署服务，为其客户提供云上软件一键部署的能力；同时也支持全托管模式的服务，赋能服务商托管其客户资源。">
+  <title>Current mcp ros rendering design - Aliyun 计算巢 x Demo</title>
+
+  <link rel="shortcut icon" href="../../img/favicon.ico">
+
+  <link rel="stylesheet" href="https://unpkg.com/purecss@1.0.0/build/pure-min.css">
+  <link rel="stylesheet" href="../../css/theme.css">
+  
+
+  
+
+  
+  
+
+  
+    <script src="../../search/main.js"></script>
+  
+
+  
+
+  <script src="../../js/highlight.min.js"></script>
+  <script>hljs.highlightAll();</script>
+</head>
+
+<body>
+  <div class="container">
+    <div class="nav">
+      <div class="nav-inner">
+        <div class="logo">
+          <img src="./img/logo-2x.png">
+        </div>
+        <div class="nav-list">
+          <ul>
+          
+              <li><a href="#mcp-ros">MCP 市场当前界面与 ROS 模板渲染设计文档</a></li>
+              
+                  <li><a href="#1-feature-background">1. Feature Background</a></li>
+                  
+              
+                  <li><a href="#2-requirements-overview">2. Requirements Overview</a></li>
+                  
+              
+                  <li><a href="#3-database-design">3. Database Design</a></li>
+                  
+              
+                  <li><a href="#4-api-design">4. API Design</a></li>
+                  
+              
+                  <li><a href="#5-environment-variables">5. Environment Variables</a></li>
+                  
+              
+                  <li><a href="#core-flow-design">Core Flow Design</a></li>
+                  
+                      <li class="li-h3"><a href="#flow">Flow: 创建服务实例</a></li>
+                  
+                      <li class="li-h3"><a href="#flow-mcp">Flow: 修改已部署 MCP</a></li>
+                  
+                      <li class="li-h3"><a href="#flow_1">Flow: 公网与内网访问</a></li>
+                  
+              
+                  <li><a href="#6-interaction-design">6. Interaction Design</a></li>
+                  
+                      <li class="li-h3"><a href="#61-page-structure-changes">6.1 Page Structure Changes</a></li>
+                  
+                      <li class="li-h3"><a href="#62-mcp">6.2 MCP 配置区</a></li>
+                  
+                      <li class="li-h3"><a href="#63">6.3 资源与套餐配置区</a></li>
+                  
+                      <li class="li-h3"><a href="#64">6.4 网络与存储配置区</a></li>
+                  
+                      <li class="li-h3"><a href="#65">6.5 部署后结果区</a></li>
+                  
+              
+                  <li><a href="#verification-points">Verification Points</a></li>
+                  
+              
+          
+          </ul>
+        </div>
+      </div>
+    </div>
+    <div class="content theme-github">
+      
+      <div class="content-inner">        
+        
+        <h2 id="mcp-ros">MCP 市场当前界面与 ROS 模板渲染设计文档</h2>
+<h3 id="1-feature-background">1. Feature Background</h3>
+<p>当前 MCP 市场页面承担两个职责：一是让用户在市场中发现、筛选、选择公共或自定义 MCP；二是把用户选择转换成计算巢服务实例部署或变更所需的 ROS 参数。页面本身不是完全独立的前端表单，核心部署区域由 ROS 模板参数和计算巢控制台的模板渲染能力共同决定。</p>
+<p>当前 ECS 单机版模板的主契约是 <code>McpConfigJson</code>。MCP 市场侧负责产出用户选择的 MCP 列表、运行命令、参数、环境变量、图标和包信息；ROS 模板侧负责把这些信息转换成实例上的运行配置，并在服务实例创建或变更时完成 ECS、网络、OSS、认证和控制台地址输出。</p>
+<p>本设计文档描述当前界面如何与 ROS 模板协同渲染，以及 UI 在创建服务实例、修改已部署 MCP、访问控制台地址时应遵守的参数边界。目标是先把现状讲清楚，为后续 UI 重构和网关化调整提供稳定依据。</p>
+<hr />
+<h3 id="2-requirements-overview">2. Requirements Overview</h3>
+<table>
+<thead>
+<tr>
+<th style="text-align: center;">#</th>
+<th>Requirement</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: center;">1</td>
+<td>MCP 选择契约</td>
+<td>MCP 市场选择结果统一序列化到 <code>McpConfigJson</code>，作为创建和修改 MCP 工具的唯一主参数。</td>
+</tr>
+<tr>
+<td style="text-align: center;">2</td>
+<td>ROS 参数渲染</td>
+<td>下单页根据 ROS 参数定义、可见性条件、参数分组和预置套餐渲染部署表单。</td>
+</tr>
+<tr>
+<td style="text-align: center;">3</td>
+<td>自定义 MCP 支持</td>
+<td>自定义 MCP 与公共 MCP 使用同一配置数组，但自定义项需要携带命令、地址、环境变量、包路径等用户配置。</td>
+</tr>
+<tr>
+<td style="text-align: center;">4</td>
+<td>修改已部署 MCP</td>
+<td>服务实例变更操作只暴露 <code>McpConfigJson</code>，用于替换当前实例的 MCP 工具列表。</td>
+</tr>
+<tr>
+<td style="text-align: center;">5</td>
+<td>资源套餐选择</td>
+<td>预置套餐影响付费类型、ECS 规格、公网带宽和购买时长，并作为成本估算的输入。</td>
+</tr>
+<tr>
+<td style="text-align: center;">6</td>
+<td>网络与访问控制</td>
+<td>VPC、安全组、公网访问和认证开关共同决定实例是否生成公网访问地址、内网访问地址和 API Key。</td>
+</tr>
+<tr>
+<td style="text-align: center;">7</td>
+<td>部署后输出</td>
+<td>部署完成后输出 MCP 总览控制台、调试控制台、API Key 和 ECS 初始密码，其中敏感项按隐藏输出处理。</td>
+</tr>
+<tr>
+<td style="text-align: center;">8</td>
+<td>内网代理访问</td>
+<td>当关闭公网访问时，内网控制台地址需要依赖计算巢 Web Proxy 能力让用户可达。</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h3 id="3-database-design">3. Database Design</h3>
+<p>无变更。</p>
+<p>当前设计不引入新的业务数据库。MCP 选择状态在创建或变更服务实例时作为 ROS 参数传入；服务实例的运行结果、输出地址和敏感输出由计算巢与 ROS 资源栈管理。</p>
+<hr />
+<h3 id="4-api-design">4. API Design</h3>
+<p>无新增业务 API。</p>
+<p>当前界面复用计算巢服务实例创建和服务实例变更能力，前端与模板之间的核心数据契约是 ROS 参数载荷。<code>McpConfigJson</code> 的逻辑结构如下：</p>
+<pre><code class="language-json">[
+  {
+    &quot;serverCode&quot;: &quot;github&quot;,
+    &quot;command&quot;: &quot;npx&quot;,
+    &quot;args&quot;: [&quot;-y&quot;, &quot;@modelcontextprotocol/server-github&quot;],
+    &quot;env&quot;: {
+      &quot;GITHUB_PERSONAL_ACCESS_TOKEN&quot;: &quot;credential-or-user-value&quot;
+    },
+    &quot;type&quot;: &quot;stdio&quot;,
+    &quot;url&quot;: &quot;&quot;,
+    &quot;packageOssPath&quot;: &quot;&quot;,
+    &quot;icon&quot;: &quot;https://example.com/icon.png&quot;
+  }
+]
+</code></pre>
+<p>Behavior:</p>
+<table>
+<thead>
+<tr>
+<th>Operation</th>
+<th>Input</th>
+<th>Semantics</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>创建服务实例</td>
+<td>完整 ROS 参数集</td>
+<td>按模板创建 ECS、OSS、网络、安全组和 MCP 运行环境。</td>
+</tr>
+<tr>
+<td>修改 MCP 工具</td>
+<td><code>McpConfigJson</code></td>
+<td>覆盖当前实例的 MCP 工具列表，不做增量合并。</td>
+</tr>
+<tr>
+<td>预置套餐选择</td>
+<td>套餐内参数</td>
+<td>回填付费类型、ECS 规格、公网带宽和购买时长。</td>
+</tr>
+</tbody>
+</table>
+<p>字段说明：</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th style="text-align: center;">Required</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>serverCode</code></td>
+<td>string</td>
+<td style="text-align: center;">Yes</td>
+<td>MCP 唯一标识，也是运行配置中的 key。</td>
+</tr>
+<tr>
+<td><code>command</code></td>
+<td>string</td>
+<td style="text-align: center;">Conditional</td>
+<td>stdio 类 MCP 的启动命令，如 <code>npx</code> 或 <code>uvx</code>。</td>
+</tr>
+<tr>
+<td><code>args</code></td>
+<td>string[]</td>
+<td style="text-align: center;">Conditional</td>
+<td>stdio 类 MCP 的启动参数。</td>
+</tr>
+<tr>
+<td><code>env</code></td>
+<td>object</td>
+<td style="text-align: center;">No</td>
+<td>MCP 运行所需环境变量。</td>
+</tr>
+<tr>
+<td><code>type</code></td>
+<td>string</td>
+<td style="text-align: center;">Yes</td>
+<td>MCP 类型或连接方式，用于区分 stdio、SSE、HTTP 等运行形态。</td>
+</tr>
+<tr>
+<td><code>url</code></td>
+<td>string</td>
+<td style="text-align: center;">Conditional</td>
+<td>远程 MCP 的连接地址。</td>
+</tr>
+<tr>
+<td><code>packageOssPath</code></td>
+<td>string</td>
+<td style="text-align: center;">Conditional</td>
+<td>自定义私有包在 OSS 中的路径。</td>
+</tr>
+<tr>
+<td><code>icon</code></td>
+<td>string</td>
+<td style="text-align: center;">No</td>
+<td>市场和控制台展示图标。</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h3 id="5-environment-variables">5. Environment Variables</h3>
+<p>无新增平台环境变量。</p>
+<p>MCP 运行变量由用户在 MCP 配置中填写，并存放在 <code>McpConfigJson.env</code> 内。模板会把每个 MCP 的环境变量写入实例侧运行配置，平台本身不新增统一环境变量。</p>
+<table>
+<thead>
+<tr>
+<th>Variable</th>
+<th>Purpose</th>
+<th>Example</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>MCP-specific env</td>
+<td>单个 MCP Server 运行所需凭据或配置</td>
+<td><code>GITHUB_PERSONAL_ACCESS_TOKEN</code></td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h3 id="core-flow-design">Core Flow Design</h3>
+<h4 id="flow">Flow: 创建服务实例</h4>
+<pre><code>用户进入 MCP 市场
+        │
+        ▼
+选择公共 MCP 或创建自定义 MCP
+        │
+        ▼
+市场侧生成 McpConfigJson
+        │
+        ▼
+进入计算巢服务实例创建页
+        │
+        ├── 选择预置套餐 → 回填付费、规格、带宽和时长
+        │
+        └── 自定义配置 → 用户逐项填写 ROS 参数
+                │
+                ▼
+ROS 创建资源栈
+        │
+        ▼
+ECS 启动脚本写入 MCP 运行配置并启动服务
+        │
+        ▼
+输出 MCP 总览控制台、调试控制台和 API Key
+</code></pre>
+<h4 id="flow-mcp">Flow: 修改已部署 MCP</h4>
+<pre><code>用户从服务实例操作进入 Modify-MCP-Servers
+        │
+        ▼
+界面只展示 MCP 工具配置参数
+        │
+        ▼
+用户调整 MCP 列表和运行参数
+        │
+        ▼
+提交新的 McpConfigJson
+        │
+        ▼
+实例侧按新配置覆盖当前 MCP 列表
+</code></pre>
+<h4 id="flow_1">Flow: 公网与内网访问</h4>
+<pre><code>用户选择公网访问开关
+        │
+        ├── 开启公网访问
+        │       └── ECS 分配公网带宽，输出公网控制台和调试地址
+        │
+        └── 关闭公网访问
+                └── ECS 不分配公网带宽，输出内网地址并通过 Web Proxy 访问
+</code></pre>
+<hr />
+<h3 id="6-interaction-design">6. Interaction Design</h3>
+<h4 id="61-page-structure-changes">6.1 Page Structure Changes</h4>
+<p>当前页面结构应理解为“市场页 + 计算巢模板页”的组合，而不是单一前端页面：</p>
+<pre><code>MCP 市场
+├── 搜索与分类
+├── 公共 MCP 列表
+├── 自定义 MCP 创建入口
+├── MCP 运行参数配置
+└── 部署入口
+    ├── 创建新服务实例
+    └── 修改已有服务实例 MCP 工具
+
+计算巢服务实例创建页
+├── Mcp 配置
+│   ├── McpConfigJson
+│   └── 是否开启认证
+├── OSS 存储配置
+├── 付费类型配置
+├── 资源配置
+└── 可用区配置
+</code></pre>
+<h4 id="62-mcp">6.2 MCP 配置区</h4>
+<p><strong>Elements:</strong></p>
+<ul>
+<li><strong>MCP 选择器</strong>: 由 <code>ALIYUN::MCP::Server::Server</code> 参数渲染，展示 MCP 列表、标签和已选数量。</li>
+<li><strong>公共 MCP 卡片</strong>: 用户只能配置运行参数和凭据，不修改平台维护的服务定义。</li>
+<li><strong>自定义 MCP 表单</strong>: 用户填写名称、ID、安装方式、命令或 URL、环境变量、包路径和图标。</li>
+<li><strong>认证开关</strong>: 控制是否生成 API Key，以及实例初始化时是否开启鉴权。</li>
+</ul>
+<p><strong>Validation rules:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Rule</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>serverCode</code></td>
+<td>同一服务实例内必须唯一。</td>
+</tr>
+<tr>
+<td><code>command</code> / <code>args</code></td>
+<td>stdio 类 MCP 必填，参数保持数组结构。</td>
+</tr>
+<tr>
+<td><code>url</code></td>
+<td>SSE 或 HTTP 类 MCP 必填，需为可访问地址。</td>
+</tr>
+<tr>
+<td><code>env</code></td>
+<td>key 不能为空；涉及凭据时应避免明文暴露在非敏感展示区域。</td>
+</tr>
+<tr>
+<td><code>packageOssPath</code></td>
+<td>私有包类 MCP 必填，且依赖 OSS 访问权限。</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Mockup:</strong> see <code>mcp-market-redesign.html</code></p>
+<h4 id="63">6.3 资源与套餐配置区</h4>
+<p><strong>Elements:</strong></p>
+<ul>
+<li><strong>预置套餐</strong>: 回填付费类型、ECS 规格、公网带宽和购买时长。</li>
+<li><strong>付费类型</strong>: 按量付费时隐藏购买周期和购买时长；包年包月时展示对应字段。</li>
+<li><strong>ECS 规格</strong>: 与付费类型、可用区联动，作为成本和实例能力的核心参数。</li>
+<li><strong>公网带宽</strong>: 在开启公网访问时生效。</li>
+</ul>
+<p><strong>Validation rules:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Rule</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>PayType</code></td>
+<td>只能为按量付费或包年包月。</td>
+</tr>
+<tr>
+<td><code>PayPeriodUnit</code> / <code>PayPeriod</code></td>
+<td>仅包年包月时需要填写。</td>
+</tr>
+<tr>
+<td><code>EcsInstanceType</code></td>
+<td>必须是当前可用区和付费类型下可售规格。</td>
+</tr>
+<tr>
+<td><code>InternetMaxBandwidthOut</code></td>
+<td>开启公网访问时必须在模板允许范围内。</td>
+</tr>
+</tbody>
+</table>
+<h4 id="64">6.4 网络与存储配置区</h4>
+<p><strong>Elements:</strong></p>
+<ul>
+<li><strong>VPC 选择</strong>: 支持新建 VPC 或使用已有 VPC。</li>
+<li><strong>交换机选择</strong>: 使用已有 VPC 时按 VPC 和可用区筛选交换机。</li>
+<li><strong>安全组选择</strong>: 使用已有 VPC 时支持新建或选择已有安全组。</li>
+<li><strong>OSS 选择</strong>: 支持新建 OSS Bucket 或选择已有 Bucket，用于存储企业内部 MCP Package。</li>
+<li><strong>公网访问开关</strong>: 在已有 VPC 且已有安全组场景下展示。</li>
+</ul>
+<p><strong>Validation rules:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Rule</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>VpcCidrBlock</code></td>
+<td>新建 VPC 时必填，必须为合法私网 CIDR。</td>
+</tr>
+<tr>
+<td><code>VSwitchCidrBlock</code></td>
+<td>新建 VPC 时必填，必须属于 VPC CIDR。</td>
+</tr>
+<tr>
+<td><code>VpcId</code></td>
+<td>使用已有 VPC 时必填。</td>
+</tr>
+<tr>
+<td><code>VSwitchId</code></td>
+<td>使用已有 VPC 时必填，并受 <code>VpcId</code> 和 <code>ZoneId</code> 约束。</td>
+</tr>
+<tr>
+<td><code>SecurityGroupId</code></td>
+<td>使用已有安全组时必填。</td>
+</tr>
+<tr>
+<td><code>BucketName</code></td>
+<td>使用已有 OSS Bucket 时必填。</td>
+</tr>
+</tbody>
+</table>
+<h4 id="65">6.5 部署后结果区</h4>
+<p><strong>Elements:</strong></p>
+<ul>
+<li><strong>MCP Server 总览控制台</strong>: 公网访问开启时展示公网地址，关闭时展示内网地址并通过 Web Proxy 访问。</li>
+<li><strong>MCP Server 调试控制台</strong>: 公网访问开启时展示公网调试地址，关闭时展示内网调试地址并通过 Web Proxy 访问。</li>
+<li><strong>API Key</strong>: 仅开启认证时展示，按敏感输出处理。</li>
+<li><strong>ECS 初始密码</strong>: 按敏感输出处理，仅用于必要的实例运维。</li>
+</ul>
+<p><strong>Validation rules:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Rule</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>控制台地址</td>
+<td>根据公网访问开关只展示对应地址，避免同时暴露公网和内网入口。</td>
+</tr>
+<tr>
+<td>API Key</td>
+<td>仅认证开启时生成和展示。</td>
+</tr>
+<tr>
+<td>内网地址</td>
+<td>需要配置 Web Proxy，否则用户无法从 Console 直接访问。</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h3 id="verification-points">Verification Points</h3>
+<table>
+<thead>
+<tr>
+<th>Scenario</th>
+<th>Expected Behavior</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>用户未选择任何 MCP</td>
+<td>页面应阻止创建或给出明确提示，避免生成空运行配置。</td>
+</tr>
+<tr>
+<td>公共 MCP 需要凭据但未填写</td>
+<td>页面应阻止提交，并定位到缺失的环境变量。</td>
+</tr>
+<tr>
+<td>自定义 MCP ID 与已有项重复</td>
+<td>页面应阻止保存，提示同一实例内 ID 必须唯一。</td>
+</tr>
+<tr>
+<td>关闭公网访问</td>
+<td>不分配公网带宽，只展示内网控制台和内网调试地址。</td>
+</tr>
+<tr>
+<td>开启认证</td>
+<td>部署后输出 API Key，实例侧调用调试接口需要携带鉴权信息。</td>
+</tr>
+<tr>
+<td>使用已有 OSS Bucket</td>
+<td>页面应提示需要确保实例角色具备访问 Bucket 的权限。</td>
+</tr>
+<tr>
+<td>修改 MCP 工具</td>
+<td>提交的新 <code>McpConfigJson</code> 覆盖当前列表，确认页应让用户看到移除和新增项。</td>
+</tr>
+<tr>
+<td>元数据引用不存在参数</td>
+<td>参数分组中存在但模板未定义的字段不应渲染成异常表单项；正式发布前应清理。</td>
+</tr>
+<tr>
+<td>预置套餐名称不完整</td>
+<td>套餐名称应完整展示，避免影响用户理解套餐适用范围。</td>
+</tr>
+</tbody>
+</table>
+        
+      </div>
+
+      <div class="copyrights">© 2009-2022 Aliyun.com 版权所有</div>
+    </div>
+  </div>
+  
+  <!--
+  MkDocs version      : 1.6.1
+  Docs Build Date UTC : 2026-06-22 12:59:31.315196+00:00
+  -->
+</body>
+</html>

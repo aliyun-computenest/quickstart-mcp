@@ -1,0 +1,566 @@
+<!DOCTYPE html>
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="x-ua-compatible" content="ie=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+  <meta name="description" content="计算巢是阿里云开放给企业应用服务商的服务管理平台。服务商能够在计算巢上发布私有化部署服务，为其客户提供云上软件一键部署的能力；同时也支持全托管模式的服务，赋能服务商托管其客户资源。">
+  <title>HTTP-to-MCP 自定义 MCP 接入与测试 - Aliyun 计算巢 x Demo</title>
+
+  <link rel="shortcut icon" href="../../img/favicon.ico">
+
+  <link rel="stylesheet" href="https://unpkg.com/purecss@1.0.0/build/pure-min.css">
+  <link rel="stylesheet" href="../../css/theme.css">
+  
+
+  
+
+  
+  
+
+  
+    <script src="../../search/main.js"></script>
+  
+
+  
+
+  <script src="../../js/highlight.min.js"></script>
+  <script>hljs.highlightAll();</script>
+</head>
+
+<body>
+  <div class="container">
+    <div class="nav">
+      <div class="nav-inner">
+        <div class="logo">
+          <img src="./img/logo-2x.png">
+        </div>
+        <div class="nav-list">
+          <ul>
+          
+              <li><a href="#http-to-mcp-mcp">HTTP-to-MCP 自定义 MCP 接入与测试</a></li>
+              
+                  <li><a href="#_1">范围</a></li>
+                  
+              
+                  <li><a href="#_2">配置契约</a></li>
+                  
+              
+                  <li><a href="#_3">前端展示</a></li>
+                  
+              
+                  <li><a href="#_4">运行时行为</a></li>
+                  
+              
+                  <li><a href="#_5">测试步骤</a></li>
+                  
+                      <li class="li-h3"><a href="#1-ai-http-to-mcp">1. 验证 AI 网关 HTTP-to-MCP</a></li>
+                  
+                      <li class="li-h3"><a href="#2-mcp">2. 写入计算巢自定义 MCP</a></li>
+                  
+                      <li class="li-h3"><a href="#3-acs">3. 验证 ACS 实例</a></li>
+                  
+                      <li class="li-h3"><a href="#4-mcp">4. 验证 MCP 协议</a></li>
+                  
+                      <li class="li-h3"><a href="#5-agent">5. 验证 Agent 部署</a></li>
+                  
+              
+                  <li><a href="#_6">排查</a></li>
+                  
+              
+                  <li><a href="#_7">回归清单</a></li>
+                  
+              
+          
+          </ul>
+        </div>
+      </div>
+    </div>
+    <div class="content theme-github">
+      
+      <div class="content-inner">        
+        
+        <h1 id="http-to-mcp-mcp">HTTP-to-MCP 自定义 MCP 接入与测试</h1>
+<p>这份文档说明怎么把 AI 网关创建的 HTTP-to-MCP 服务接入 quickstart-mcp。结论是：不新增计算巢入口，不新增参数；把 AI 网关生成的 MCP 访问地址当作自定义 MCP 写入 <code>McpConfigJson</code>，前端展示和 Agent 下发直接使用该地址。</p>
+<h2 id="_1">范围</h2>
+<p>这里测试的是 AI 网关 HTTP API 转 MCP 后，接入计算巢 MCP 实例的链路。</p>
+<table>
+<thead>
+<tr>
+<th>项目</th>
+<th>处理方式</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>配置入口</td>
+<td>复用自定义 MCP，不新增“AI 网关接入”页签。</td>
+</tr>
+<tr>
+<td>存储字段</td>
+<td>只写 <code>McpConfigJson</code>，不新增 <code>ManagedMcpConfigJson</code>。</td>
+</tr>
+<tr>
+<td>前端查询</td>
+<td>普通自定义 URL 不查 APIG；带 <code>mcpServerId</code> 的 AI 网关来源可调用 APIG <code>GetMcpServer</code> 拿实时详情。</td>
+</tr>
+<tr>
+<td>运行时</td>
+<td>ACS 只为本地命令型 MCP 创建 Knative Service；远端 URL 不创建 ACS workload。</td>
+</tr>
+<tr>
+<td>Agent 部署</td>
+<td>传最终 MCP endpoint；<code>mcpServerId</code> 只用于部署前查询 APIG，不下发给 Agent。</td>
+</tr>
+</tbody>
+</table>
+<h2 id="_2">配置契约</h2>
+<p>HTTP-to-MCP 作为自定义远程 MCP 保存。远程 MCP 不带 <code>command</code> 和 <code>args</code>。</p>
+<pre><code class="language-json">[
+  {
+    &quot;serverCode&quot;: &quot;order-api&quot;,
+    &quot;type&quot;: &quot;streamable-http&quot;,
+    &quot;mcpServerId&quot;: &quot;mcp-xxxx&quot;,
+    &quot;env&quot;: {}
+  },
+  {
+    &quot;serverCode&quot;: &quot;crm-api&quot;,
+    &quot;type&quot;: &quot;sse&quot;,
+    &quot;url&quot;: &quot;https://example.com/mcp-servers/crm-api/sse&quot;,
+    &quot;env&quot;: {}
+  }
+]
+</code></pre>
+<table>
+<thead>
+<tr>
+<th>字段</th>
+<th>必填</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>serverCode</code></td>
+<td>是</td>
+<td>实例内唯一标识。命令型 MCP 会用它生成 <code>/mcp-servers/{serverCode}</code>；远端 URL 只用于展示和 Agent 选择。</td>
+</tr>
+<tr>
+<td><code>type</code></td>
+<td>是</td>
+<td>取值为 <code>sse</code> 或 <code>streamable-http</code>。</td>
+</tr>
+<tr>
+<td><code>mcpServerId</code></td>
+<td>否</td>
+<td>AI 网关 MCP Server ID。通过 AI 网关来源添加时保存；纯手填 URL 不需要。</td>
+</tr>
+<tr>
+<td><code>url</code></td>
+<td>否</td>
+<td>纯手填远端 MCP 的访问地址，也可作为 APIG 查询失败时的兜底地址。</td>
+</tr>
+<tr>
+<td><code>env</code></td>
+<td>否</td>
+<td>额外运行参数。没有参数时传 <code>{}</code>。</td>
+</tr>
+</tbody>
+</table>
+<p>不要把 <code>gatewayId</code>、<code>name</code>、<code>displayName</code>、<code>mcpServerPath</code>、图标、tools 快照写进该条目。名称、tools、路径归 AI 网关控制台管理；需要展示或部署时用 <code>mcpServerId</code> 调 APIG 获取实时结果。</p>
+<h2 id="_3">前端展示</h2>
+<p>前端继续读取服务实例详情里的 <code>Parameters.McpConfigJson</code>。展示时按条目字段判断类型。</p>
+<table>
+<thead>
+<tr>
+<th>条目形态</th>
+<th>展示方式</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>有 <code>command</code></td>
+<td>按公共 MCP 或包类型自定义 MCP 展示。</td>
+</tr>
+<tr>
+<td>无 <code>command</code>，有 <code>mcpServerId</code></td>
+<td>按 AI 网关来源的远程自定义 MCP 展示；详情来自 APIG <code>GetMcpServer</code>。</td>
+</tr>
+<tr>
+<td>无 <code>command</code>，有 <code>url</code></td>
+<td>按普通远程自定义 MCP 展示。</td>
+</tr>
+<tr>
+<td><code>type=sse</code></td>
+<td>展示连接方式为 SSE。</td>
+</tr>
+<tr>
+<td><code>type=streamable-http</code></td>
+<td>展示连接方式为 Streamable HTTP。</td>
+</tr>
+</tbody>
+</table>
+<p>修改 MCP 时，前端仍通过现有服务实例变配写回完整 <code>McpConfigJson</code>。不要做增量 patch，也不要额外调用 APIG 查询可导入列表。</p>
+<h2 id="_4">运行时行为</h2>
+<p>ACS 只给本地命令型 MCP 创建 Knative Service，并统一向外暴露 Streamable HTTP。远端自定义 MCP 已经有可连接的 SSE 或 Streamable HTTP 地址，不再由 ACS runtime 包一层。</p>
+<table>
+<thead>
+<tr>
+<th><code>McpConfigJson</code> 条目</th>
+<th>ACS 启动方式</th>
+<th>对外路径</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>command=npx</code> 或 <code>command=uvx</code></td>
+<td><code>supergateway --stdio ... --outputTransport streamableHttp</code></td>
+<td><code>/mcp-servers/{serverCode}</code></td>
+</tr>
+<tr>
+<td>无 <code>command</code>，有 <code>mcpServerId</code> 或 <code>url</code></td>
+<td>不创建 ACS workload</td>
+<td>Agent 部署时解析最终 URL</td>
+</tr>
+</tbody>
+</table>
+<p>Agent 部署时使用最终可连接的 endpoint：</p>
+<table>
+<thead>
+<tr>
+<th>MCP 形态</th>
+<th>Agent endpoint</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>命令型 MCP</td>
+<td><code>{McpRuntimeEndpoint}/mcp-servers/{serverCode}</code></td>
+</tr>
+<tr>
+<td>AI 网关来源 MCP</td>
+<td>调 APIG <code>GetMcpServer(mcpServerId)</code> 后生成 URL。</td>
+</tr>
+<tr>
+<td>普通远端 URL MCP</td>
+<td><code>McpConfigJson.url</code>。</td>
+</tr>
+</tbody>
+</table>
+<p>AI 网关来源 MCP 的部署解析规则：</p>
+<table>
+<thead>
+<tr>
+<th>Step</th>
+<th>Rule</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>用 <code>mcpServerId</code> 调 APIG <code>GetMcpServer</code>。</td>
+</tr>
+<tr>
+<td>2</td>
+<td>只接受 <code>deployStatus=Deployed</code> 的 MCP Server。</td>
+</tr>
+<tr>
+<td>3</td>
+<td>从 <code>domainInfos</code> 选一个可访问域名，协议用返回的 <code>HTTP</code> 或 <code>HTTPS</code>。</td>
+</tr>
+<tr>
+<td>4</td>
+<td><code>type=streamable-http</code> 时 URL 为 <code>{scheme}://{domain}{mcpServerPath}</code>。</td>
+</tr>
+<tr>
+<td>5</td>
+<td><code>type=sse</code> 时 URL 为 <code>{scheme}://{domain}{mcpServerPath}/sse</code>。</td>
+</tr>
+<tr>
+<td>6</td>
+<td>如果 APIG 查询失败且条目里有 <code>url</code>，可降级使用该 <code>url</code>；否则阻止部署并提示用户刷新 MCP。</td>
+</tr>
+</tbody>
+</table>
+<p>Agent 配置只需要传 transport 和 url：</p>
+<pre><code class="language-json">{
+  &quot;mcpServers&quot;: {
+    &quot;order-api&quot;: {
+      &quot;transport&quot;: &quot;streamable-http&quot;,
+      &quot;url&quot;: &quot;https://example.com/mcp-servers/order-api&quot;
+    }
+  }
+}
+</code></pre>
+<h2 id="_5">测试步骤</h2>
+<p>按下面顺序验收。前一层不通过时，不要跳到后一层排查。</p>
+<h3 id="1-ai-http-to-mcp">1. 验证 AI 网关 HTTP-to-MCP</h3>
+<p>在 AI 网关控制台创建 HTTP-to-MCP，并确认 MCP Server 已部署。</p>
+<p>可选 CLI 检查：</p>
+<pre><code class="language-bash">aliyun apig list-mcp-servers \
+  --region cn-hangzhou \
+  --gateway-id &quot;$GATEWAY_ID&quot; \
+  --create-from-types ApiGatewayHttpToMCP \
+  --deploy-statuses Deployed
+</code></pre>
+<p>验收标准：</p>
+<table>
+<thead>
+<tr>
+<th>检查项</th>
+<th>期望</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>MCP Server 状态</td>
+<td><code>Deployed</code>。</td>
+</tr>
+<tr>
+<td>地址</td>
+<td>能复制 SSE 或 Streamable HTTP URL。</td>
+</tr>
+<tr>
+<td>tools</td>
+<td>AI 网关控制台能看到预期 tools。</td>
+</tr>
+</tbody>
+</table>
+<h3 id="2-mcp">2. 写入计算巢自定义 MCP</h3>
+<p>在计算巢配置 MCP 页面选择自定义 MCP。填写 <code>serverCode</code>、连接方式和 URL。</p>
+<p>写回后的 <code>McpConfigJson</code> 必须满足：</p>
+<table>
+<thead>
+<tr>
+<th>检查项</th>
+<th>期望</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>远程 MCP</td>
+<td>有 <code>mcpServerId</code> 或 <code>url</code>，无 <code>command</code>。</td>
+</tr>
+<tr>
+<td>连接方式</td>
+<td><code>type</code> 是 <code>sse</code> 或 <code>streamable-http</code>。</td>
+</tr>
+<tr>
+<td>旧条目</td>
+<td>公共 MCP 和包类型自定义 MCP 不变。</td>
+</tr>
+<tr>
+<td>独立字段</td>
+<td>没有 <code>ManagedMcpConfigJson</code>。</td>
+</tr>
+</tbody>
+</table>
+<h3 id="3-acs">3. 验证 ACS 实例</h3>
+<p>创建新实例或执行 <code>Modify-MCP-Servers</code> 变配。实例进入 <code>Deployed</code> 后检查集群。</p>
+<pre><code class="language-bash">kubectl -n mcp-runtime get ksvc,route,pod,svc,ingress
+</code></pre>
+<p>验收标准：</p>
+<table>
+<thead>
+<tr>
+<th>检查项</th>
+<th>期望</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Knative Service</td>
+<td>只为有 <code>command</code> 的 MCP 创建 <code>mcp-{serverCode}</code>。</td>
+</tr>
+<tr>
+<td>Backend Service</td>
+<td>只为有 <code>command</code> 的 MCP 创建 <code>mcp-{serverCode}-backend</code>，有 endpoints。</td>
+</tr>
+<tr>
+<td>Pod</td>
+<td>命令型 MCP <code>2/2 Running</code>，无 <code>ImagePullBackOff</code> 或 <code>CrashLoopBackOff</code>。</td>
+</tr>
+<tr>
+<td>远端 URL</td>
+<td>不出现对应 <code>mcp-{serverCode}</code> pod。</td>
+</tr>
+<tr>
+<td>旧组件</td>
+<td>没有 <code>mcp-api</code> workload，没有 <code>mcpo</code>。</td>
+</tr>
+<tr>
+<td>启动参数</td>
+<td>不出现远端 URL 的 <code>--sse</code> 或 <code>--streamableHttp</code> 二次包装。</td>
+</tr>
+</tbody>
+</table>
+<h3 id="4-mcp">4. 验证 MCP 协议</h3>
+<p>命令型 MCP 对 ACS 输出 endpoint 发起 Streamable HTTP 初始化请求。远端 URL MCP 直接请求最终 URL；AI 网关来源 MCP 先用 <code>GetMcpServer</code> 解析最终 URL。AI 网关 HTTP-to-MCP 的 Streamable HTTP 地址是 <code>/mcp-servers/{name}</code>，SSE 地址是 <code>/mcp-servers/{name}/sse</code>。</p>
+<pre><code class="language-bash">MCP_URL=&quot;https://example.com/mcp-servers/order-api&quot;
+
+curl -i -sS -X POST &quot;$MCP_URL&quot; \
+  -H &quot;Content-Type: application/json&quot; \
+  -H &quot;Accept: application/json, text/event-stream&quot; \
+  -d '{
+    &quot;jsonrpc&quot;: &quot;2.0&quot;,
+    &quot;id&quot;: 1,
+    &quot;method&quot;: &quot;initialize&quot;,
+    &quot;params&quot;: {
+      &quot;protocolVersion&quot;: &quot;2025-03-26&quot;,
+      &quot;capabilities&quot;: {},
+      &quot;clientInfo&quot;: {
+        &quot;name&quot;: &quot;quickstart-mcp-test&quot;,
+        &quot;version&quot;: &quot;0.1.0&quot;
+      }
+    }
+  }'
+</code></pre>
+<p>继续调用 <code>tools/list</code>。如果初始化响应返回 <code>Mcp-Session-Id</code>，后续请求带上这个 header。</p>
+<pre><code class="language-bash">curl -i -sS -X POST &quot;$MCP_URL&quot; \
+  -H &quot;Content-Type: application/json&quot; \
+  -H &quot;Accept: application/json, text/event-stream&quot; \
+  -H &quot;Mcp-Session-Id: $MCP_SESSION_ID&quot; \
+  -d '{
+    &quot;jsonrpc&quot;: &quot;2.0&quot;,
+    &quot;id&quot;: 2,
+    &quot;method&quot;: &quot;tools/list&quot;,
+    &quot;params&quot;: {}
+  }'
+</code></pre>
+<p>验收标准：</p>
+<table>
+<thead>
+<tr>
+<th>检查项</th>
+<th>期望</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>GET /mcp-servers/{serverCode}</code></td>
+<td>可返回 <code>405</code>，说明已到 MCP 服务。</td>
+</tr>
+<tr>
+<td><code>initialize</code></td>
+<td>HTTP <code>200</code>，返回 MCP server info。</td>
+</tr>
+<tr>
+<td><code>tools/list</code></td>
+<td>HTTP <code>200</code>，返回 AI 网关 HTTP-to-MCP 暴露的 tools。</td>
+</tr>
+</tbody>
+</table>
+<h3 id="5-agent">5. 验证 Agent 部署</h3>
+<p>在 Agent 部署页选择该 MCP。提交前检查 payload。</p>
+<p>验收标准：</p>
+<table>
+<thead>
+<tr>
+<th>检查项</th>
+<th>期望</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>transport</td>
+<td><code>streamable-http</code>。</td>
+</tr>
+<tr>
+<td>url</td>
+<td>命令型 MCP 用 ACS ALB endpoint；AI 网关来源 MCP 用 <code>GetMcpServer</code> 实时生成 endpoint；普通远端 URL MCP 用 <code>McpConfigJson.url</code>。</td>
+</tr>
+<tr>
+<td>内部 ID</td>
+<td>不传 <code>gatewayId</code>、<code>mcpServerId</code> 给 Agent。</td>
+</tr>
+<tr>
+<td>调用结果</td>
+<td>Agent 能完成一次 tools 调用。</td>
+</tr>
+</tbody>
+</table>
+<h2 id="_6">排查</h2>
+<table>
+<thead>
+<tr>
+<th>现象</th>
+<th>优先检查</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>APIG 部署失败，提示 <code>domainIds should not be empty</code></td>
+<td>HTTP-to-MCP 没绑定网关域名。先补域名，不改 ACS。</td>
+</tr>
+<tr>
+<td>本地访问超时</td>
+<td>查云防火墙 EIP 保护、控制面 SLB ACL、ALB 安全组。</td>
+</tr>
+<tr>
+<td>ALB 返回 <code>503</code></td>
+<td>查 Knative Route、Kourier、backend service endpoints。</td>
+</tr>
+<tr>
+<td><code>initialize</code> 成功但 <code>tools/list</code> 为空</td>
+<td>查 AI 网关 HTTP-to-MCP 的 tools 映射。</td>
+</tr>
+<tr>
+<td>返回 <code>401</code> 或 <code>403</code></td>
+<td>查 AI 网关鉴权、请求头、API Key。</td>
+</tr>
+<tr>
+<td>远端 URL 写入后出现新 pod</td>
+<td>ACS 模板过滤失效；远端 URL 不应创建 workload。</td>
+</tr>
+</tbody>
+</table>
+<h2 id="_7">回归清单</h2>
+<p>每次改这条链路至少跑下面检查：</p>
+<pre><code class="language-bash">python3 -m pytest tests/test_acs_template.py -q
+python3 -m py_compile mcp/fc-mcp.py mcp/higress_enterprise.py
+node --check mcp/dual-entrypoint.js
+git diff --check
+</code></pre>
+<p>完整验收必须包括：</p>
+<table>
+<thead>
+<tr>
+<th>场景</th>
+<th>必须通过</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>ACS 新建实例</td>
+<td><code>Deployed</code>。</td>
+</tr>
+<tr>
+<td>ACS 变配</td>
+<td>新增远程 HTTP-to-MCP 后仍 <code>Deployed</code>，且不新增远端 URL pod。</td>
+</tr>
+<tr>
+<td>SSE 地址</td>
+<td>直接请求 AI 网关 SSE endpoint 能建立会话。</td>
+</tr>
+<tr>
+<td>Streamable HTTP 地址</td>
+<td>直接请求 AI 网关 Streamable HTTP endpoint 的 <code>initialize</code> 和 <code>tools/list</code> 通过。</td>
+</tr>
+<tr>
+<td>Agent 部署</td>
+<td>只传 MCP endpoint，并能调用 tools。</td>
+</tr>
+</tbody>
+</table>
+        
+      </div>
+
+      <div class="copyrights">© 2009-2022 Aliyun.com 版权所有</div>
+    </div>
+  </div>
+  
+  <!--
+  MkDocs version      : 1.6.1
+  Docs Build Date UTC : 2026-06-22 12:59:31.320437+00:00
+  -->
+</body>
+</html>

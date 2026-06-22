@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="x-ua-compatible" content="ie=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+  <meta name="description" content="计算巢是阿里云开放给企业应用服务商的服务管理平台。服务商能够在计算巢上发布私有化部署服务，为其客户提供云上软件一键部署的能力；同时也支持全托管模式的服务，赋能服务商托管其客户资源。">
+  <title>MCP 后端模板核心改动 - Aliyun 计算巢 x Demo</title>
+
+  <link rel="shortcut icon" href="../../img/favicon.ico">
+
+  <link rel="stylesheet" href="https://unpkg.com/purecss@1.0.0/build/pure-min.css">
+  <link rel="stylesheet" href="../../css/theme.css">
+  
+
+  
+
+  
+  
+
+  
+    <script src="../../search/main.js"></script>
+  
+
+  
+
+  <script src="../../js/highlight.min.js"></script>
+  <script>hljs.highlightAll();</script>
+</head>
+
+<body>
+  <div class="container">
+    <div class="nav">
+      <div class="nav-inner">
+        <div class="logo">
+          <img src="./img/logo-2x.png">
+        </div>
+        <div class="nav-list">
+          <ul>
+          
+              <li><a href="#mcp">MCP 后端模板核心改动</a></li>
+              
+                  <li><a href="#_1">结论</a></li>
+                  
+              
+                  <li><a href="#_2">模板输入改动</a></li>
+                  
+              
+                  <li><a href="#fc">FC 模板改动</a></li>
+                  
+              
+                  <li><a href="#acs">ACS 模板改动</a></li>
+                  
+              
+                  <li><a href="#ai">AI 网关注入</a></li>
+                  
+              
+                  <li><a href="#api-mcp">API 转 MCP 调研结论</a></li>
+                  
+              
+                  <li><a href="#_3">已验证信息</a></li>
+                  
+              
+                  <li><a href="#_4">当前边界</a></li>
+                  
+              
+          
+          </ul>
+        </div>
+      </div>
+    </div>
+    <div class="content theme-github">
+      
+      <div class="content-inner">        
+        
+        <h1 id="mcp">MCP 后端模板核心改动</h1>
+<h2 id="_1">结论</h2>
+<p>后端模板只负责部署和注册 MCP 协议入口，不再提供 API/OpenAPI 直连入口，也不在模板里承载 API 转 MCP。</p>
+<p>这样模板保持简单：</p>
+<ul>
+<li>FC：函数直接运行 MCP transport，不引入 Caddy、Supervisor、mcpo。</li>
+<li>ACS：每个 MCP 独立运行，不额外部署 <code>mcp-api</code>。</li>
+<li>AI 网关：只注册 MCP 直接代理服务。</li>
+</ul>
+<p>如果用户要把已有 HTTP API 转成 MCP，应引导到 AI 网关控制台操作。</p>
+<hr />
+<h2 id="_2">模板输入改动</h2>
+<p>不新增运行时字段。</p>
+<p>模板继续使用 MCP 市场返回的基础字段，例如 <code>serverCode</code>、<code>command</code>、<code>args</code>、<code>env</code>、<code>url</code>、<code>pkgType</code> 等。<code>serverCode</code> 属于现有市场配置字段，可以继续用于命名和路径生成，但不再把它作为新增字段设计。</p>
+<p>默认行为固定为 SSE MCP 直接代理，后端路径沿用当前 <code>/sse</code>、<code>/message</code>。</p>
+<hr />
+<h2 id="fc">FC 模板改动</h2>
+<p>FC 模板保持单进程 MCP runtime，不做 API 分流。</p>
+<pre><code class="language-text">FC HTTP Trigger -&gt; supergateway :8080
+                      └─ stdio MCP package
+</code></pre>
+<p>需要调整的点：</p>
+<ul>
+<li>不引入 Caddy。</li>
+<li>不引入 Supervisor。</li>
+<li>不启动 mcpo。</li>
+<li>不输出 API/OpenAPI 直连地址。</li>
+<li>注册函数仍把 FC 函数注册为 AI 网关 MCP 直接代理。</li>
+</ul>
+<p>FC3 同一个函数只能有一个 HTTP Trigger，模板继续只生成一个 Trigger。</p>
+<hr />
+<h2 id="acs">ACS 模板改动</h2>
+<p>ACS 模板也只保留 MCP 协议入口。</p>
+<pre><code class="language-text">ALB Ingress
+  └─ /mcp-servers/{serverCode} -&gt; Service: mcp-{serverCode} -&gt; Deployment: mcp-{serverCode} -&gt; supergateway
+</code></pre>
+<p>需要调整的点：</p>
+<ul>
+<li>不部署 <code>mcp-api</code> Deployment。</li>
+<li>不部署 <code>mcp-api</code> Service。</li>
+<li>Ingress 不生成 <code>/{serverCode}</code> API 路径。</li>
+<li>每个 MCP 仍然独立 Deployment + Service，避免多个 MCP pod 被同一个 Service 混合负载。</li>
+</ul>
+<hr />
+<h2 id="ai">AI 网关注入</h2>
+<p>模板自动注册的 MCP Server 只走 MCP 直接代理。</p>
+<p>固定注册语义：按现有 SSE MCP 直接代理注册到 AI 网关，后端路径沿用 <code>/sse</code>。</p>
+<p>不在模板里暴露协议转换开关。是否开启协议转换，交给 AI 网关控制台或后续专门能力处理。</p>
+<hr />
+<h2 id="api-mcp">API 转 MCP 调研结论</h2>
+<p>AI 网关支持 HTTP 转 MCP，但不建议放到当前模板界面里做。</p>
+<p>官方能力包括：</p>
+<ul>
+<li>创建 MCP 服务时可以选择“HTTP 转 MCP”。</li>
+<li>HTTP 转 MCP 后端服务需要选择 HTTP 服务。</li>
+<li>工具可以通过 Swagger/OpenAPI 文件导入生成。</li>
+<li>也可以用自定义 YAML 手动配置工具。</li>
+<li>可选配置后端服务认证，例如 Basic、Bearer、API Key。</li>
+</ul>
+<p>这套流程需要 Swagger 上传或粘贴、工具生成预览、工具描述确认、认证配置等交互。当前模板页面主要是 ROS 参数渲染，不适合承载这个完整流程。</p>
+<p>因此当前策略：</p>
+<ul>
+<li>模板不提供 API 转 MCP。</li>
+<li>模板只注册计算巢实例自身部署的 MCP。</li>
+<li>用户在 AI 网关控制台创建的 HTTP 转 MCP，按自定义 MCP URL 填入计算巢。</li>
+<li>不新增“网关接入”页签，不新增独立纳管参数，也不在前端调用 APIG 列表接口。</li>
+<li>Agent 部署页只使用最终可连接的 MCP endpoint，不传 AI 网关内部 ID。</li>
+</ul>
+<p>推荐引导文案：</p>
+<blockquote>
+<p>如需使用已在 AI 网关中创建的 HTTP 转 MCP，请先在 AI 网关控制台复制 SSE 或 Streamable HTTP 访问地址，再到计算巢“配置 MCP”的“自定义 MCP”中填入该地址。</p>
+</blockquote>
+<hr />
+<h2 id="_3">已验证信息</h2>
+<table>
+<thead>
+<tr>
+<th>验证点</th>
+<th>结果</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>FC 同函数多 HTTP Trigger</td>
+<td>不支持；模板必须保持单 Trigger。</td>
+</tr>
+<tr>
+<td>APIG MCP 直接代理</td>
+<td>已验证可创建并部署。</td>
+</tr>
+<tr>
+<td>APIG 协议转换</td>
+<td>已验证网关侧行为可用，但当前模板不开放开关。</td>
+</tr>
+<tr>
+<td>ACS YAML 解析</td>
+<td><code>acs.yaml</code> 可解析。</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="_4">当前边界</h2>
+<ul>
+<li>本模板不提供 API/OpenAPI 直连能力。</li>
+<li>本模板不提供 API 转 MCP 创建向导。</li>
+<li>本模板不接管已纳管 HTTP 转 MCP 的外部生命周期；AI 网关被手动修改后，通过计算巢前端/后端对账更新展示，不由 ROS 自动修复。</li>
+<li>AI 网关里删除后同名重建的 MCP 视为新资源，需要重新纳管。</li>
+<li>ACS 直部署需要真实 ACR 镜像；模板里的 <code>{{ computenest::acrimage::quickstart-mcp-acs }}</code> 由 ComputeNest 发布链路替换。</li>
+<li>私有 MCP package 的 OSS 下载逻辑还需要补 init container 或启动前下载步骤。</li>
+<li>ACS AI 网关注 Job 默认关闭；开启前需要 RRSA/OIDC 和具备 APIG 权限的 RAM 角色。</li>
+</ul>
+        
+      </div>
+
+      <div class="copyrights">© 2009-2022 Aliyun.com 版权所有</div>
+    </div>
+  </div>
+  
+  <!--
+  MkDocs version      : 1.6.1
+  Docs Build Date UTC : 2026-06-22 12:59:31.318837+00:00
+  -->
+</body>
+</html>

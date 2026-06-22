@@ -1,0 +1,534 @@
+<!DOCTYPE html>
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="x-ua-compatible" content="ie=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+  <meta name="description" content="计算巢是阿里云开放给企业应用服务商的服务管理平台。服务商能够在计算巢上发布私有化部署服务，为其客户提供云上软件一键部署的能力；同时也支持全托管模式的服务，赋能服务商托管其客户资源。">
+  <title>Quickly build the MCP market within the enterprise-Function Compute Edition - Aliyun 计算巢 x Demo</title>
+
+  <link rel="shortcut icon" href="../img/favicon.ico">
+
+  <link rel="stylesheet" href="https://unpkg.com/purecss@1.0.0/build/pure-min.css">
+  <link rel="stylesheet" href="../css/theme.css">
+  
+
+  
+
+  
+  
+
+  
+    <script src="../search/main.js"></script>
+  
+
+  
+
+  <script src="../js/highlight.min.js"></script>
+  <script>hljs.highlightAll();</script>
+</head>
+
+<body>
+  <div class="container">
+    <div class="nav">
+      <div class="nav-inner">
+        <div class="logo">
+          <img src="./img/logo-2x.png">
+        </div>
+        <div class="nav-list">
+          <ul>
+          
+              <li><a href="#quickly-build-the-mcp-market-within-the-enterprise-function-compute-edition">Quickly build the MCP market within the enterprise-Function Compute Edition</a></li>
+              
+                  <li><a href="#1-architecture-overview">1. Architecture Overview</a></li>
+                  
+                      <li class="li-h3"><a href="#11-core-components">1.1 Core Components</a></li>
+                  
+                      <li class="li-h3"><a href="#12-deployment-architecture">1.2 Deployment Architecture</a></li>
+                  
+                      <li class="li-h3"><a href="#13-multi-protocol-support">1.3 multi-protocol support</a></li>
+                  
+                      <li class="li-h3"><a href="#14-deployment-mode">1.4 Deployment Mode</a></li>
+                  
+              
+                  <li><a href="#2-prerequisites">2. prerequisites</a></li>
+                  
+              
+                  <li><a href="#3-expose-mcp-service-deployment">3. expose MCP service deployment</a></li>
+                  
+                      <li class="li-h3"><a href="#31-expose-mcp-service-types">3.1 Expose MCP Service Types</a></li>
+                  
+                      <li class="li-h3"><a href="#22-expose-mcp-service-deployment-process">2.2 expose MCP service deployment process</a></li>
+                  
+              
+                  <li><a href="#3-private-mcp-service-deployment">3. private MCP service deployment</a></li>
+                  
+                      <li class="li-h3"><a href="#31-supported-mcp-formats">3.1 Supported MCP Formats</a></li>
+                  
+                      <li class="li-h3"><a href="#32-the-python-mcp-package-creation-process">3.2 the Python MCP package creation process</a></li>
+                  
+              
+          
+              <li><a href="#script-entry-point-configuration-required">Script entry point configuration (required)</a></li>
+              
+          
+              <li><a href="#build-configuration">Build configuration</a></li>
+              
+                  <li><a href="#322-deployment-steps">3.2.2 Deployment steps</a></li>
+                  
+              
+                  <li><a href="#deployment-parameter-description">Deployment parameter description</a></li>
+                  
+              
+                  <li><a href="#33-javascript-mcp-package-creation-process">3.3 JavaScript MCP Package Creation Process</a></li>
+                  
+                      <li class="li-h3"><a href="#331-project-configuration">3.3.1 Project Configuration</a></li>
+                  
+                      <li class="li-h3"><a href="#332-deployment-steps">3.3.2 Deployment steps</a></li>
+                  
+              
+                  <li><a href="#34-private-mcp-package-management">3.4 Private MCP Package Management</a></li>
+                  
+                      <li class="li-h3"><a href="#341-package-storage-mechanism">3.4.1 Package Storage Mechanism</a></li>
+                  
+                      <li class="li-h3"><a href="#342-package-deployment-process">3.4.2 Package Deployment Process</a></li>
+                  
+              
+                  <li><a href="#4-enterprise-internal-api-to-mcp-service">4. enterprise internal API to MCP service</a></li>
+                  
+                      <li class="li-h3"><a href="#41-api-to-mcp-adapter">4.1 API to MCP Adapter</a></li>
+                  
+              
+                  <li><a href="#5-enterprise-access-guide">5. Enterprise Access Guide</a></li>
+                  
+                      <li class="li-h3"><a href="#51-enterprise-permission-management-architecture">5.1 Enterprise Permission Management Architecture</a></li>
+                  
+                      <li class="li-h3"><a href="#52-consumer-and-api-key-management">5.2 Consumer and API Key Management</a></li>
+                  
+                      <li class="li-h3"><a href="#53-mcp-service-authorization-mechanism">5.3 MCP Service Authorization Mechanism</a></li>
+                  
+              
+                  <li><a href="#6-mcp-service-usage-and-integration">6. MCP service usage and integration</a></li>
+                  
+                      <li class="li-h3"><a href="#61-ai-assistant-integration">6.1 AI Assistant Integration</a></li>
+                  
+              
+                  <li><a href="#7-operation-and-maintenance-monitoring">7, operation and maintenance monitoring</a></li>
+                  
+                      <li class="li-h3"><a href="#71-function-compute-monitoring">7.1 Function Compute Monitoring</a></li>
+                  
+              
+                  <li><a href="#8-function-compute-version-advantages">8. Function Compute Version Advantages</a></li>
+                  
+                      <li class="li-h3"><a href="#81-cost-advantage">8.1 Cost Advantage</a></li>
+                  
+                      <li class="li-h3"><a href="#82-technical-advantages">8.2 technical advantages</a></li>
+                  
+                      <li class="li-h3"><a href="#83-applicable-scenario">8.3 applicable scenario</a></li>
+                  
+              
+                  <li><a href="#10-q-a">10. Q &amp; A</a></li>
+                  
+              
+          
+          </ul>
+        </div>
+      </div>
+    </div>
+    <div class="content theme-github">
+      
+      <div class="content-inner">        
+        
+        <h1 id="quickly-build-the-mcp-market-within-the-enterprise-function-compute-edition">Quickly build the MCP market within the enterprise-Function Compute Edition</h1>
+<p>With the deepening of enterprise digital transformation, Model Context Protocol (MCP), as an important bridge between AI models and enterprise data, is becoming the core infrastructure of enterprise AI applications. Alibaba Cloud Function Compute provides enterprises with more flexible and economical MCP market solutions, helping enterprises quickly build an internally privatized MCP service platform and realize unified management and distribution of AI capabilities. This article describes how to build an enterprise internal MCP market based on Function Compute, including system architecture design, public and private MCP service deployment, permission management, and enterprise-level functional features.</p>
+<h2 id="1-architecture-overview">1. Architecture Overview</h2>
+<h3 id="11-core-components">1.1 Core Components</h3>
+<p><strong>Core Components:</strong></p>
+<p><strong>MCP function management</strong>: supports unified management of private and public MCP packages
+<strong>API Gateway (APIG)</strong>: Provides unified API entry and routing control
+<strong>Permission Control Module</strong>: API Key-based multi-tenant permission management
+<strong>Function Compute</strong>: provides auto scaling and pay-as-you-go computing resources.</p>
+<p><strong>Architectural Features:</strong></p>
+<p><strong>Pay-as-you-go</strong>: Function creation is free and only charged based on actual calls
+<strong>Auto Scaling</strong>: Automatically scales the volume based on the requested volume.
+<strong>API Gateway Pay-As-You-Go</strong>: supports flexible billing models
+<strong>Private MCP packages are stored through OSS</strong>: supports localized deployment
+<strong>API Gateway provides a unified API access portal</strong>: Unified authentication mechanism
+<strong>Complete monitoring and log management system</strong></p>
+<h3 id="12-deployment-architecture">1.2 Deployment Architecture</h3>
+<h4 id="enterprise-built-in-mcp-platform-product-architecture-function-compute-edition">Enterprise Built-in MCP Platform Product Architecture-Function Compute Edition</h4>
+<p><img alt="img_7.png" src="../images-en/img_7.png" /></p>
+<h3 id="13-multi-protocol-support">1.3 multi-protocol support</h3>
+<p><strong>Protocol Support:</strong></p>
+<p><strong>MCP Native Protocol</strong>:SSE long connection, real-time interaction</p>
+<h3 id="14-deployment-mode">1.4 Deployment Mode</h3>
+<p>✅Rapid deployment of MCP functions, support for private deployment
+✅Support function instance variable configuration and MCP debugging
+✅Simple MCP dashboard</p>
+<p>✅Support for selecting existing API Gateway instances and custom domain names
+✅Enterprise Permission Management and API Key Distribution
+✅Complete MCP Control Panel
+✅Pay-As-You-Go flexible billing model</p>
+<h2 id="2-prerequisites">2. prerequisites</h2>
+<p>To deploy an MCP Function Compute service instance, you need to access and create some Alibaba Cloud resources. Therefore, your account must contain permissions for the following resources. <strong>Note</strong>: This permission is required only when your account is a RAM account.</p>
+<table>
+<thead>
+<tr>
+<th>Permission policy name</th>
+<th>Comment</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>AliyunFCFullAccess</td>
+<td>Permissions to manage Function Compute Service (FC)</td>
+</tr>
+<tr>
+<td>AliyunVPCFullAccess</td>
+<td>Permissions to manage a VPC</td>
+</tr>
+<tr>
+<td>AliyunROSFullAccess</td>
+<td>Manage permissions for Resource Orchestration Service (ROS)</td>
+</tr>
+<tr>
+<td>AliyunComputeNestUserFullAccess</td>
+<td>Manage user-side permissions for the compute nest service (ComputeNest)</td>
+</tr>
+<tr>
+<td>AliyunAPIGatewayFullAccess</td>
+<td>Manage permissions for API Gateway services</td>
+</tr>
+</tbody>
+</table>
+<h2 id="3-expose-mcp-service-deployment">3. expose MCP service deployment</h2>
+<h3 id="31-expose-mcp-service-types">3.1 Expose MCP Service Types</h3>
+<p>The Function Compute MCP Marketplace supports several types of public MCP services:</p>
+<p><strong>Standard Open MCP Tool:</strong></p>
+<p>Browser automation tools
+Location Services and Map Tools
+Search Engine Tools
+Developer Toolset
+File Processing Tools
+Data Analysis Tools</p>
+<p><strong>Custom public MCP service:</strong></p>
+<p>Support for NPX packages installed from public repositories
+Support for UVX packages installed from public repositories
+Existing SSE MCP service management</p>
+<h3 id="22-expose-mcp-service-deployment-process">2.2 expose MCP service deployment process</h3>
+<h4 id="221-rapid-deployment-steps">2.2.1 Rapid Deployment Steps</h4>
+<ol>
+<li><strong>Visit MCP Marketplace</strong>
+-Enter the calculation nest first click "MCP Market"
+-Browse available public MCP tools</li>
+</ol>
+<p><img alt="" src="../images-en/1755671732619-62dd14ba-fe9c-4c9e-a38c-68018095db10_1758711516.png" /></p>
+<ol>
+<li><strong>Select MCP Tool</strong>
+-Select the MCP tool to deploy, such as "Bing Search Chinese"
+-Click on the MCP tool to enter the detailed documentation interface<img alt="" src="../images-en/1755671757929-0af51a20-5bf6-4812-995e-58c6eb628a45_1758711516.png" />
+-View tool feature descriptions and usage examples</li>
+<li><strong>Deployment Configuration</strong>
+-Click the "Deploy" button in the upper right corner
+-Choose to create a new service instance or deploy to an existing instance<img alt="" src="../images-en/1755671829630-a898a2b0-bd60-423a-8c1a-bd902ba832c7_1758711516.png" />
+-Multiple MCP tools can be deployed within the same service instance</li>
+<li><strong>Resource Allocation</strong>
+-Select existing or new gateway according to business situation</li>
+<li><strong>Complete Deployment</strong>
+-Click "Create Now" to start deployment
+-Wait for service instance creation to complete
+-Get MCP console and debug interface access addresses</li>
+</ol>
+<h2 id="3-private-mcp-service-deployment">3. private MCP service deployment</h2>
+<p>Note: If there is no available OSS bucket, we recommend that you create a computing nest service instance through any open MCP package first. The service instance will automatically create an OSS warehouse that meets the specifications.
+To use an existing OSS bucket, perform the following steps to authorize:
+1. Access the <a href="https://oss.console.aliyun.com/bucket">OSS console</a>
+2. Find the Bucket authorization policy.<img alt="img_8.png" src="../images-en/img_8.png" />
+3. <img alt="img_9.png" src="../images-en/img_9.png" /></p>
+<h3 id="31-supported-mcp-formats">3.1 Supported MCP Formats</h3>
+<p><strong>For FC deployment, you must force zip compression and upload</strong>
+Computing Nest MCP Market supports standard package management formats:</p>
+<p><strong>Python (UVX) format:</strong></p>
+<p>Supported file types: '.whl',' .tar.gz'
+pyproject.toml configuration based on <a href="https://peps.python.org/pep-0518/">PEP 518 Standard</a>
+Example warehouse:<a href="https://github.com/aliyun-computenest/mcp-python-demo">https://github.com/aliyun-computenest/mcp-python-demo</a></p>
+<p><strong>JavaScript (NPX) format:</strong></p>
+<p>Supported file type: '.tgz'
+Standards-based package.json configuration
+Example warehouse:<a href="https://github.com/aliyun-computenest/mcp-js-demo">https://github.com/aliyun-computenest/mcp-js-demo</a></p>
+<h3 id="32-the-python-mcp-package-creation-process">3.2 the Python MCP package creation process</h3>
+<h4 id="321-project-configuration">3.2.1 Project Configuration</h4>
+<p>Create a compliant 'pyproject.toml' file:</p>
+<p>''''toml
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"</p>
+<p>[project]
+name = "your-mcp-package"# Package name (required)
+version = "1.0.0"# Version number (required)
+description = "Your MCP Server description"
+authors = [
+{name = "Your Name", email = "your.email@example.com"}
+]
+readme = "README.md"
+requires-python = "&gt;= 3.8" # Python version requirements
+dependencies = []# runtime dependency</p>
+<h1 id="script-entry-point-configuration-required">Script entry point configuration (required)</h1>
+<p>[project.scripts]
+your-mcp-command = "your_package_name.server:main"</p>
+<p>[project.urls]
+Homepage = "https://github.com/your-username/your-mcp-package"</p>
+<h1 id="build-configuration">Build configuration</h1>
+<p>[tool.hatch.build.targets.wheel]
+packages = ["src/your_package_name"]
+'''</p>
+<h4 id="322-deployment-steps">3.2.2 Deployment steps</h4>
+<h3 id="deployment-parameter-description">Deployment parameter description</h3>
+<p>| <font style = "color:rgb(51, 51, 51);"> Parameter Group </font> | <font style = "color:rgb(51, 51, 51);"> Parameter Item </font> | <font style = "color:rgb(51, 51, 51);"> Description </font> |
+| ------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
+| <font style = "color:rgb(51, 51, 51);">MCP configuration </font> | <font style = "color:rgb(51, 51, 51);">McpConfigJson</font> | <font style = "color:rgb(51, 51, 51);">MCP tools to use &lt;/font |
+| | <font style = "color:rgb (51,51, 51);">MCP_KEY</font> | <font style = "color:rgb (51,51, 51);"> Key for MCP Server and Big Model Interaction </font> |
+| <font style = "color:rgb(51, 51, 51);"> Service instance </font> | <font style = "color:rgb(51, 51, 51);"> Service instance name </font> | <font style = "color:rgb(51, 51, 51);"> It must be no more than 64 characters long and must start with a letter, can contain numbers, letters, dashes (-), and underscores (_)</font> |
+| | <font style = "color:rgb (51,51, 51);"> Region </font> | <font style = "color:rgb (51,51, 51);"> Region where the service instance is deployed </font> |
+| | <font style = "color:rgb (51,51, 51);"> Payment type </font> | <font style = "color:rgb (51,51, 51);"> Resource billing type: Pay-As-You-Go and Monthly </font> |
+| <font style = "color:rgb(51, 51, 51);">ECS instance configuration </font> | <font style = "color:rgb(51, 51, 51);"> instance type </font> | &lt;font style = "color:rgb(51, 51, 51);
+| | <font style = "color:rgb (51,51, 51);"> Instance Password </font> | <font style = "color:rgb (51,51, 51);"> is 8-30 in length and must contain three items (uppercase letters, lowercase letters, numbers, ()'~! @#$%^&amp; *-+ = |{}[]:;'&lt;&gt;,.? Special symbols in/)</font> |
+| <font style = "color:rgb(51, 51, 51);"> Network Configuration </font> | <font style = "color:rgb(51, 51, 51);"> Zone </font> | <font style = "color:rgb(51, 51, 51);"> Zone where the ECS instance is located | &lt;/font
+| | <font style = "color:rgb (51,51, 51);">VPC ID</font> | <font style = "color:rgb (51,51, 51);">VPC where the resource is located </font> |
+| | <font style = "color:rgb(51, 51, 51);"> Switch ID</font> | <font style = "color:rgb(51, 51, 51);"> Switch where the resource is located </font> |</p>
+<ol>
+<li><strong>Visit Computing Nest MCP Market</strong>
+-Enter the home page of the calculation nest and click "MCP Market"<img alt="" src="../images-en/1755671281379-bb1ec856-e135-4f51-a837-54b04804345e_1758711516.png" />
+-Select "Create custom MCP"</li>
+<li><strong>Basic information configuration</strong>
+-Upload MCP icon (support custom icon)
+-Set MCP name and unique ID
+-Note: The ID of the same service instance cannot be repeated.</li>
+<li><strong>Package Upload Configuration</strong>
+-Select the installation method as "UVX"
+-Select the appropriate region and OSS Bucket
+-Upload packages in. whl or .tar.gz format<img alt="" src="../images-en/1755671299420-f3ec69bc-d612-4671-b713-c59fe5ebf0e1_1758711516.png" /></li>
+<li><strong>Start parameter configuration</strong>
+-<strong>Default Parameters</strong>: The system automatically generates a startup command (cannot be modified).</li>
+</ol>
+<p>'''bash
+uvx /mcp-package/your-package-name.whl
+'''</p>
+<p>-<strong>Custom Parameters</strong>: You can add additional startup parameters</p>
+<p>'''bash
+--timezone Asia/Shanghai --config /path/to/config
+'''</p>
+<p>-<strong>Environment Variables</strong>: Set the environment variables required at runtime, such as API Key<img alt="" src="../images-en/1755671372337-f6f5837f-cedf-47b6-9c28-fa459ebf8f0c_1758711516.png" />
+5. <strong>Service Instance Deployment</strong>
+-<strong>Create a new service instance</strong> or <strong>Deploy to an existing instance</strong><img alt="" src="../images-en/1755671378733-99fbb08e-3ba9-45ad-981a-cb6e90376ada_1758711516.png" />
+-Wait for the deployment to complete and check the service status through the MCP control platform<img alt="" src="../images-en/1755671400235-587248ba-ab5d-499e-8350-3290e7ab77a1_1758711516.png" /></p>
+<h3 id="33-javascript-mcp-package-creation-process">3.3 JavaScript MCP Package Creation Process</h3>
+<h4 id="331-project-configuration">3.3.1 Project Configuration</h4>
+<p>Make sure 'package.json' contains the correct configuration:</p>
+<p>'''json
+{
+"name": "your-mcp-package ",
+"version": "1.0.0 ",
+"description": "Your MCP Server description ",
+"main": "index.js ",
+"bin ": {
+"your-mcp-command": "./bin/server.js"
+},
+"dependencies ": {
+"@modelcontextprotocol/sdk": "^0.4.0"
+}
+}
+'''</p>
+<h4 id="332-deployment-steps">3.3.2 Deployment steps</h4>
+<ol>
+<li><strong>Package Format Preparation</strong>
+-Generate. tgz package file with 'npm pack'</li>
+<li><strong>Upload Configuration</strong>
+-Select the installation method as "NPX"
+-Upload packages in. tgz format<img alt="" src="../images-en/1755671413339-ab5bf527-9ae7-4a7f-835b-c6d5916be733_1758711516.png" /></li>
+<li><strong>Start parameter configuration</strong>
+-<strong>Default Parameters</strong>:</li>
+</ol>
+<p>'''bash
+npx -y -- package /mcp-package/your-package.tgz ${start command}
+'''</p>
+<p>-<strong>Custom parameter</strong>: The first parameter must be an executable file map (package the value of the bin field in. json)
+1. If the user has a custom parameter item, such as setting the time zone for the package, he can pass in a value similar to the -- from cn-beijing to set it. Incoming instructions are parsed here with spaces</p>
+<p>'''bash
+your-mcp-command --config /path/to/config
+'''</p>
+<ol>
+<li>
+<ul>
+<li>
+<ul>
+<li>Environment variables: * * If you need to set environment variables for the package of MCP Server, such as API Key of Gaud Map, you can set them here. Click Next after setting<img alt="" src="../images-en/1755671515100-e538bf5d-403a-4b54-b856-9c086de6d849_1758711516.png" /></li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong>Create a new service instance directly</strong> Or <strong>Select an existing service instance</strong></li>
+<li>If you want to create a service instance directly through the configuration **just now, click Create Service Instance in the upper left corner of the page.</li>
+<li>If you want to deploy the MCP directly to <strong>Existing Service Instance</strong>, select a service instance below and click Start Deployment</li>
+</ol>
+<p><img alt="" src="../images-en/1755671557989-cfa14fc4-63ec-45b9-b178-0bc1069b3b96_1758711516.png" /></p>
+<ol>
+<li>After the service instance is deployed, you can click the MCP control platform to view the overall MCP service, or select one of the available MCP services below to view:<img alt="" src="../images-en/1755671572189-e452d26e-4565-47c4-b71d-dc1ff486eef0_1758711516.png" /></li>
+</ol>
+<h3 id="34-private-mcp-package-management">3.4 Private MCP Package Management</h3>
+<h4 id="341-package-storage-mechanism">3.4.1 Package Storage Mechanism</h4>
+<p><strong>OSS storage scheme:</strong></p>
+<p>All private packages are uploaded to the user's own OSS bucket root directory</p>
+<p><strong>Security Control:</strong></p>
+<p>Secure OSS access through FC RAM Role
+Supports encrypted storage of packages
+Implement access logs and audits</p>
+<h4 id="342-package-deployment-process">3.4.2 Package Deployment Process</h4>
+<p><strong>Automated deployment process:</strong></p>
+<ol>
+<li><strong>Environment check</strong>: Check whether the OSSUtil tool has been installed and configured</li>
+<li><strong>Package Download</strong>: Download the private MCP package from OSS to the local</li>
+<li><strong>Service Startup</strong>: Starts the MCP service as configured</li>
+<li><strong>Health Check</strong>: Verify that the service is running properly</li>
+<li><strong>Service Registration</strong>: Register the service to the AI gateway</li>
+</ol>
+<h2 id="4-enterprise-internal-api-to-mcp-service">4. enterprise internal API to MCP service</h2>
+<h3 id="41-api-to-mcp-adapter">4.1 API to MCP Adapter</h3>
+<p>For the internal API service of the enterprise, the existing API can be converted to MCP based on API gateway.</p>
+<p><strong>Applicable scenario:</strong></p>
+<p>Enterprise internal API services
+Profile to meet OpenAPI specifications
+Existing services that need to be converted to the MCP protocol</p>
+<p><strong>Conversion ability:</strong></p>
+<p>Support for batch conversion of OpenAPI specifications to MCP Server
+Automatic generation of MCP protocol adaptation layer
+Keep the functionality and performance of the original API</p>
+<h2 id="5-enterprise-access-guide">5. Enterprise Access Guide</h2>
+<h3 id="51-enterprise-permission-management-architecture">5.1 Enterprise Permission Management Architecture</h3>
+<p><strong>The Permission Control module contains the following core components:</strong></p>
+<p><strong>Consumer Management (Consumer Management)</strong>: Manage identities for different business teams
+<strong>API Key Authentication</strong>: API Key-based authentication mechanism
+<strong>Authorization Policy Engine</strong>: Control consumer access to MCP services
+<strong>Route-level permission control</strong>: implements fine-grained route access control at the API gateway level</p>
+<h3 id="52-consumer-and-api-key-management">5.2 Consumer and API Key Management</h3>
+<h4 id="521-consumer-creation-process">5.2.1 Consumer Creation Process</h4>
+<p>The platform administrator creates a consumer identity for the business team by calling the 'CreateConsumer' API:</p>
+<p><strong>API call example:</strong></p>
+<p>'''json
+{
+"apiKeyIdentityConfig ": {
+"apikeySource ": {
+"source": "QueryString ",
+"value": "apikey"
+},
+"type": "Apikey ",
+"credentials ": [
+{
+"generateMode": "Custom ",
+"apikey": "bmw-team-a-001"
+}
+]
+},
+"name": "Accounting Team",
+"enable": true
+"gatewayType": "AI"
+}
+'''</p>
+<h3 id="53-mcp-service-authorization-mechanism">5.3 MCP Service Authorization Mechanism</h3>
+<h4 id="531-enable-mcp-service-authentication">5.3.1 Enable MCP Service Authentication</h4>
+<p>To enable the authentication mechanism for each MCP service, call the 'CreateAndAttachPolicy' API:</p>
+<p>'''json
+{
+"attachResourceType": "GatewayRoute ",
+"gatewayId": "gw-d1qbbium1hko66pmepf0 ",
+"environmentId": "env-d1qbc7em1hkluu4lgagg ",
+"config": "{\"authenticationType\":\"Apikey\",\"enable\":true} ",
+"className": "Authentication ",
+"attachResourceIds ": [
+"hr-d1sqdqem1hkrte7kn3t0"
+]
+}
+'''</p>
+<h2 id="6-mcp-service-usage-and-integration">6. MCP service usage and integration</h2>
+<h3 id="61-ai-assistant-integration">6.1 AI Assistant Integration</h3>
+<h4 id="611-cherry-studio-integration-example">6.1.1 Cherry Studio Integration Example</h4>
+<p><strong>Configuration steps:</strong></p>
+<ol>
+<li>
+<p><strong>Obtain MCP configuration information</strong>
+-access the function compute instance interface
+-Select the MCP tool to use to go to the details page
+-Copy MCP server configuration information</p>
+</li>
+<li>
+<p><strong>Configure Cherry Studio</strong>
+-Open Cherry Studio Assistant
+-New MCP Server Configuration
+-Paste configuration information copied from the console
+-If the authentication parameter is not automatically identified, you need to manually copy the API Key</p>
+</li>
+<li>
+<p><strong>Enable and Use</strong>
+-Click "Enable" and "Save" in the upper right corner"
+-Enter the dialogue interface and select the MCP tool to use
+-Start a conversation with the AI assistant to invoke the MCP tool function</p>
+</li>
+</ol>
+<h2 id="7-operation-and-maintenance-monitoring">7, operation and maintenance monitoring</h2>
+<h3 id="71-function-compute-monitoring">7.1 Function Compute Monitoring</h3>
+<h4 id="711-monitoring-indicators">7.1.1 Monitoring Indicators</h4>
+<p><strong>Function Compute monitoring metrics:</strong></p>
+<p>Number of function calls and success rate
+Function execution time and memory usage
+Error Rate and Anomaly Statistics
+Concurrency and current limiting</p>
+<p><strong>API Gateway monitoring metrics:</strong></p>
+<p>API call volume and response time
+Error code distribution and success rate
+Flow Peak and Current Limit Statistics</p>
+<h4 id="712-cost-optimization">7.1.2 Cost Optimization</h4>
+<p><strong>Function Compute Cost Advantage:</strong></p>
+<p><strong>Pay As You Need</strong>: Pay for actual execution time only
+<strong>Auto Scaling</strong>: Automatically adjusts resources based on the requested volume
+<strong>Serverless architecture</strong>: No need to manage the underlying infrastructure
+<strong>Reserved Instances</strong>: Reserved Instances can be used to reduce costs for high-frequency calling scenarios</p>
+<p><strong>Cost optimization recommendations:</strong></p>
+<p>Set function memory specifications reasonably
+Optimizing Function Code Execution Efficiency
+Use Reserved Instances to handle steady traffic
+Monitor and analyze cost usage</p>
+<h2 id="8-function-compute-version-advantages">8. Function Compute Version Advantages</h2>
+<h3 id="81-cost-advantage">8.1 Cost Advantage</h3>
+<p><strong>Create free</strong>: Function creation does not incur fees.
+<strong>Pay-as-you-go</strong>: Charges only based on actual calls
+<strong>API Gateway Pay-As-You-Go</strong>: flexible billing model
+<strong>No prepaid</strong>: Avoid wasting resources</p>
+<h3 id="82-technical-advantages">8.2 technical advantages</h3>
+<p><strong>Auto Scaling</strong>: Automatically scales the volume according to the requested volume.
+<strong>High Availability</strong>: Multi-zone deployment, automatic failover
+<strong>Rapid deployment</strong>: second-level startup, quick response
+<strong>Operations Simplified</strong>: No need to manage servers and runtime environments</p>
+<h3 id="83-applicable-scenario">8.3 applicable scenario</h3>
+<p><strong>SMEs</strong>: Cost sensitive, need flexible billing
+<strong>Volatility Business</strong>: Scenarios with unstable request volume
+<strong>Rapid Prototyping</strong>: Requires rapid validation and deployment
+<strong>Microservice architecture</strong>: suitable for splitting into independent function services</p>
+<h2 id="10-q-a">10. Q &amp; A</h2>
+<p><strong>Q: What is the difference between the Function Compute version and the ECS version?</strong></p>
+<p>A: The main difference is:
+-<strong>Billing Mode</strong>: Function Compute pays by call volume, ECS pays by instance duration
+-<strong>O &amp; M Complexity</strong>: Function Compute does not need to manage the server. ECS needs O &amp; M management
+-<strong>Auto Scaling</strong>: Function Compute automatically scales. You need to manually or configure auto scaling for ECS instances.
+-<strong>Applicable scenario</strong>: Function Compute is suitable for volatile businesses, and ECS is suitable for stable and high-load businesses.</p>
+        
+      </div>
+
+      <div class="copyrights">© 2009-2022 Aliyun.com 版权所有</div>
+    </div>
+  </div>
+  
+  <!--
+  MkDocs version      : 1.6.1
+  Docs Build Date UTC : 2026-06-22 12:59:31.305247+00:00
+  -->
+</body>
+</html>

@@ -1,0 +1,664 @@
+<!DOCTYPE html>
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="x-ua-compatible" content="ie=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+  <meta name="description" content="计算巢是阿里云开放给企业应用服务商的服务管理平台。服务商能够在计算巢上发布私有化部署服务，为其客户提供云上软件一键部署的能力；同时也支持全托管模式的服务，赋能服务商托管其客户资源。">
+  <title>快速打造企业内部的MCP市场 - 函数计算版 - Aliyun 计算巢 x Demo</title>
+
+  <link rel="shortcut icon" href="../img/favicon.ico">
+
+  <link rel="stylesheet" href="https://unpkg.com/purecss@1.0.0/build/pure-min.css">
+  <link rel="stylesheet" href="../css/theme.css">
+  
+
+  
+
+  
+  
+
+  
+    <script src="../search/main.js"></script>
+  
+
+  
+
+  <script src="../js/highlight.min.js"></script>
+  <script>hljs.highlightAll();</script>
+</head>
+
+<body>
+  <div class="container">
+    <div class="nav">
+      <div class="nav-inner">
+        <div class="logo">
+          <img src="./img/logo-2x.png">
+        </div>
+        <div class="nav-list">
+          <ul>
+          
+              <li><a href="#mcp-">快速打造企业内部的MCP市场 - 函数计算版</a></li>
+              
+                  <li><a href="#_1">一、架构概述</a></li>
+                  
+                      <li class="li-h3"><a href="#11">1.1 核心组件</a></li>
+                  
+                      <li class="li-h3"><a href="#12">1.2 部署架构</a></li>
+                  
+                      <li class="li-h3"><a href="#13">1.3 多协议支持</a></li>
+                  
+                      <li class="li-h3"><a href="#14">1.4 部署模式</a></li>
+                  
+              
+                  <li><a href="#_2">二、前提条件</a></li>
+                  
+              
+                  <li><a href="#mcp">三、公开MCP服务部署</a></li>
+                  
+                      <li class="li-h3"><a href="#31-mcp">3.1 公开MCP服务类型</a></li>
+                  
+                      <li class="li-h3"><a href="#22-mcp">2.2 公开MCP服务部署流程</a></li>
+                  
+              
+                  <li><a href="#mcp_1">三、私有MCP服务部署</a></li>
+                  
+                      <li class="li-h3"><a href="#31-mcp_1">3.1 支持的MCP格式</a></li>
+                  
+                      <li class="li-h3"><a href="#32-python-mcp">3.2 Python MCP包创建流程</a></li>
+                  
+                      <li class="li-h3"><a href="#_3">部署参数说明</a></li>
+                  
+                      <li class="li-h3"><a href="#33-javascript-mcp">3.3 JavaScript MCP包创建流程</a></li>
+                  
+                      <li class="li-h3"><a href="#34-mcp">3.4 私有MCP包管理</a></li>
+                  
+              
+                  <li><a href="#apimcp">四、企业内部API转MCP服务</a></li>
+                  
+                      <li class="li-h3"><a href="#41-apimcp">4.1 API转MCP适配器</a></li>
+                  
+              
+                  <li><a href="#_4">五、企业接入指南</a></li>
+                  
+                      <li class="li-h3"><a href="#_5">示例一</a></li>
+                  
+                      <li class="li-h3"><a href="#_7">示例二</a></li>
+                  
+                      <li class="li-h3"><a href="#512">5.1.2 示例</a></li>
+                  
+              
+                  <li><a href="#mcp_4">六、MCP服务使用与集成</a></li>
+                  
+                      <li class="li-h3"><a href="#61-ai">6.1 AI助手集成</a></li>
+                  
+              
+                  <li><a href="#7">7、运维监控</a></li>
+                  
+                      <li class="li-h3"><a href="#71">7.1 函数计算监控</a></li>
+                  
+              
+                  <li><a href="#_8">八、函数计算版本优势</a></li>
+                  
+                      <li class="li-h3"><a href="#81">8.1 成本优势</a></li>
+                  
+                      <li class="li-h3"><a href="#82">8.2 技术优势</a></li>
+                  
+                      <li class="li-h3"><a href="#83">8.3 适用场景</a></li>
+                  
+              
+                  <li><a href="#qa">十、Q&amp;A</a></li>
+                  
+              
+          
+          </ul>
+        </div>
+      </div>
+    </div>
+    <div class="content theme-github">
+      
+      <div class="content-inner">        
+        
+        <h1 id="mcp-">快速打造企业内部的MCP市场 - 函数计算版</h1>
+<p>随着企业数字化转型的深入，Model Context Protocol (MCP) 作为连接AI模型与企业数据的重要桥梁，正在成为企业AI应用的核心基础设施。阿里云函数计算为企业提供了更加灵活、经济的MCP市场解决方案，帮助企业快速构建内部私有化的MCP服务平台，实现AI能力的统一管理和分发。本文介绍如何基于函数计算构建企业内部MCP市场，包括系统架构设计、公开和私有MCP服务部署、权限管理以及企业级功能特性。</p>
+<h2 id="_1">一、架构概述</h2>
+<h3 id="11">1.1 核心组件</h3>
+<p><strong>核心组件：</strong></p>
+<ul>
+<li><strong>MCP函数管理</strong>：支持私有和公开MCP包的统一管理</li>
+<li><strong>API网关（APIG）</strong>：提供统一的API入口和路由控制</li>
+<li><strong>权限控制模块</strong>：基于API Key的多租户权限管理</li>
+<li><strong>函数计算服务</strong>：提供弹性伸缩、按需付费的计算资源</li>
+</ul>
+<p><strong>架构特点：</strong></p>
+<ul>
+<li><strong>按需付费</strong>：函数创建免费，仅根据实际调用量收费</li>
+<li><strong>弹性伸缩</strong>：自动根据请求量进行扩缩容</li>
+<li><strong>API网关按量付费</strong>：支持灵活的计费模式</li>
+<li><strong>私有MCP包通过OSS存储</strong>：支持本地化部署</li>
+<li><strong>API网关提供统一的API访问入口</strong>：统一认证机制</li>
+<li><strong>完整的监控和日志管理体系</strong></li>
+</ul>
+<h3 id="12">1.2 部署架构</h3>
+<h4 id="mcp-_1">企业内建MCP平台产品架构 - 函数计算版</h4>
+<p><img alt="img_7.png" src="../img_7.png" /></p>
+<h3 id="13">1.3 多协议支持</h3>
+<p><strong>协议支持：</strong></p>
+<ul>
+<li><strong>MCP原生协议</strong>：SSE长连接，实时交互</li>
+</ul>
+<h3 id="14">1.4 部署模式</h3>
+<ul>
+<li>✅ 快速部署MCP函数，支持私有化部署</li>
+<li>✅ 支持函数实例变配和MCP调试</li>
+<li>
+<p>✅ 简单的MCP管控面板</p>
+</li>
+<li>
+<p>✅ 支持选择已有API网关实例和自定义域名</p>
+</li>
+<li>✅ 企业级权限管理和API Key分发</li>
+<li>✅ 完备的MCP管控面板</li>
+<li>✅ 按量付费的灵活计费模式</li>
+</ul>
+<h2 id="_2">二、前提条件</h2>
+<p>部署MCP函数计算版服务实例，需要对部分阿里云资源进行访问和创建操作。因此您的账号需要包含如下资源的权限。<strong>说明</strong>：当您的账号是RAM账号时，才需要添加此权限。</p>
+<table>
+<thead>
+<tr>
+<th>权限策略名称</th>
+<th>备注</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>AliyunFCFullAccess</td>
+<td>管理函数计算服务（FC）的权限</td>
+</tr>
+<tr>
+<td>AliyunVPCFullAccess</td>
+<td>管理专有网络（VPC）的权限</td>
+</tr>
+<tr>
+<td>AliyunROSFullAccess</td>
+<td>管理资源编排服务（ROS）的权限</td>
+</tr>
+<tr>
+<td>AliyunComputeNestUserFullAccess</td>
+<td>管理计算巢服务（ComputeNest）的用户侧权限</td>
+</tr>
+<tr>
+<td>AliyunAPIGatewayFullAccess</td>
+<td>管理API网关服务的权限</td>
+</tr>
+</tbody>
+</table>
+<h2 id="mcp">三、公开MCP服务部署</h2>
+<h3 id="31-mcp">3.1 公开MCP服务类型</h3>
+<p>函数计算MCP市场支持多种类型的公开MCP服务：</p>
+<p><strong>标准公开MCP工具：</strong></p>
+<ul>
+<li>浏览器自动化工具</li>
+<li>位置服务和地图工具</li>
+<li>搜索引擎工具</li>
+<li>开发者工具集</li>
+<li>文件处理工具</li>
+<li>数据分析工具</li>
+</ul>
+<p><strong>自定义公开MCP服务：</strong></p>
+<ul>
+<li>支持从公共仓库安装的NPX包</li>
+<li>支持从公共仓库安装的UVX包</li>
+<li>已有的SSE MCP服务纳管</li>
+</ul>
+<h3 id="22-mcp">2.2 公开MCP服务部署流程</h3>
+<h4 id="221">2.2.1 快速部署步骤</h4>
+<ol>
+<li><strong>访问MCP市场</strong><ul>
+<li>进入计算巢首点击"MCP市场"</li>
+<li>浏览可用的公开MCP工具</li>
+</ul>
+</li>
+</ol>
+<p><img alt="" src="https://intranetproxy.alipay.com/skylark/lark/0/2025/png/63156287/1755671732619-62dd14ba-fe9c-4c9e-a38c-68018095db10.png" /></p>
+<ol>
+<li><strong>选择MCP工具</strong><ul>
+<li>选择要部署的MCP工具，如"必应搜索中文"</li>
+<li>点击MCP工具进入详细文档界面<img alt="" src="https://intranetproxy.alipay.com/skylark/lark/0/2025/png/63156287/1755671757929-0af51a20-5bf6-4812-995e-58c6eb628a45.png" /></li>
+<li>查看工具功能说明和使用示例</li>
+</ul>
+</li>
+<li><strong>部署配置</strong><ul>
+<li>点击右上角的"部署"按钮</li>
+<li>选择创建新的服务实例或部署到已有实例<img alt="" src="https://intranetproxy.alipay.com/skylark/lark/0/2025/png/63156287/1755671829630-a898a2b0-bd60-423a-8c1a-bd902ba832c7.png" /></li>
+<li>多个MCP工具可部署在同一服务实例内</li>
+</ul>
+</li>
+<li><strong>资源配置</strong><ul>
+<li>根据业务情况选择已有或新建的网关</li>
+</ul>
+</li>
+<li><strong>完成部署</strong><ul>
+<li>点击"立即创建"开始部署</li>
+<li>等待服务实例创建完成</li>
+<li>获取MCP控制台和调试界面访问地址</li>
+</ul>
+</li>
+</ol>
+<h2 id="mcp_1">三、私有MCP服务部署</h2>
+<p>注意：如果无可用的OSS Bucket建议先通过任意公开MCP包创建出计算巢服务实例，该服务实例会自动创建出符合规范的OSS仓库。
+如需要使用已有的OSS Bucket，可参考以下步骤进行授权：
+1. 访问<a href="https://oss.console.aliyun.com/bucket">OSS控制台</a>
+2. 找到Bucket授权策略。<img alt="img_8.png" src="../img_8.png" />
+3. <img alt="img_9.png" src="../img_9.png" /></p>
+<h3 id="31-mcp_1">3.1 支持的MCP格式</h3>
+<p><strong>对于FC的部署方式，必须强制进行zip压缩后上传</strong>
+计算巢MCP市场支持标准的包管理格式：</p>
+<p><strong>Python (UVX) 格式：</strong></p>
+<ul>
+<li>支持文件类型：<code>.whl</code>、<code>.tar.gz</code></li>
+<li>基于<a href="https://peps.python.org/pep-0518/">PEP 518标准</a>的pyproject.toml配置</li>
+<li>示例仓库：<a href="https://github.com/aliyun-computenest/mcp-python-demo">https://github.com/aliyun-computenest/mcp-python-demo</a></li>
+</ul>
+<p><strong>JavaScript (NPX) 格式：</strong></p>
+<ul>
+<li>支持文件类型：<code>.tgz</code></li>
+<li>基于标准的package.json配置</li>
+<li>示例仓库：<a href="https://github.com/aliyun-computenest/mcp-js-demo">https://github.com/aliyun-computenest/mcp-js-demo</a></li>
+</ul>
+<h3 id="32-python-mcp">3.2 Python MCP包创建流程</h3>
+<h4 id="321">3.2.1 项目配置</h4>
+<p>创建符合标准的<code>pyproject.toml</code>文件：</p>
+<pre><code class="language-toml">[build-system]
+requires = [&quot;hatchling&quot;]
+build-backend = &quot;hatchling.build&quot;
+
+[project]
+name = &quot;your-mcp-package&quot;           # 包名（必需）
+version = &quot;1.0.0&quot;                   # 版本号（必需）
+description = &quot;Your MCP Server description&quot;
+authors = [
+    {name = &quot;Your Name&quot;, email = &quot;your.email@example.com&quot;}
+]
+readme = &quot;README.md&quot;
+requires-python = &quot;&gt;=3.8&quot;          # Python版本要求
+dependencies = []                   # 运行时依赖
+
+# 脚本入口点配置（必需）
+[project.scripts]
+your-mcp-command = &quot;your_package_name.server:main&quot;
+
+[project.urls]
+Homepage = &quot;https://github.com/your-username/your-mcp-package&quot;
+
+# 构建配置
+[tool.hatch.build.targets.wheel]
+packages = [&quot;src/your_package_name&quot;]
+</code></pre>
+<h4 id="322">3.2.2 部署步骤</h4>
+<h3 id="_3">部署参数说明</h3>
+<table>
+<thead>
+<tr>
+<th><font style="color:rgb(51, 51, 51);">参数组</font></th>
+<th><font style="color:rgb(51, 51, 51);">参数项</font></th>
+<th><font style="color:rgb(51, 51, 51);">说明</font></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><font style="color:rgb(51, 51, 51);">MCP配置</font></td>
+<td><font style="color:rgb(51, 51, 51);">McpConfigJson</font></td>
+<td><font style="color:rgb(51, 51, 51);">需要使用的MCP工具</font></td>
+</tr>
+<tr>
+<td></td>
+<td><font style="color:rgb(51, 51, 51);">MCP_KEY</font></td>
+<td><font style="color:rgb(51, 51, 51);">MCP Server和大模型交互的秘钥</font></td>
+</tr>
+<tr>
+<td><font style="color:rgb(51, 51, 51);">服务实例</font></td>
+<td><font style="color:rgb(51, 51, 51);">服务实例名称</font></td>
+<td><font style="color:rgb(51, 51, 51);">长度不超过64个字符，必须以英文字母开头，可包含数字、英文字母、短划线（-）和下划线（_）</font></td>
+</tr>
+<tr>
+<td></td>
+<td><font style="color:rgb(51, 51, 51);">地域</font></td>
+<td><font style="color:rgb(51, 51, 51);">服务实例部署的地域</font></td>
+</tr>
+<tr>
+<td></td>
+<td><font style="color:rgb(51, 51, 51);">付费类型</font></td>
+<td><font style="color:rgb(51, 51, 51);">资源的计费类型：按量付费和包年包月</font></td>
+</tr>
+<tr>
+<td><font style="color:rgb(51, 51, 51);">ECS实例配置</font></td>
+<td><font style="color:rgb(51, 51, 51);">实例类型</font></td>
+<td><font style="color:rgb(51, 51, 51);">可用区下可以使用的实例规格</font></td>
+</tr>
+<tr>
+<td></td>
+<td><font style="color:rgb(51, 51, 51);">实例密码</font></td>
+<td><font style="color:rgb(51, 51, 51);">长度8-30，必须包含三项（大写字母、小写字母、数字、 ()`~!@#$%^&amp;*-+=</td>
+</tr>
+<tr>
+<td><font style="color:rgb(51, 51, 51);">网络配置</font></td>
+<td><font style="color:rgb(51, 51, 51);">可用区</font></td>
+<td><font style="color:rgb(51, 51, 51);">ECS实例所在可用区</font></td>
+</tr>
+<tr>
+<td></td>
+<td><font style="color:rgb(51, 51, 51);">VPC ID</font></td>
+<td><font style="color:rgb(51, 51, 51);">资源所在VPC</font></td>
+</tr>
+<tr>
+<td></td>
+<td><font style="color:rgb(51, 51, 51);">交换机ID</font></td>
+<td><font style="color:rgb(51, 51, 51);">资源所在交换机</font></td>
+</tr>
+</tbody>
+</table>
+<ol>
+<li><strong>访问计算巢MCP市场</strong><ul>
+<li>进入计算巢首页，点击"MCP市场"<img alt="" src="https://intranetproxy.alipay.com/skylark/lark/0/2025/png/63156287/1755671281379-bb1ec856-e135-4f51-a837-54b04804345e.png" /></li>
+<li>选择"创建自定义MCP"</li>
+</ul>
+</li>
+<li><strong>基础信息配置</strong><ul>
+<li>上传MCP图标（支持自定义图标）</li>
+<li>设置MCP名称和唯一ID</li>
+<li>注意：同一服务实例下ID不能重复</li>
+</ul>
+</li>
+<li><strong>包上传配置</strong><ul>
+<li>选择安装方式为"UVX"</li>
+<li>选择合适的地域和OSS Bucket</li>
+<li>上传.whl或.tar.gz格式的软件包<img alt="" src="https://intranetproxy.alipay.com/skylark/lark/0/2025/png/63156287/1755671299420-f3ec69bc-d612-4671-b713-c59fe5ebf0e1.png" /></li>
+</ul>
+</li>
+<li><strong>启动参数配置</strong><ul>
+<li><strong>默认参数</strong>：系统自动生成启动命令（不可修改）</li>
+</ul>
+</li>
+</ol>
+<pre><code class="language-bash">uvx /mcp-package/your-package-name.whl
+</code></pre>
+<pre><code>- **自定义参数**：可添加额外的启动参数
+</code></pre>
+<pre><code class="language-bash">--timezone Asia/Shanghai --config /path/to/config
+</code></pre>
+<pre><code>- **环境变量**：设置运行时需要的环境变量，如API Key等![](https://intranetproxy.alipay.com/skylark/lark/0/2025/png/63156287/1755671372337-f6f5837f-cedf-47b6-9c28-fa459ebf8f0c.png)
+</code></pre>
+<ol>
+<li><strong>服务实例部署</strong><ul>
+<li><strong>选择创建新的服务实例</strong> 或 <strong>部署到已有实例</strong><img alt="" src="https://intranetproxy.alipay.com/skylark/lark/0/2025/png/63156287/1755671378733-99fbb08e-3ba9-45ad-981a-cb6e90376ada.png" /></li>
+<li>等待部署完成，通过MCP管控平台查看服务状态<img alt="" src="https://intranetproxy.alipay.com/skylark/lark/0/2025/png/63156287/1755671400235-587248ba-ab5d-499e-8350-3290e7ab77a1.png" /></li>
+</ul>
+</li>
+</ol>
+<h3 id="33-javascript-mcp">3.3 JavaScript MCP包创建流程</h3>
+<h4 id="331">3.3.1 项目配置</h4>
+<p>确保<code>package.json</code>包含正确的配置：</p>
+<pre><code class="language-json">{
+  &quot;name&quot;: &quot;your-mcp-package&quot;,
+  &quot;version&quot;: &quot;1.0.0&quot;,
+  &quot;description&quot;: &quot;Your MCP Server description&quot;,
+  &quot;main&quot;: &quot;index.js&quot;,
+  &quot;bin&quot;: {
+    &quot;your-mcp-command&quot;: &quot;./bin/server.js&quot;
+  },
+  &quot;dependencies&quot;: {
+    &quot;@modelcontextprotocol/sdk&quot;: &quot;^0.4.0&quot;
+  }
+}
+</code></pre>
+<h4 id="332">3.3.2 部署步骤</h4>
+<ol>
+<li><strong>包格式准备</strong><ul>
+<li>使用<code>npm pack</code>生成.tgz包文件</li>
+</ul>
+</li>
+<li><strong>上传配置</strong><ul>
+<li>选择安装方式为"NPX"</li>
+<li>上传.tgz格式的软件包<img alt="" src="https://intranetproxy.alipay.com/skylark/lark/0/2025/png/63156287/1755671413339-ab5bf527-9ae7-4a7f-835b-c6d5916be733.png" /></li>
+</ul>
+</li>
+<li><strong>启动参数配置</strong><ul>
+<li><strong>默认参数</strong>：</li>
+</ul>
+</li>
+</ol>
+<pre><code class="language-bash">npx -y --package /mcp-package/your-package.tgz ${启动命令}
+</code></pre>
+<pre><code>- **自定义参数**：第一个参数必须是可执行文件映射（package.json中bin字段的值）
+1. 用户如果有自定义参数项，比如给package设置时区，则可传入类似--from cn-beijing的值进行设置。此处会通过空格解析传入的指令
+</code></pre>
+<pre><code class="language-bash">your-mcp-command --config /path/to/config
+</code></pre>
+<ol>
+<li><strong>环境变量：</strong>如果您使用的MCP Server的package需要设置环境变量，比如高德地图的API Key，则可在此处设置。设置完后点击下一步<img alt="" src="https://intranetproxy.alipay.com/skylark/lark/0/2025/png/63156287/1755671515100-e538bf5d-403a-4b54-b856-9c086de6d849.png" /></li>
+<li><strong>直接新建服务实例</strong> Or <strong>选择已有的服务实例</strong><ol>
+<li>如果想通过刚刚的配置<strong>直接创建服务实例</strong>，则选择界面左侧上方的“创建服务实例”按钮。</li>
+<li>如果想将该MCP直接部署到“<strong>已有的服务实例</strong>”，则在下方选择某个服务实例，并点击开始部署</li>
+</ol>
+</li>
+</ol>
+<p><img alt="" src="https://intranetproxy.alipay.com/skylark/lark/0/2025/png/63156287/1755671557989-cfa14fc4-63ec-45b9-b178-0bc1069b3b96.png" /></p>
+<ol>
+<li>待服务实例部署完后，可点击MCP管控平台查看整体的MCP服务，或在下方可用的MCP服务处选择某一个来查看：<img alt="" src="https://intranetproxy.alipay.com/skylark/lark/0/2025/png/63156287/1755671572189-e452d26e-4565-47c4-b71d-dc1ff486eef0.png" /></li>
+</ol>
+<h3 id="34-mcp">3.4 私有MCP包管理</h3>
+<h4 id="341">3.4.1 包存储机制</h4>
+<p><strong>OSS存储方案：</strong></p>
+<ul>
+<li>所有私有包统一上传到用户自有的OSS Bucket根目录</li>
+</ul>
+<p><strong>安全控制：</strong></p>
+<ul>
+<li>通过FC RAM Role实现安全的OSS访问</li>
+<li>支持包的加密存储</li>
+<li>实施访问日志和审计</li>
+</ul>
+<h4 id="342">3.4.2 包部署流程</h4>
+<p><strong>自动化部署流程：</strong></p>
+<ol>
+<li><strong>环境检查</strong>：检查OSSUtil工具是否已安装配置</li>
+<li><strong>包下载</strong>：从OSS下载私有MCP包到本地</li>
+<li><strong>服务启动</strong>：根据配置启动MCP服务</li>
+<li><strong>健康检查</strong>：验证服务是否正常运行</li>
+<li><strong>服务注册</strong>：将服务注册到AI网关</li>
+</ol>
+<h2 id="apimcp">四、企业内部API转MCP服务</h2>
+<h3 id="41-apimcp">4.1 API转MCP适配器</h3>
+<p>对于企业内部的API服务，可基于API网关实现已有API转MCP。</p>
+<p><strong>适用场景：</strong></p>
+<ul>
+<li>企业内部API服务</li>
+<li>满足OpenAPI规范的配置文件</li>
+<li>需要转换为MCP协议的现有服务</li>
+</ul>
+<p><strong>转换能力：</strong></p>
+<ul>
+<li>支持将OpenAPI规范批量转化为MCP Server</li>
+<li>自动生成MCP协议适配层</li>
+<li>保持原有API的功能和性能</li>
+</ul>
+<h2 id="_4">五、企业接入指南</h2>
+<h3 id="_5">示例一</h3>
+<p><img alt="" src="https://intranetproxy.alipay.com/skylark/lark/0/2025/png/63156287/1761185330590-325c4ebc-ccb8-4447-a37f-28b028f19328.png" /></p>
+<p>以上是一个经典的企业MCP市场架构。百炼和魔搭的MCP市场大致和上述架构图类似。我们来解读下这个图：</p>
+<p><strong>角色职责分工：MCP管理方</strong></p>
+<ul>
+<li><strong>职责边界</strong>：只负责网关和MCP包的配置管理，<strong>不实际部署MCP实例</strong></li>
+<li><strong>配置维护</strong>：统一管理公开和私有MCP的配置信息</li>
+<li><strong>平台运营</strong>：提供MCP市场的基础设施和管理界面</li>
+</ul>
+<p><strong>角色职责分工：企业用户</strong></p>
+<ul>
+<li><strong>按需配置</strong>：根据业务需求选择MCP并配置必要参数</li>
+<li><strong>环境变量管理</strong>：自行配置如高德APIkey等敏感信息</li>
+<li><strong>实例拥有</strong>：每个用户拥有独立的MCP服务实例</li>
+</ul>
+<h4 id="_6">首次部署基础环境搭建</h4>
+<p><strong>第一步：首次部署，选择MCP服务搭建基础环境</strong></p>
+<p><img alt="" src="https://intranetproxy.alipay.com/skylark/lark/0/2025/png/63156287/1761186669082-09cbab1c-50ca-4066-8b7b-540cdd307649.png" /></p>
+<p>点击创建服务实例</p>
+<p><strong>第二步：选择参数并部署</strong></p>
+<ol>
+<li>推荐选择FC企业版，性能更好更便宜。<img alt="" src="https://intranetproxy.alipay.com/skylark/lark/0/2025/png/63156287/1761186815591-dbffe0eb-6b0f-407a-99fd-6e40012b94d9.png" /></li>
+<li>选择已有或新建的AI网关，如果没有域名证书可点击此处按钮”新建“<img alt="" src="https://intranetproxy.alipay.com/skylark/lark/0/2025/png/63156287/1761186850687-782414dc-f74d-4f76-bb5f-6f9b6f8fee2d.png" /></li>
+<li>如果还没有配置域名，可输入”*“，创建POC环境域名。<img alt="" src="https://intranetproxy.alipay.com/skylark/lark/0/2025/png/63156287/1761186900486-9fd0a5c6-ad3b-4d14-980f-3d803f85df4a.png" /></li>
+<li>返回到刚刚的计算巢部署界面，选择好AI域名<img alt="" src="https://intranetproxy.alipay.com/skylark/lark/0/2025/png/63156287/1761186952229-97d240c8-6612-4b6e-81b3-017195f02bda.png" /></li>
+<li>选择AI网关的付费配置和网络配置，可直接选择默认新建选项<img alt="" src="https://intranetproxy.alipay.com/skylark/lark/0/2025/png/63156287/1761187167305-6c44733d-0cc1-4c7f-b87d-08d211a8f536.png" /></li>
+<li>新建OSS配置，首次创建推荐选择默认参数。</li>
+</ol>
+<p><img alt="" src="https://intranetproxy.alipay.com/skylark/lark/0/2025/png/63156287/1761187195923-76a0350f-f784-4d05-92f9-7880a37167a8.png" /></p>
+<ol>
+<li>点击下一步创建订单并点击立即创建<img alt="" src="https://intranetproxy.alipay.com/skylark/lark/0/2025/png/63156287/1761187357156-add8d5a1-22b7-4447-963a-0c913070ec0d.png" /></li>
+<li>等待服务实例状态变为已部署。<img alt="" src="https://intranetproxy.alipay.com/skylark/lark/0/2025/png/63156287/1761187655547-25272f89-c893-4fbc-8a01-e7c71205f0b7.png" /></li>
+</ol>
+<h4 id="mcp_2">MCP调试，限流和日志查询</h4>
+<ol>
+<li>点击MCP管控平台链接。可看到当前计算巢实例已经部署的所有MCP<img alt="" src="https://intranetproxy.alipay.com/skylark/lark/0/2025/png/63156287/1761187918636-2854bd1a-1bd9-43bd-8442-816f81d768e5.png" /></li>
+<li>选择某个工具可进行调试<img alt="" src="https://intranetproxy.alipay.com/skylark/lark/0/2025/png/63156287/1761188142185-5cc25c2d-6127-4911-8f5b-74452325f7c7.png" /></li>
+<li>可查看网关请求日志和MCP服务日志<img alt="" src="https://intranetproxy.alipay.com/skylark/lark/0/2025/png/63156287/1761188199897-54f42ca2-218c-454b-8e9e-d787ac48b3d7.png" /></li>
+</ol>
+<h4 id="mcp_3">变配：扩充使用的MCP</h4>
+<ol>
+<li>返回到计算巢MCP市场，选择要使用的MCP，选择之前部署的实例<img alt="" src="https://intranetproxy.alipay.com/skylark/lark/0/2025/png/63156287/1761190894053-35f2326f-d6e9-47f6-8557-a2b7b4040a59.png" /></li>
+<li>等待变配完成即可使用新发布的MCP<img alt="" src="https://intranetproxy.alipay.com/skylark/lark/0/2025/png/63156287/1761190947987-fc2ed19f-666d-4eef-bee8-cd71cd96812a.png" /></li>
+</ol>
+<h3 id="_7">示例二</h3>
+<p><strong>权限控制模块包含以下核心组件：</strong></p>
+<ul>
+<li><strong>消费者管理（Consumer Management）</strong>：管理不同业务团队的身份标识</li>
+<li><strong>API Key认证</strong>：基于API Key的身份验证机制</li>
+<li><strong>授权策略引擎</strong>：控制消费者对MCP服务的访问权限</li>
+<li><strong>路由级权限控制</strong>：在API网关层面实现精细化的路由访问控制</li>
+</ul>
+<h3 id="512">5.1.2 示例</h3>
+<p>可参考部署架构如下所示：
+<img alt="img_7.png" src="../img_7.png" /></p>
+<p>角色分为：
+1. MCP管理方：只维护网关和MCP包的配置。不实际去部署MCP实例。
+2. 企业用户：使用MCP时需要配置上该MCP需要的环境变量。比如高德APIkey。
+   搭建流程：
+1. MCP管理方自己维护完整的MCP配置，包含（公开+私有MCP配置）
+   a. 公开：可定时拉取计算巢侧的MCP配置文件
+   b. 私有：可自行开发API收集内部的MCP配置，保存好诸如ServerCode，OssPath等私有MCP配置。
+2. 通过解析第一步的完整配置文件，渲染出企业内部的MCP市场。此处开源给出前端简单的Demo
+3. 通过配置结合计算巢<a href="https://help.aliyun.com/zh/compute-nest/developer-reference/api-computenestsupplier-2021-05-21-createserviceinstance?spm=a2c4g.11174283.help-menu-search-268599.d_1">CreateServiceInstance</a>接口实现用户的MCP实例创建
+   使用流程：
+1. 用户选择要使用的MCP类型，填写参数。
+2. （后台动作）调用计算巢 创建服务实例Or更新服务实例 创建出新的MCP。
+   a. 在该过程中，OSS Path，APIG为固定配置。计算巢实例创建过程中会自动将新的MCP注册到APIG。
+   b. （后台动作）平台将用户和该计算巢实例对应。单个用户对应-单个服务实例
+3. （后台动作）通过实例ID查询拥有的MCP
+4. 返回到MCP列表页面
+5. 用户使用MCP</p>
+<p>优势：
+1. 灵活度更高。架构一的方式也支持
+2. 实现上更优雅：数据（MCP配置）和代码分离（MCP运行时）</p>
+<h2 id="mcp_4">六、MCP服务使用与集成</h2>
+<h3 id="61-ai">6.1 AI助手集成</h3>
+<h4 id="611-cherry-studio">6.1.1 Cherry Studio集成示例</h4>
+<p><strong>配置步骤：</strong></p>
+<ol>
+<li>
+<p><strong>获取MCP配置信息</strong></p>
+<ul>
+<li>访问函数计算实例界面</li>
+<li>选择要使用的MCP工具进入详情页面</li>
+<li>复制MCP服务器配置信息</li>
+</ul>
+</li>
+<li>
+<p><strong>配置Cherry Studio</strong></p>
+<ul>
+<li>打开Cherry Studio助手</li>
+<li>新建MCP服务器配置</li>
+<li>粘贴从控制台复制的配置信息</li>
+<li>如果鉴权参数未自动识别，需要手动复制API Key</li>
+</ul>
+</li>
+<li>
+<p><strong>启用和使用</strong></p>
+<ul>
+<li>点击右上角的"启用"和"保存"</li>
+<li>进入对话界面，选择要使用的MCP工具</li>
+<li>开始与AI助手进行对话，调用MCP工具功能</li>
+</ul>
+</li>
+</ol>
+<h2 id="7">7、运维监控</h2>
+<h3 id="71">7.1 函数计算监控</h3>
+<h4 id="711">7.1.1 监控指标</h4>
+<p><strong>函数计算监控指标：</strong></p>
+<ul>
+<li>函数调用次数和成功率</li>
+<li>函数执行时长和内存使用</li>
+<li>错误率和异常统计</li>
+<li>并发度和限流情况</li>
+</ul>
+<p><strong>API网关监控指标：</strong></p>
+<ul>
+<li>API调用量和响应时间</li>
+<li>错误码分布和成功率</li>
+<li>流量峰值和限流统计</li>
+</ul>
+<h4 id="712">7.1.2 成本优化</h4>
+<p><strong>函数计算成本优势：</strong></p>
+<ul>
+<li><strong>按需付费</strong>：仅为实际执行时间付费</li>
+<li><strong>自动伸缩</strong>：根据请求量自动调整资源</li>
+<li><strong>无服务器架构</strong>：无需管理底层基础设施</li>
+<li><strong>预留实例</strong>：对于高频调用场景可使用预留实例降低成本</li>
+</ul>
+<p><strong>成本优化建议：</strong></p>
+<ul>
+<li>合理设置函数内存规格</li>
+<li>优化函数代码执行效率</li>
+<li>使用预留实例处理稳定流量</li>
+<li>监控和分析成本使用情况</li>
+</ul>
+<h2 id="_8">八、函数计算版本优势</h2>
+<h3 id="81">8.1 成本优势</h3>
+<ul>
+<li><strong>创建免费</strong>：函数创建不产生费用</li>
+<li><strong>按量付费</strong>：仅根据实际调用量收费</li>
+<li><strong>API网关按量付费</strong>：灵活的计费模式</li>
+<li><strong>无需预付费</strong>：避免资源浪费</li>
+</ul>
+<h3 id="82">8.2 技术优势</h3>
+<ul>
+<li><strong>弹性伸缩</strong>：自动根据请求量扩缩容</li>
+<li><strong>高可用性</strong>：多可用区部署，故障自动切换</li>
+<li><strong>快速部署</strong>：秒级启动，快速响应</li>
+<li><strong>运维简化</strong>：无需管理服务器和运行时环境</li>
+</ul>
+<h3 id="83">8.3 适用场景</h3>
+<ul>
+<li><strong>中小企业</strong>：成本敏感，需要灵活计费</li>
+<li><strong>波动性业务</strong>：请求量不稳定的场景</li>
+<li><strong>快速原型</strong>：需要快速验证和部署</li>
+<li><strong>微服务架构</strong>：适合拆分为独立的函数服务</li>
+</ul>
+<h2 id="qa">十、Q&amp;A</h2>
+<p><strong>Q: 函数计算版本与ECS版本有什么区别？</strong></p>
+<p>A: 主要区别在于：
+- <strong>计费模式</strong>：函数计算按调用量付费，ECS按实例时长付费
+- <strong>运维复杂度</strong>：函数计算无需管理服务器，ECS需要运维管理
+- <strong>弹性伸缩</strong>：函数计算自动伸缩，ECS需要手动或配置自动伸缩
+- <strong>适用场景</strong>：函数计算适合波动性业务，ECS适合稳定高负载业务</p>
+        
+      </div>
+
+      <div class="copyrights">© 2009-2022 Aliyun.com 版权所有</div>
+    </div>
+  </div>
+  
+  <!--
+  MkDocs version      : 1.6.1
+  Docs Build Date UTC : 2026-06-22 12:59:31.309711+00:00
+  -->
+</body>
+</html>
