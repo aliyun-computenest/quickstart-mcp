@@ -12,6 +12,8 @@
 | 接入方式 | 用户在 AI 网关控制台创建 HTTP-to-MCP，复制 MCP URL 后填入计算巢自定义 MCP。 |
 | Agent 部署 | 仍只传 MCP endpoint，如 SSE 或 Streamable HTTP URL。 |
 
+详细接入、验收和排查步骤见 `http-to-mcp-custom-mcp-test.md`。
+
 用户文档需要说明的流程：
 
 ```text

@@ -221,6 +221,15 @@ def test_acs_template_contains_runtime_gateway_and_registration_resources():
     assert "McpApiEndpointHint" not in outputs
 
 
+def test_acs_template_supports_remote_mcp_url_transport_types():
+    template_text = ACS_TEMPLATE_PATH.read_text(encoding="utf-8")
+
+    assert "def remote_input_arg" in template_text
+    assert 'if $type == "streamable-http" or $type == "streamablehttp" then "--streamableHttp" else "--sse" end' in template_text
+    assert '"exec supergateway " + remote_input_arg' in template_text
+    assert "remote_command($name)" in template_text
+
+
 def test_acs_runtime_image_installs_supergateway_without_changing_ecs_dockerfile():
     dockerfile = ACS_DOCKERFILE_PATH.read_text(encoding="utf-8")
 

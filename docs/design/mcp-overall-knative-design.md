@@ -100,6 +100,8 @@ Agent 配置示例：
 | 3 | 复制 SSE 或 Streamable HTTP 访问地址。 |
 | 4 | 回到计算巢自定义 MCP，填入该地址。 |
 
+详细接入和测试步骤见 `http-to-mcp-custom-mcp-test.md`。
+
 ---
 
 ### Core Flow Design
