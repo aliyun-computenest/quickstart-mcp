@@ -316,19 +316,6 @@ Parameters:
       ShowTagsCounts: 10
     Default: '[{"serviceName":"Fetch网页内容抓取","serverCode":"fetch","env":{},"command":"uvx","args":["mcp-server-fetch"]}]'
 
-  ManagedMcpConfigJson:
-    Type: Json
-    Label:
-      zh-cn: 网关接入MCP
-      en: Managed Gateway MCP
-    AssociationPropertyMetadata:
-      Visible:
-        Condition:
-          Fn::Equals:
-            - true
-            - false
-    Default: '[]'
-
   GatewayOption:
     Type: String
     AllowedValues:

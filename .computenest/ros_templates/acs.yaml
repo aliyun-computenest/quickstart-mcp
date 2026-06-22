@@ -1,7 +1,7 @@
 ROSTemplateFormatVersion: '2015-09-01'
 Description:
-  zh-cn: 基于 ACS 集群部署 MCP runtime，按 MCP Server 独立扩缩容，并通过统一 ALB Ingress 暴露 API 与 MCP 协议入口。
-  en: Deploy MCP runtime on ACS with per-server scaling and a shared ALB Ingress for API and MCP protocol endpoints.
+  zh-cn: 基于 ACS 集群和 Knative Serving 部署 MCP runtime，按 MCP Server 独立扩缩容，并通过统一 ALB Ingress 暴露 MCP 协议入口。
+  en: Deploy MCP runtime on ACS and Knative Serving with per-server scaling and a shared ALB Ingress for MCP protocol endpoints.
 
 Mappings:
   PaymentTypeMapping:
@@ -117,19 +117,6 @@ Parameters:
     AssociationPropertyMetadata:
       ShowLabel: false
       ShowCount: 6
-
-  ManagedMcpConfigJson:
-    Type: Json
-    Label:
-      zh-cn: 网关接入MCP
-      en: Managed Gateway MCP
-    AssociationPropertyMetadata:
-      Visible:
-        Condition:
-          Fn::Equals:
-            - true
-            - false
-    Default: '[]'
 
   GatewayOption:
     Type: String
@@ -457,8 +444,11 @@ Parameters:
   McpReplicas:
     Type: Number
     Label:
-      zh-cn: 每个MCP副本数
-      en: Replicas Per MCP Server
+      zh-cn: 每个MCP最大实例数
+      en: Max Instances Per MCP Server
+    Description:
+      zh-cn: Knative Serving 按流量自动伸缩，最小实例数固定为 1，该参数作为每个 MCP 的最大实例数。
+      en: Knative Serving scales by traffic. The minimum instance count is fixed to 1, and this parameter is used as the maximum instance count per MCP server.
     Default: 1
     MinValue: 1
     MaxValue: 10
@@ -609,6 +599,40 @@ Resources:
     Properties:
       CreateDuration: 10
 
+  KnativeKourier:
+    Type: ALIYUN::CS::ClusterHelmApplication
+    DependsOn: ClusterReadySleep
+    Properties:
+      ClusterId:
+        Fn::GetAtt:
+          - AckOrAcsCluster
+          - ClusterId
+      ChartUrl: https://aliacs-app-catalog.oss-cn-hangzhou.aliyuncs.com/charts-incubator/ack-knative-kourier-1.4.0.tgz
+      Name: knative-kourier
+      Namespace: knative-serving
+      IgnoreExisting: SkipAlloperationsIfExisting
+      ChartValues:
+        version: v1.10.9-aliyun.1
+        regionID:
+          Ref: ALIYUN::Region
+
+  KnativeServing:
+    Type: ALIYUN::CS::ClusterHelmApplication
+    DependsOn: KnativeKourier
+    Properties:
+      ClusterId:
+        Fn::GetAtt:
+          - AckOrAcsCluster
+          - ClusterId
+      ChartUrl: https://aliacs-app-catalog.oss-cn-hangzhou.aliyuncs.com/charts-incubator/ack-knative-serving-v1.10.9-aliyun.1.tgz
+      Name: knative-serving
+      Namespace: knative-serving
+      IgnoreExisting: SkipAlloperationsIfExisting
+      ChartValues:
+        version: v1.10.9-aliyun.1
+        regionID:
+          Ref: ALIYUN::Region
+
   AlbIngressAddon:
     Type: ALIYUN::CS::ClusterAddons
     DependsOn: ClusterReadySleep
@@ -645,7 +669,7 @@ Resources:
 
   McpNamespace:
     Type: ALIYUN::CS::ClusterApplication
-    DependsOn: ClusterReadySleep
+    DependsOn: KnativeServing
     Properties:
       ClusterId:
         Fn::GetAtt:
@@ -730,26 +754,25 @@ Resources:
             map(
               name as $name |
               "---\n" +
-              "apiVersion: apps/v1\n" +
-              "kind: Deployment\n" +
+              "apiVersion: serving.knative.dev/v1\n" +
+              "kind: Service\n" +
               "metadata:\n" +
               "  name: mcp-" + $name + "\n" +
               "  namespace: mcp-runtime\n" +
               "  labels:\n" +
               "    app: mcp-server\n" +
               "    serverCode: " + $name + "\n" +
+              "    networking.knative.dev/visibility: cluster-local\n" +
               "spec:\n" +
-              "  replicas: " + ($root.replicas | tostring) + "\n" +
-              "  selector:\n" +
-              "    matchLabels:\n" +
-              "      app: mcp-server\n" +
-              "      serverCode: " + $name + "\n" +
               "  template:\n" +
               "    metadata:\n" +
               "      labels:\n" +
               "        app: mcp-server\n" +
               "        serverCode: " + $name + "\n" +
               "        alibabacloud.com/acs: \"true\"\n" +
+              "      annotations:\n" +
+              "        autoscaling.knative.dev/min-scale: \"1\"\n" +
+              "        autoscaling.knative.dev/max-scale: " + ($root.replicas | tostring | @json) + "\n" +
               "    spec:\n" +
               "      containers:\n" +
               "        - name: supergateway\n" +
@@ -761,7 +784,7 @@ Resources:
               "              " + shell_command($name) + "\n" +
               env_lines +
               "          ports:\n" +
-              "            - name: http\n" +
+              "            - name: http1\n" +
               "              containerPort: 8080\n" +
               "              protocol: TCP\n" +
               "          volumeMounts:\n" +
@@ -775,32 +798,14 @@ Resources:
               "              cpu: " + ($root.cpu | @json) + "\n" +
               "              memory: " + ($root.memory | @json) + "\n" +
               "          readinessProbe:\n" +
-              "            tcpSocket:\n" +
+              "            httpGet:\n" +
+              "              path: /healthz\n" +
               "              port: 8080\n" +
               "            initialDelaySeconds: 10\n" +
               "            periodSeconds: 10\n" +
               "      volumes:\n" +
               "        - name: mcp-package\n" +
-              "          emptyDir: {}\n" +
-              "---\n" +
-              "apiVersion: v1\n" +
-              "kind: Service\n" +
-              "metadata:\n" +
-              "  name: mcp-" + $name + "\n" +
-              "  namespace: mcp-runtime\n" +
-              "  labels:\n" +
-              "    app: mcp-server\n" +
-              "    serverCode: " + $name + "\n" +
-              "spec:\n" +
-              "  type: ClusterIP\n" +
-              "  selector:\n" +
-              "    app: mcp-server\n" +
-              "    serverCode: " + $name + "\n" +
-              "  ports:\n" +
-              "    - name: http\n" +
-              "      port: 8080\n" +
-              "      targetPort: 8080\n" +
-              "      protocol: TCP\n"
+              "          emptyDir: {}\n"
             ) | join("\n")
           - servers:
               Ref: McpConfigJson
@@ -856,7 +861,7 @@ Resources:
                     "                          service:\n" +
                     "                            name: mcp-" + $name + "\n" +
                     "                            port:\n" +
-                    "                              number: 8080"
+                    "                              number: 80"
                   ) | join("\n")
                 - Ref: McpConfigJson
 

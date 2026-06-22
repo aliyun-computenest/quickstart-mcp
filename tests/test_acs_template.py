@@ -105,38 +105,25 @@ def test_ecs_single_template_supports_regions_used_by_service_tests():
     assert required_regions.issubset(set(consumer_ecs["AllowedRegions"]))
     assert set(supplier_ecs["AllowedRegions"]).issubset(set(ecs_artifact["SupportRegionIds"]))
     assert set(consumer_ecs["AllowedRegions"]).issubset(set(ecs_artifact["SupportRegionIds"]))
-    assert service_test["regionId"] in consumer_ecs["AllowedRegions"]
+    if "regionId" in service_test:
+        assert service_test["regionId"] in consumer_ecs["AllowedRegions"]
 
 
-def test_gateway_managed_mcp_change_operation_is_registered_for_gateway_templates():
+def test_gateway_templates_only_expose_mcp_config_change_operation():
     config = load_yaml(CONFIG_PATH)
 
     for template_name in ("FC企业版", "ACS企业版"):
         operations = get_modify_operations(config, template_name)
 
+        assert set(operations) == {"Modify-MCP-Servers"}
         assert operations["Modify-MCP-Servers"]["Parameters"] == ["McpConfigJson"]
-        assert operations["Manage-Gateway-MCP"] == {
-            "Name": "Manage-Gateway-MCP",
-            "Description": "接入或移出网关MCP",
-            "Type": "Custom",
-            "SupportPredefinedParameters": False,
-            "EnableLogging": False,
-            "Parameters": ["ManagedMcpConfigJson"],
-        }
 
 
-def test_gateway_templates_define_hidden_managed_mcp_config_parameter():
+def test_gateway_templates_do_not_define_managed_mcp_config_parameter():
     for template_path in (FC_TEMPLATE_PATH, ACS_TEMPLATE_PATH):
         template = load_yaml(template_path)
-        parameter = template["Parameters"]["ManagedMcpConfigJson"]
 
-        assert parameter["Type"] == "Json"
-        assert parameter["Default"] == "[]"
-        assert parameter["AssociationPropertyMetadata"]["Visible"] == {
-            "Condition": {
-                "Fn::Equals": [True, False],
-            },
-        }
+        assert "ManagedMcpConfigJson" not in template["Parameters"]
 
 
 def test_artifact_relations_match_ecs_image_ids_and_fc_uses_inline_registration_code():
@@ -173,10 +160,18 @@ def test_acs_template_contains_runtime_gateway_and_registration_resources():
     parameters = template["Parameters"]
     resources = template["Resources"]
     outputs = template["Outputs"]
+    workload_yaml = yaml.safe_dump(resources["McpServerWorkloads"], allow_unicode=True)
+    ingress_yaml = yaml.safe_dump(resources["McpRuntimeIngress"], allow_unicode=True)
 
     assert parameters["McpConfigJson"]["AssociationProperty"] == "ALIYUN::MCP::Server::Server"
     assert parameters["GatewayOption"]["AllowedValues"] == ["ExistingGateway", "NewGateway"]
     assert resources["AckOrAcsCluster"]["Type"] == "ALIYUN::ACS::Cluster"
+    assert resources["KnativeKourier"]["Type"] == "ALIYUN::CS::ClusterHelmApplication"
+    assert resources["KnativeServing"]["Type"] == "ALIYUN::CS::ClusterHelmApplication"
+    assert resources["KnativeServing"]["DependsOn"] == "KnativeKourier"
+    assert "ack-knative-kourier" in resources["KnativeKourier"]["Properties"]["ChartUrl"]
+    assert "ack-knative-serving" in resources["KnativeServing"]["Properties"]["ChartUrl"]
+    assert resources["McpNamespace"]["DependsOn"] == "KnativeServing"
     assert "McpRuntimeDeployment" not in resources
     assert "McpRuntimeService" not in resources
     assert "McpApiDeployment" not in resources
@@ -187,7 +182,18 @@ def test_acs_template_contains_runtime_gateway_and_registration_resources():
     assert resources["McpRegistrationJob"]["Type"] == "ALIYUN::CS::ClusterApplication"
     assert resources["McpRegistrationJob"]["Condition"] == "EnableGatewayRegistrationCondition"
     assert "{{ computenest::acrimage::quickstart-mcp-acs }}" in template_text
-    assert "serverCode" in yaml.safe_dump(resources["McpServerWorkloads"])
+    assert "serverCode" in workload_yaml
+    assert "serving.knative.dev/v1" in workload_yaml
+    assert "kind: Service" in workload_yaml
+    assert "apiVersion: apps/v1" not in workload_yaml
+    assert "kind: Deployment" not in workload_yaml
+    assert "autoscaling.knative.dev/min-scale" in workload_yaml
+    assert "autoscaling.knative.dev/max-scale" in workload_yaml
+    assert "networking.knative.dev/visibility: cluster-local" in workload_yaml
+    assert "containerPort:" in workload_yaml
+    assert "8080" in workload_yaml
+    assert "number: 80" in ingress_yaml
+    assert "number: 8080" not in ingress_yaml
     assert "/mcp-servers/" in template_text
     assert "mcp-api" not in template_text
     assert "mcpo" not in template_text

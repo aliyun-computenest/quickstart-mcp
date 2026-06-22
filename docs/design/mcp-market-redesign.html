@@ -1823,7 +1823,7 @@
               <article class="mcp-icon-card">
                 <span class="mark orange">API</span>
                 <strong>订单查询 API</strong>
-                <div class="gateway-meta">网关接入 · 已接入</div>
+                <div class="gateway-meta">自定义 · HTTP-to-MCP</div>
               </article>
             </div>
           </div>
@@ -1902,16 +1902,15 @@
       <section class="modal config-modal">
         <div class="modal-head">
           <div class="modal-title">配置生产 MCP 网关</div>
-          <div class="modal-subtitle">从公共 MCP、自定义 MCP 或网关已有 MCP 中选择要加入当前网关的服务，并配置所需参数。</div>
+          <div class="modal-subtitle">从公共 MCP 或自定义 MCP 中选择要加入当前网关的服务，并配置所需参数。</div>
           <div class="close">×</div>
         </div>
         <div class="config-content">
           <aside class="config-list-pane">
-            <div class="config-source-head"><strong>选择来源</strong><span>3 类</span></div>
+            <div class="config-source-head"><strong>选择来源</strong><span>2 类</span></div>
             <div class="config-mode-tabs">
               <span class="config-mode-tab active">公共 MCP</span>
               <span class="config-mode-tab">自定义 MCP</span>
-              <span class="config-mode-tab">网关接入</span>
             </div>
             <div class="config-search">搜索名称、类型或部署方式</div>
 
@@ -2013,7 +2012,6 @@
                 <div class="env-inline-row"><strong>READ_ONLY</strong><span class="input">true</span><span class="link">删除</span></div>
               </div>
               <div class="credential-hint">公共 MCP 只保存用户参数和凭据引用，服务定义不可在这里修改。</div>
-              <div class="credential-hint">“网关接入”只查询当前网关下已部署的 HTTP 转 MCP，接入后写入实例参数 ManagedMcpConfigJson，不会再次注册 MCP Server；后续展示以 AI 网关刷新结果为准。</div>
               <div class="section-desc" style="margin-top:10px"><span class="link">+ 新增参数</span></div>
             </div>
 
@@ -2094,16 +2092,15 @@
       <section class="modal config-modal">
         <div class="modal-head">
           <div class="modal-title">配置生产 MCP 网关</div>
-          <div class="modal-subtitle">从公共 MCP、自定义 MCP 或网关已有 MCP 中选择要加入当前网关的服务，并配置所需参数。</div>
+          <div class="modal-subtitle">从公共 MCP 或自定义 MCP 中选择要加入当前网关的服务，并配置所需参数。</div>
           <div class="close">×</div>
         </div>
         <div class="config-content">
           <aside class="config-list-pane">
-            <div class="config-source-head"><strong>选择来源</strong><span>3 类</span></div>
+            <div class="config-source-head"><strong>选择来源</strong><span>2 类</span></div>
             <div class="config-mode-tabs">
               <span class="config-mode-tab">公共 MCP</span>
               <span class="config-mode-tab active">自定义 MCP</span>
-              <span class="config-mode-tab">网关接入</span>
             </div>
             <div class="config-search">搜索名称、类型或部署方式</div>
 
@@ -2607,7 +2604,7 @@
             </div>
 
             <div class="agent-json-preview">
-              <span>输出：serviceInstanceId + gatewayId + mcpServerId 列表 + tools 快照。</span>
+              <span>输出：选中 MCP 的 transport + url。</span>
               <span class="link">查看 JSON</span>
             </div>
           </div>

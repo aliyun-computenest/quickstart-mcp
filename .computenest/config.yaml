@@ -18,13 +18,6 @@ Service:
         EnableLogging: false
         Parameters:
         - McpConfigJson
-      - Name: Manage-Gateway-MCP
-        Description: 接入或移出网关MCP
-        Type: Custom
-        SupportPredefinedParameters: false
-        EnableLogging: false
-        Parameters:
-        - ManagedMcpConfigJson
     - TemplateName: ACS企业版
       Operation:
       - Name: Modify-MCP-Servers
@@ -34,13 +27,6 @@ Service:
         EnableLogging: false
         Parameters:
         - McpConfigJson
-      - Name: Manage-Gateway-MCP
-        Description: 接入或移出网关MCP
-        Type: Custom
-        SupportPredefinedParameters: false
-        EnableLogging: false
-        Parameters:
-        - ManagedMcpConfigJson
     - TemplateName: ECS单机版
       Operation:
       - Name: 变更ECS实例规格
@@ -66,12 +52,12 @@ Service:
         - ap-southeast-1
       - Name: FC企业版
         Url: 'ros_templates/fc.yaml'
-        ArchitectureDiagramUrl: 'resources/architecture/architecture.jpg'
+        ArchitectureDiagramUrl: 'resources/architecture/fc-architecture.jpg'
         AllowedRegions:
           - ap-southeast-1
       - Name: ACS企业版
         Url: 'ros_templates/acs.yaml'
-        ArchitectureDiagramUrl: 'resources/architecture/architecture.jpg'
+        ArchitectureDiagramUrl: 'resources/architecture/acs-architecture.jpg'
         AllowedRegions:
         - cn-hangzhou
         - ap-southeast-1
@@ -98,12 +84,12 @@ Service:
         EnableWebProxy: true
     - Name: FC企业版
       Url: 'ros_templates/fc.yaml'
-      ArchitectureDiagramUrl: 'resources/architecture/architecture.jpg'
+      ArchitectureDiagramUrl: 'resources/architecture/fc-architecture.jpg'
       AllowedRegions:
         - ap-southeast-1
     - Name: ACS企业版
       Url: 'ros_templates/acs.yaml'
-      ArchitectureDiagramUrl: 'resources/architecture/architecture.jpg'
+      ArchitectureDiagramUrl: 'resources/architecture/acs-architecture.jpg'
       AllowedRegions:
       - cn-hangzhou
       - ap-southeast-1
