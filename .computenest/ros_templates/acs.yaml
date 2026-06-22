@@ -654,6 +654,13 @@ Resources:
         regionID:
           Ref: ALIYUN::Region
 
+  KnativeServingReadySleep:
+    Type: ALIYUN::ROS::Sleep
+    DependsOn:
+      - KnativeServing
+    Properties:
+      CreateDuration: 120
+
   AlbIngressAddon:
     Type: ALIYUN::CS::ClusterAddons
     DependsOn: ClusterReadySleep
@@ -690,7 +697,7 @@ Resources:
 
   McpNamespace:
     Type: ALIYUN::CS::ClusterApplication
-    DependsOn: KnativeServing
+    DependsOn: KnativeServingReadySleep
     Properties:
       ClusterId:
         Fn::GetAtt:
