@@ -610,7 +610,7 @@ Resources:
       ChartUrl: https://aliacs-app-catalog.oss-cn-hangzhou.aliyuncs.com/charts-incubator/ack-knative-kourier-1.4.0.tgz
       Name: knative-kourier
       Namespace: knative-serving
-      IgnoreExisting: SkipAlloperationsIfExisting
+      IgnoreExisting: SkipAllOperationsIfExisting
       ChartValues:
         version: v1.10.9-aliyun.1
         regionID:
@@ -627,7 +627,7 @@ Resources:
       ChartUrl: https://aliacs-app-catalog.oss-cn-hangzhou.aliyuncs.com/charts-incubator/ack-knative-serving-v1.10.9-aliyun.1.tgz
       Name: knative-serving
       Namespace: knative-serving
-      IgnoreExisting: SkipAlloperationsIfExisting
+      IgnoreExisting: SkipAllOperationsIfExisting
       ChartValues:
         version: v1.10.9-aliyun.1
         regionID:
