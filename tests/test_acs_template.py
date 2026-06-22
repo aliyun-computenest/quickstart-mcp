@@ -172,9 +172,10 @@ def test_acs_template_contains_runtime_gateway_and_registration_resources():
     assert resources["HelmManagerAddon"]["DependsOn"] == "ClusterReadySleep"
     assert resources["HelmManagerAddon"]["Properties"]["Addons"] == [{"Name": "ack-helm-manager"}]
     assert resources["HelmManagerSleep"]["DependsOn"] == ["HelmManagerAddon"]
-    assert resources["KnativeKourier"]["DependsOn"] == "HelmManagerSleep"
-    assert resources["KnativeServing"]["DependsOn"] == "KnativeKourier"
+    assert resources["KnativeServing"]["DependsOn"] == "HelmManagerSleep"
     assert resources["KnativeServingReadySleep"]["DependsOn"] == ["KnativeServing"]
+    assert resources["KnativeKourier"]["DependsOn"] == "KnativeServingReadySleep"
+    assert resources["KnativeKourierReadySleep"]["DependsOn"] == ["KnativeKourier"]
     assert "ack-knative-kourier" in resources["KnativeKourier"]["Properties"]["ChartUrl"]
     assert "ack-knative-serving" in resources["KnativeServing"]["Properties"]["ChartUrl"]
     assert resources["KnativeKourier"]["Properties"]["IgnoreExisting"] == "SkipAllOperationsIfExisting"
@@ -182,7 +183,11 @@ def test_acs_template_contains_runtime_gateway_and_registration_resources():
     assert resources["KnativeKourier"]["Properties"]["ChartValues"]["registryURL"] == {
         "Fn::Sub": "registry-${ALIYUN::Region}.ack.aliyuncs.com"
     }
-    assert resources["McpNamespace"]["DependsOn"] == "KnativeServingReadySleep"
+    assert resources["KnativeKourier"]["Properties"]["ChartValues"]["clusterId"] == {
+        "Fn::GetAtt": ["AckOrAcsCluster", "ClusterId"]
+    }
+    assert resources["KnativeKourier"]["Properties"]["ChartValues"]["isDefault"] is False
+    assert resources["McpNamespace"]["DependsOn"] == "KnativeKourierReadySleep"
     assert "McpRuntimeDeployment" not in resources
     assert "McpRuntimeService" not in resources
     assert "McpApiDeployment" not in resources
@@ -201,10 +206,13 @@ def test_acs_template_contains_runtime_gateway_and_registration_resources():
     assert "autoscaling.knative.dev/min-scale" in workload_yaml
     assert "autoscaling.knative.dev/max-scale" in workload_yaml
     assert "networking.knative.dev/visibility: cluster-local" in workload_yaml
+    assert "app: mcp-server-backend" in workload_yaml
+    assert "serving.knative.dev/service: mcp-" in workload_yaml
     assert "containerPort:" in workload_yaml
     assert "8080" in workload_yaml
     assert "number: 80" in ingress_yaml
     assert "number: 8080" not in ingress_yaml
+    assert "-backend" in ingress_yaml
     assert "/mcp-servers/" in template_text
     assert "mcp-api" not in template_text
     assert "mcpo" not in template_text

@@ -618,28 +618,9 @@ Resources:
     Properties:
       CreateDuration: 120
 
-  KnativeKourier:
-    Type: ALIYUN::CS::ClusterHelmApplication
-    DependsOn: HelmManagerSleep
-    Properties:
-      ClusterId:
-        Fn::GetAtt:
-          - AckOrAcsCluster
-          - ClusterId
-      ChartUrl: https://aliacs-app-catalog.oss-cn-hangzhou.aliyuncs.com/charts-incubator/ack-knative-kourier-1.4.0.tgz
-      Name: knative-kourier
-      Namespace: knative-serving
-      IgnoreExisting: SkipAllOperationsIfExisting
-      ChartValues:
-        version: v1.10.9-aliyun.1
-        regionID:
-          Ref: ALIYUN::Region
-        registryURL:
-          Fn::Sub: registry-${ALIYUN::Region}.ack.aliyuncs.com
-
   KnativeServing:
     Type: ALIYUN::CS::ClusterHelmApplication
-    DependsOn: KnativeKourier
+    DependsOn: HelmManagerSleep
     Properties:
       ClusterId:
         Fn::GetAtt:
@@ -658,6 +639,37 @@ Resources:
     Type: ALIYUN::ROS::Sleep
     DependsOn:
       - KnativeServing
+    Properties:
+      CreateDuration: 120
+
+  KnativeKourier:
+    Type: ALIYUN::CS::ClusterHelmApplication
+    DependsOn: KnativeServingReadySleep
+    Properties:
+      ClusterId:
+        Fn::GetAtt:
+          - AckOrAcsCluster
+          - ClusterId
+      ChartUrl: https://aliacs-app-catalog.oss-cn-hangzhou.aliyuncs.com/charts-incubator/ack-knative-kourier-1.4.0.tgz
+      Name: knative-kourier
+      Namespace: knative-serving
+      IgnoreExisting: SkipAllOperationsIfExisting
+      ChartValues:
+        version: v1.10.9-aliyun.1
+        regionID:
+          Ref: ALIYUN::Region
+        registryURL:
+          Fn::Sub: registry-${ALIYUN::Region}.ack.aliyuncs.com
+        clusterId:
+          Fn::GetAtt:
+            - AckOrAcsCluster
+            - ClusterId
+        isDefault: false
+
+  KnativeKourierReadySleep:
+    Type: ALIYUN::ROS::Sleep
+    DependsOn:
+      - KnativeKourier
     Properties:
       CreateDuration: 120
 
@@ -697,7 +709,7 @@ Resources:
 
   McpNamespace:
     Type: ALIYUN::CS::ClusterApplication
-    DependsOn: KnativeServingReadySleep
+    DependsOn: KnativeKourierReadySleep
     Properties:
       ClusterId:
         Fn::GetAtt:
@@ -833,7 +845,25 @@ Resources:
               "            periodSeconds: 10\n" +
               "      volumes:\n" +
               "        - name: mcp-package\n" +
-              "          emptyDir: {}\n"
+              "          emptyDir: {}\n" +
+              "---\n" +
+              "apiVersion: v1\n" +
+              "kind: Service\n" +
+              "metadata:\n" +
+              "  name: mcp-" + $name + "-backend\n" +
+              "  namespace: mcp-runtime\n" +
+              "  labels:\n" +
+              "    app: mcp-server-backend\n" +
+              "    serverCode: " + $name + "\n" +
+              "spec:\n" +
+              "  type: ClusterIP\n" +
+              "  selector:\n" +
+              "    serving.knative.dev/service: mcp-" + $name + "\n" +
+              "  ports:\n" +
+              "    - name: http\n" +
+              "      port: 80\n" +
+              "      targetPort: 8080\n" +
+              "      protocol: TCP\n"
             ) | join("\n")
           - servers:
               Ref: McpConfigJson
@@ -887,7 +917,7 @@ Resources:
                     "                        pathType: Prefix\n" +
                     "                        backend:\n" +
                     "                          service:\n" +
-                    "                            name: mcp-" + $name + "\n" +
+                    "                            name: mcp-" + $name + "-backend\n" +
                     "                            port:\n" +
                     "                              number: 80"
                   ) | join("\n")
