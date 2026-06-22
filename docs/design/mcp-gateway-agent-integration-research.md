@@ -10,7 +10,7 @@
 | 存储字段 | 不新增独立纳管参数。 |
 | 前端调用 | 不调用 APIG 列表接口拉取可导入 MCP。 |
 | 接入方式 | 用户在 AI 网关控制台创建 HTTP-to-MCP，复制 MCP URL 后填入计算巢自定义 MCP。 |
-| Agent 部署 | 仍只传 MCP endpoint，如 SSE 或 Streamable HTTP URL。 |
+| Agent 部署 | 先用 `mcpServerId` 调 APIG `GetMcpServer` 拿实时接入信息，再只传 MCP endpoint 给 Agent。 |
 
 详细接入、验收和排查步骤见 `http-to-mcp-custom-mcp-test.md`。
 
@@ -18,8 +18,8 @@
 
 ```text
 AI 网关控制台创建 HTTP-to-MCP
-  -> 复制 SSE / Streamable HTTP 访问地址
+  -> 复制 MCP Server ID 或 SSE / Streamable HTTP 访问地址
   -> 计算巢配置 MCP
   -> 选择自定义 MCP
-  -> 填入访问地址
+  -> 填入 mcpServerId 或访问地址
 ```

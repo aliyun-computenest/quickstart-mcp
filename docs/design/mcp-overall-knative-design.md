@@ -16,7 +16,7 @@ MCP 配置模型不变。AI 网关里创建出来的 HTTP-to-MCP，本质上是�
 | 2 | 配置字段 | 只使用 `McpConfigJson`，不新增顶层参数。 |
 | 3 | AI 网关 HTTP-to-MCP | 按自定义 MCP URL 使用，不做单独导入界面。 |
 | 4 | 前端展示 | 继续展示公共 MCP 和自定义 MCP；不新增第三个 tab。 |
-| 5 | Agent 部署 | 下发 MCP endpoint，如 SSE 或 Streamable HTTP URL，不传内部 ID。 |
+| 5 | Agent 部署 | 下发最终 MCP endpoint；AI 网关来源先用 `mcpServerId` 查 APIG 实时详情。 |
 
 ---
 
@@ -30,10 +30,11 @@ MCP 配置模型不变。AI 网关里创建出来的 HTTP-to-MCP，本质上是�
 |-------|---------|
 | `serverCode` | 当前实例内 MCP 标识。 |
 | `type` | MCP 连接方式，如 `sse` 或 `streamable-http`。 |
-| `url` | 自定义 MCP 访问地址，可填写 AI 网关 HTTP-to-MCP 地址。 |
+| `mcpServerId` | 可选。AI 网关 MCP Server ID，用于展示和 Agent 部署前调用 APIG `GetMcpServer`。 |
+| `url` | 可选。普通自定义 MCP 访问地址，也可作为 APIG 查询失败时的兜底地址。 |
 | `env` | 可选运行参数。 |
 
-不再设计独立纳管字段、`api-mcp` 类型、`gatewayId`、`mcpServerId`、路径快照、tools 快照等字段。名称、路径、tools 归 AI 网关控制台管理，计算巢只保存用户填入的自定义 MCP 配置。
+不再设计独立纳管字段、`api-mcp` 类型、`gatewayId`、路径快照、tools 快照等字段。名称、路径、tools 归 AI 网关控制台管理；计算巢只保存 `mcpServerId` 这个查询句柄，或保存普通自定义 URL。
 
 ---
 
@@ -45,8 +46,8 @@ MCP 配置模型不变。AI 网关里创建出来的 HTTP-to-MCP，本质上是�
 |------|------|
 | 配置 MCP | 前端通过现有服务实例变配写回完整 `McpConfigJson`。 |
 | 查询展示 | 前端读取服务实例详情里的 `McpConfigJson`，按现有公共 MCP / 自定义 MCP 逻辑展示。 |
-| AI 网关 HTTP-to-MCP | 前端不调用 APIG `ListMcpServers` / `GetMcpServer`，不拉 AI 网关列表。 |
-| Agent 部署 | 后端把用户选择的 MCP 转成 `transport + url` 下发给 Agent；远端 URL 直接使用 `McpConfigJson.url`。 |
+| AI 网关 HTTP-to-MCP | 配置页不新增导入 tab；展示详情可用 `mcpServerId` 调 APIG `GetMcpServer`。 |
+| Agent 部署 | 后端把用户选择的 MCP 转成 `transport + url` 下发给 Agent；AI 网关来源先调 `GetMcpServer` 解析实时 endpoint。 |
 
 Agent 配置示例：
 
@@ -108,11 +109,11 @@ Agent 配置示例：
 
 ```text
 AI 网关控制台创建 HTTP-to-MCP
-  -> 复制 MCP URL
-  -> 计算巢自定义 MCP 填 URL
+  -> 复制 MCP Server ID 或 URL
+  -> 计算巢自定义 MCP 填 mcpServerId 或 URL
   -> 写入 McpConfigJson
   -> ACS 不为远端 URL 创建 workload
-  -> Agent 部署时拿到原始 transport + url
+  -> Agent 部署时调用 GetMcpServer 生成 transport + url
 ```
 
 ---
@@ -126,4 +127,4 @@ AI 网关控制台创建 HTTP-to-MCP
 | 模板参数 | 不出现独立纳管参数。 |
 | AI 网关 HTTP-to-MCP | 作为自定义 MCP URL 使用。 |
 | ACS Runtime | 命令型 MCP 独立创建 Knative Serving Service；远端 URL 不创建 pod。 |
-| Agent 部署 | 只接收可连接 MCP endpoint。 |
+| Agent 部署 | 只接收可连接 MCP endpoint，不接收 `mcpServerId`。 |

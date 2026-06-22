@@ -10,9 +10,9 @@
 |------|----------|
 | 配置入口 | 复用自定义 MCP，不新增“AI 网关接入”页签。 |
 | 存储字段 | 只写 `McpConfigJson`，不新增 `ManagedMcpConfigJson`。 |
-| 前端查询 | 不调用 APIG `ListMcpServers` 或 `GetMcpServer` 拉列表。 |
+| 前端查询 | 普通自定义 URL 不查 APIG；带 `mcpServerId` 的 AI 网关来源可调用 APIG `GetMcpServer` 拿实时详情。 |
 | 运行时 | ACS 只为本地命令型 MCP 创建 Knative Service；远端 URL 不创建 ACS workload。 |
-| Agent 部署 | 传 MCP endpoint，不传 `gatewayId` 或 `mcpServerId`。 |
+| Agent 部署 | 传最终 MCP endpoint；`mcpServerId` 只用于部署前查询 APIG，不下发给 Agent。 |
 
 ## 配置契约
 
@@ -23,7 +23,7 @@ HTTP-to-MCP 作为自定义远程 MCP 保存。远程 MCP 不带 `command` 和 `
   {
     "serverCode": "order-api",
     "type": "streamable-http",
-    "url": "https://example.com/mcp-servers/order-api",
+    "mcpServerId": "mcp-xxxx",
     "env": {}
   },
   {
@@ -39,10 +39,11 @@ HTTP-to-MCP 作为自定义远程 MCP 保存。远程 MCP 不带 `command` 和 `
 |------|------|------|
 | `serverCode` | 是 | 实例内唯一标识。命令型 MCP 会用它生成 `/mcp-servers/{serverCode}`；远端 URL 只用于展示和 Agent 选择。 |
 | `type` | 是 | 取值为 `sse` 或 `streamable-http`。 |
-| `url` | 是 | AI 网关控制台复制出的 MCP 访问地址。 |
+| `mcpServerId` | 否 | AI 网关 MCP Server ID。通过 AI 网关来源添加时保存；纯手填 URL 不需要。 |
+| `url` | 否 | 纯手填远端 MCP 的访问地址，也可作为 APIG 查询失败时的兜底地址。 |
 | `env` | 否 | 额外运行参数。没有参数时传 `{}`。 |
 
-不要把 `gatewayId`、`mcpServerId`、`name`、`displayName`、`mcpServerPath`、图标、tools 快照写进该条目。名称、tools、路径归 AI 网关控制台管理；计算巢只保存可连接的 MCP 地址。
+不要把 `gatewayId`、`name`、`displayName`、`mcpServerPath`、图标、tools 快照写进该条目。名称、tools、路径归 AI 网关控制台管理；需要展示或部署时用 `mcpServerId` 调 APIG 获取实时结果。
 
 ## 前端展示
 
@@ -51,7 +52,8 @@ HTTP-to-MCP 作为自定义远程 MCP 保存。远程 MCP 不带 `command` 和 `
 | 条目形态 | 展示方式 |
 |----------|----------|
 | 有 `command` | 按公共 MCP 或包类型自定义 MCP 展示。 |
-| 无 `command`，有 `url` | 按远程自定义 MCP 展示。 |
+| 无 `command`，有 `mcpServerId` | 按 AI 网关来源的远程自定义 MCP 展示；详情来自 APIG `GetMcpServer`。 |
+| 无 `command`，有 `url` | 按普通远程自定义 MCP 展示。 |
 | `type=sse` | 展示连接方式为 SSE。 |
 | `type=streamable-http` | 展示连接方式为 Streamable HTTP。 |
 
@@ -64,14 +66,26 @@ ACS 只给本地命令型 MCP 创建 Knative Service，并统一向外暴露 Str
 | `McpConfigJson` 条目 | ACS 启动方式 | 对外路径 |
 |----------------------|--------------|----------|
 | `command=npx` 或 `command=uvx` | `supergateway --stdio ... --outputTransport streamableHttp` | `/mcp-servers/{serverCode}` |
-| 无 `command`，有 `url` | 不创建 ACS workload | 使用 `McpConfigJson.url` |
+| 无 `command`，有 `mcpServerId` 或 `url` | 不创建 ACS workload | Agent 部署时解析最终 URL |
 
 Agent 部署时使用最终可连接的 endpoint：
 
 | MCP 形态 | Agent endpoint |
 |----------|----------------|
 | 命令型 MCP | `{McpRuntimeEndpoint}/mcp-servers/{serverCode}` |
-| 远端 URL MCP | `McpConfigJson.url` |
+| AI 网关来源 MCP | 调 APIG `GetMcpServer(mcpServerId)` 后生成 URL。 |
+| 普通远端 URL MCP | `McpConfigJson.url`。 |
+
+AI 网关来源 MCP 的部署解析规则：
+
+| Step | Rule |
+|------|------|
+| 1 | 用 `mcpServerId` 调 APIG `GetMcpServer`。 |
+| 2 | 只接受 `deployStatus=Deployed` 的 MCP Server。 |
+| 3 | 从 `domainInfos` 选一个可访问域名，协议用返回的 `HTTP` 或 `HTTPS`。 |
+| 4 | `type=streamable-http` 时 URL 为 `{scheme}://{domain}{mcpServerPath}`。 |
+| 5 | `type=sse` 时 URL 为 `{scheme}://{domain}{mcpServerPath}/sse`。 |
+| 6 | 如果 APIG 查询失败且条目里有 `url`，可降级使用该 `url`；否则阻止部署并提示用户刷新 MCP。 |
 
 Agent 配置只需要传 transport 和 url：
 
@@ -120,7 +134,7 @@ aliyun apig list-mcp-servers \
 
 | 检查项 | 期望 |
 |--------|------|
-| 远程 MCP | 有 `url`，无 `command`。 |
+| 远程 MCP | 有 `mcpServerId` 或 `url`，无 `command`。 |
 | 连接方式 | `type` 是 `sse` 或 `streamable-http`。 |
 | 旧条目 | 公共 MCP 和包类型自定义 MCP 不变。 |
 | 独立字段 | 没有 `ManagedMcpConfigJson`。 |
@@ -146,7 +160,7 @@ kubectl -n mcp-runtime get ksvc,route,pod,svc,ingress
 
 ### 4. 验证 MCP 协议
 
-命令型 MCP 对 ACS 输出 endpoint 发起 Streamable HTTP 初始化请求。远端 URL MCP 直接请求 `McpConfigJson.url`；AI 网关 HTTP-to-MCP 的 Streamable HTTP 地址是 `/mcp-servers/{name}`，SSE 地址是 `/mcp-servers/{name}/sse`。
+命令型 MCP 对 ACS 输出 endpoint 发起 Streamable HTTP 初始化请求。远端 URL MCP 直接请求最终 URL；AI 网关来源 MCP 先用 `GetMcpServer` 解析最终 URL。AI 网关 HTTP-to-MCP 的 Streamable HTTP 地址是 `/mcp-servers/{name}`，SSE 地址是 `/mcp-servers/{name}/sse`。
 
 ```bash
 MCP_URL="https://example.com/mcp-servers/order-api"
@@ -201,8 +215,8 @@ curl -i -sS -X POST "$MCP_URL" \
 | 检查项 | 期望 |
 |--------|------|
 | transport | `streamable-http`。 |
-| url | 命令型 MCP 用 ACS ALB endpoint；远端 URL MCP 用 `McpConfigJson.url`。 |
-| 内部 ID | 不传 `gatewayId`、`mcpServerId`。 |
+| url | 命令型 MCP 用 ACS ALB endpoint；AI 网关来源 MCP 用 `GetMcpServer` 实时生成 endpoint；普通远端 URL MCP 用 `McpConfigJson.url`。 |
+| 内部 ID | 不传 `gatewayId`、`mcpServerId` 给 Agent。 |
 | 调用结果 | Agent 能完成一次 tools 调用。 |
 
 ## 排查
